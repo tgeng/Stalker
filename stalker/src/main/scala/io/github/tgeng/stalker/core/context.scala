@@ -25,9 +25,9 @@ extension contextOps on (self: Context) {
   def apply(idx: Int) = self.content.lastN(idx)
 }
 
-extension substitutionOps on [T](self: Substitution[T]) {
+extension substitutionOps on [T, R](self: Substitution[T]) {
   def ++(other: Substitution[T]) = Substitution(self.content ++ other.content)
   def apply(idx: Int) = self.content.lastN(idx)
-  def map(f : T => T) = Substitution(self.content.map(f))
+  def map(f : T => R) = Substitution[R](self.content.map(f))
   def size = self.content.size
 }

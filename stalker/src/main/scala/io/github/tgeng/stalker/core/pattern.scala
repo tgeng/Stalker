@@ -30,6 +30,15 @@ extension patternOps on (self: Pattern) {
     case PForced(t) => t
     case PAbsurd => throw IllegalArgumentException()
   }
+
+  def substituteImpl(using spec: SubstituteSpec[Pattern]) : Pattern = self match {
+    case PVar(idx) => if (idx >= spec.offset) spec.substitution(idx - spec.offset) else self
+    case PRefl => self
+    case PCon(con, patterns) => PCon(con, patterns.map(_.substituteImpl))
+    case PForcedCon(con, patterns) => PForcedCon(con, patterns.map(_.substituteImpl))
+    case PForced(t) => PForced(t.substitute(spec.substitution.map(_.toTerm)))
+    case PAbsurd => self
+  }
 }
 
 extension coPatternOps on (self: CoPattern) {
