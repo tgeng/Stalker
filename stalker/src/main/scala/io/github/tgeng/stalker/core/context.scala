@@ -6,7 +6,9 @@ case class Telescope(content: IndexedSeq[Term])
 
 case class Context(content: IndexedSeq[Term])
 
-case class Substitution(content: IndexedSeq[Term])
+case class Substitution[T](content: IndexedSeq[T])
+
+case class SubstituteSpec[T](offset: Int, substitution: Substitution[T])
 
 extension telescopeOps on (self: Telescope) {
   def +:(t: Term) = Telescope(t +: self.content)
@@ -23,9 +25,9 @@ extension contextOps on (self: Context) {
   def apply(idx: Int) = self.content.lastN(idx)
 }
 
-extension substitutionOps on (self: Substitution) {
-  def ++(other: Substitution) = Substitution(self.content ++ other.content)
+extension substitutionOps on [T](self: Substitution[T]) {
+  def ++(other: Substitution[T]) = Substitution(self.content ++ other.content)
   def apply(idx: Int) = self.content.lastN(idx)
-  def map(f : Term => Term) = Substitution(self.content.map(f))
+  def map(f : T => T) = Substitution(self.content.map(f))
   def size = self.content.size
 }

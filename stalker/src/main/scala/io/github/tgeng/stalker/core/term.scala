@@ -25,9 +25,7 @@ import Term._
 import Whnf._
 import Elimination._
 
-private case class RaiseSpec(bar:Int, amount:Int)
-
-private case class SubstituteSpec(offset: Int, substitution: Substitution)
+case class RaiseSpec(bar:Int, amount:Int)
 
 extension termOps on (self: Term) {
   def raise(amount: Int) : Term = self.raiseImpl(using RaiseSpec(0, amount))
@@ -37,9 +35,9 @@ extension termOps on (self: Term) {
     case TRedux(fn, elims) => TRedux(fn, elims.map(_.raiseImpl))
   }
 
-  def substitute(substitution: Substitution) : Term = self.substituteImpl(using SubstituteSpec(0, substitution)).raise(-substitution.size)
+  def substitute(substitution: Substitution[Term]) : Term = self.substituteImpl(using SubstituteSpec(0, substitution)).raise(-substitution.size)
 
-  def substituteImpl(using spec: SubstituteSpec) : Term = self match {
+  def substituteImpl(using spec: SubstituteSpec[Term]) : Term = self match {
     case TWhnf(whnf) => whnf.substituteImpl
     case TRedux(fn, elims) => TRedux(fn, elims.map(_.substituteImpl))
   }
@@ -56,12 +54,12 @@ extension whnfOps on (self: Whnf) {
     case WCon(con, args) => WCon(con, args.map(_.raiseImpl))
     case WRefl => WRefl
   }
-  def substituteImpl(using spec: SubstituteSpec) : Term = self match {
+  def substituteImpl(using spec: SubstituteSpec[Term]) : Term = self match {
     case WFunction(argTy, bodyTy) => TWhnf(WFunction(
       argTy.substituteImpl,
       bodyTy.substituteImpl(using SubstituteSpec(
         spec.offset + 1,
-        spec.substitution.map(_.raiseImpl(using RaiseSpec(0, 1)))))))
+        spec.substitution.map(_.raise(1))))))
     case WUniverse(_) => TWhnf(self)
     case WData(data, params) => TWhnf(WData(data, params.map(_.substituteImpl)))
     case WRecord(record, params) => TWhnf(WRecord(record, params.map(_.substituteImpl)))
@@ -76,6 +74,8 @@ extension whnfOps on (self: Whnf) {
         case (TRedux(fn, sElims), _) => TRedux(fn, sElims ++ elims)
       } else
         TWhnf(WVar(idx, elims.map(_.substituteImpl)))
+    case WCon(con, args) => TWhnf(WCon(con, args.map(_.substituteImpl)))
+    case WRefl => TWhnf(self)
   }
 }
 
@@ -84,7 +84,7 @@ extension eliminationOps on (self: Elimination) {
     case ETerm(t) => ETerm(t.raiseImpl)
     case EProj(p) => EProj(p)
   }
-  def substituteImpl(using spec: SubstituteSpec) : Elimination = self match {
+  def substituteImpl(using spec: SubstituteSpec[Term]) : Elimination = self match {
     case ETerm(t) => ETerm(t.substituteImpl)
     case EProj(p) => self
   }
