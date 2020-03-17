@@ -27,4 +27,5 @@ extension substitutionOps on (self: Substitution) {
   def ++(other: Substitution) = Substitution(self.content ++ other.content)
   def apply(idx: Int) = self.content.lastN(idx)
   def map(f : Term => Term) = Substitution(self.content.map(f))
+  def size = self.content.size
 }

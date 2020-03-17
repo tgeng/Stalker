@@ -25,43 +25,47 @@ import Term._
 import Whnf._
 import Elimination._
 
-case class RaiseSpec(bar:Int, amount:Int)
+private case class RaiseSpec(bar:Int, amount:Int)
 
-case class SubstituteSpec(offset: Int, substitution: Substitution)
+private case class SubstituteSpec(offset: Int, substitution: Substitution)
 
 extension termOps on (self: Term) {
-  def raise(using spec: RaiseSpec) : Term = self match {
-    case TWhnf(whnf) => TWhnf(whnf.raise)
-    case TRedux(fn, elims) => TRedux(fn, elims.map(_.raise))
+  def raise(amount: Int) : Term = self.raiseImpl(using RaiseSpec(0, amount))
+
+  def raiseImpl(using spec: RaiseSpec) : Term = self match {
+    case TWhnf(whnf) => TWhnf(whnf.raiseImpl)
+    case TRedux(fn, elims) => TRedux(fn, elims.map(_.raiseImpl))
   }
 
-  def substitute(using spec: SubstituteSpec) : Term = self match {
-    case TWhnf(whnf) => whnf.substitute
-    case TRedux(fn, elims) => TRedux(fn, elims.map(_.substitute))
+  def substitute(substitution: Substitution) : Term = self.substituteImpl(using SubstituteSpec(0, substitution)).raise(-substitution.size)
+
+  def substituteImpl(using spec: SubstituteSpec) : Term = self match {
+    case TWhnf(whnf) => whnf.substituteImpl
+    case TRedux(fn, elims) => TRedux(fn, elims.map(_.substituteImpl))
   }
 }
 
 extension whnfOps on (self: Whnf) {
-  def raise(using spec: RaiseSpec) : Whnf = self match {
-    case WFunction(argTy, bodyTy) => WFunction(argTy.raise, bodyTy.raise(using RaiseSpec(spec.bar + 1, spec.amount)))
+  def raiseImpl(using spec: RaiseSpec) : Whnf = self match {
+    case WFunction(argTy, bodyTy) => WFunction(argTy.raiseImpl, bodyTy.raiseImpl(using RaiseSpec(spec.bar + 1, spec.amount)))
     case WUniverse(_) => self
-    case WData(data, params) => WData(data, params.map(_.raise))
-    case WRecord(record, params) => WRecord(record, params.map(_.raise))
-    case WId(ty: Term, left: Term, right: Term) => WId(ty.raise, left.raise, right.raise)
-    case WVar(idx, elims) => WVar(if(idx >= spec.bar) idx + 1 else idx, elims.map(_.raise))
-    case WCon(con, args) => WCon(con, args.map(_.raise))
+    case WData(data, params) => WData(data, params.map(_.raiseImpl))
+    case WRecord(record, params) => WRecord(record, params.map(_.raiseImpl))
+    case WId(ty: Term, left: Term, right: Term) => WId(ty.raiseImpl, left.raiseImpl, right.raiseImpl)
+    case WVar(idx, elims) => WVar(if(idx >= spec.bar) idx + 1 else idx, elims.map(_.raiseImpl))
+    case WCon(con, args) => WCon(con, args.map(_.raiseImpl))
     case WRefl => WRefl
   }
-  def substitute(using spec: SubstituteSpec) : Term = self match {
+  def substituteImpl(using spec: SubstituteSpec) : Term = self match {
     case WFunction(argTy, bodyTy) => TWhnf(WFunction(
-      argTy.substitute,
-      bodyTy.substitute(using SubstituteSpec(
+      argTy.substituteImpl,
+      bodyTy.substituteImpl(using SubstituteSpec(
         spec.offset + 1,
-        spec.substitution.map(_.raise(using RaiseSpec(0, 1)))))))
+        spec.substitution.map(_.raiseImpl(using RaiseSpec(0, 1)))))))
     case WUniverse(_) => TWhnf(self)
-    case WData(data, params) => TWhnf(WData(data, params.map(_.substitute)))
-    case WRecord(record, params) => TWhnf(WRecord(record, params.map(_.substitute)))
-    case WId(ty, left, right) => TWhnf(WId(ty.substitute, left.substitute, right.substitute))
+    case WData(data, params) => TWhnf(WData(data, params.map(_.substituteImpl)))
+    case WRecord(record, params) => TWhnf(WRecord(record, params.map(_.substituteImpl)))
+    case WId(ty, left, right) => TWhnf(WId(ty.substituteImpl, left.substituteImpl, right.substituteImpl))
     case WVar(idx, elims) =>
       if (idx >= spec.offset) (spec.substitution(idx - spec.offset), elims.isEmpty) match {
         case (_, true) => TWhnf(self)
@@ -71,17 +75,17 @@ extension whnfOps on (self: Whnf) {
         }
         case (TRedux(fn, sElims), _) => TRedux(fn, sElims ++ elims)
       } else
-        TWhnf(WVar(idx, elims.map(_.substitute)))
+        TWhnf(WVar(idx, elims.map(_.substituteImpl)))
   }
 }
 
 extension eliminationOps on (self: Elimination) {
-  def raise(using spec: RaiseSpec): Elimination = self match {
-    case ETerm(t) => ETerm(t.raise)
+  def raiseImpl(using spec: RaiseSpec): Elimination = self match {
+    case ETerm(t) => ETerm(t.raiseImpl)
     case EProj(p) => EProj(p)
   }
-  def substitute(using spec: SubstituteSpec) : Elimination = self match {
-    case ETerm(t) => ETerm(t.substitute)
+  def substituteImpl(using spec: SubstituteSpec) : Elimination = self match {
+    case ETerm(t) => ETerm(t.substituteImpl)
     case EProj(p) => self
   }
 }
