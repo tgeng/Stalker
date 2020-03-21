@@ -4,10 +4,6 @@ import Term._
 import Whnf._
 import Elimination._
 
-def (Σ: Signature) |- (Γ: Context): Result[Unit] = {
-  throw UnsupportedOperationException()
-}
-
 def (ty: Type) level (using Γ: Context)(using Σ: Signature) : Result[Level] = {
   throw UnsupportedOperationException()
 }

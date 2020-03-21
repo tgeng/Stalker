@@ -4,20 +4,18 @@ import io.github.tgeng.common.indexedSeqOps._
 
 type Telescope = List[Term]
 
-case class Context(content: IndexedSeq[Term])
+type Context = List[Term]
 
 case class Substitution[T](content: IndexedSeq[T])
 
 case class SubstituteSpec[T](offset: Int, substitution: Substitution[T])
 
 extension telescopeOps on (self: Telescope) {
-  def toContext = Context(self.toIndexedSeq)
+  def toContext = self.reverse
 }
 
 extension contextOps on (self: Context) {
-  def :+(t: Term) = Context(self.content :+ t)
-  def ++(other: Telescope) = Context(self.content ++ other)
-  def apply(idx: Int) = self.content.lastN(idx)
+  def toTelescope : Telescope = self.reverse
 }
 
 extension substitutionOps on [T, R](self: Substitution[T]) {
