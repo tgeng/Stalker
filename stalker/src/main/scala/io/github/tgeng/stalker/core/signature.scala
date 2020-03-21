@@ -20,8 +20,8 @@ case class Constructor(name: String, args: Telescope)
 case class Field(name: String, ty: Term)
 
 enum Clause[T <: Status] {
-  case UncheckedClause(lhs: Seq[CoPattern], rhs: UncheckedRhs) extends Clause[Unchecked]
-  case CheckedClause(bindings: Telescope, lhs: Seq[CoPattern], rhs: Term, ty: Term) extends Clause[Checked]
+  case UncheckedClause(lhs: List[CoPattern], rhs: UncheckedRhs) extends Clause[Unchecked]
+  case CheckedClause(bindings: Telescope, lhs: List[CoPattern], rhs: Term, ty: Term) extends Clause[Checked]
 }
 
 enum UncheckedRhs {
@@ -33,4 +33,5 @@ import Clause._
 
 import scala.collection.mutable
 
-type Signature[+C[_] <: scala.collection.IndexedSeq[_]] = C[Declaration[Checked, scala.collection.IndexedSeq]]
+type SignatureT[+C[_] <: scala.collection.IndexedSeq[_]] = C[Declaration[Checked, scala.collection.IndexedSeq]]
+type Signature = SignatureT[scala.collection.IndexedSeq]

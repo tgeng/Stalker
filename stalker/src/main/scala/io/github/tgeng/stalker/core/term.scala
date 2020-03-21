@@ -2,17 +2,17 @@ package io.github.tgeng.stalker.core
 
 enum Term {
   case TWhnf(whnf: Whnf)
-  case TRedux(fn: QualifiedName, elims: Seq[Elimination])
+  case TRedux(fn: QualifiedName, elims: List[Elimination])
 }
 
 enum Whnf {
   case WFunction(argTy: Term, bodyTy: Term)
   case WUniverse(level: Int)
-  case WData(data: QualifiedName, params: Seq[Term])
-  case WRecord(record: QualifiedName, params: Seq[Term])
+  case WData(data: QualifiedName, params: List[Term])
+  case WRecord(record: QualifiedName, params: List[Term])
   case WId(ty: Term, left: Term, right: Term)
-  case WVar(idx: Int, elims: Seq[Elimination])
-  case WCon(con: String, args: Seq[Term])
+  case WVar(idx: Int, elims: List[Elimination])
+  case WCon(con: String, args: List[Term])
   case WRefl
 }
 

@@ -7,8 +7,8 @@ import Elimination._
 enum Pattern {
   case PVar(idx: Int)
   case PRefl
-  case PCon(con: String, patterns: Seq[Pattern])
-  case PForcedCon(con: String, patterns: Seq[Pattern])
+  case PCon(con: String, patterns: List[Pattern])
+  case PForcedCon(con: String, patterns: List[Pattern])
   case PForced(t: Term)
   case PAbsurd
 }
@@ -23,7 +23,7 @@ import CoPattern._
 
 extension patternOps on (self: Pattern) {
   def toTerm: Term = self match {
-    case PVar(idx) => TWhnf(WVar(idx, Seq.empty))
+    case PVar(idx) => TWhnf(WVar(idx, Nil))
     case PRefl => TWhnf(WRefl)
     case PCon(con, patterns) => TWhnf(WCon(con, patterns.map(_.toTerm)))
     case PForcedCon(con, patterns) => TWhnf(WCon(con, patterns.map(_.toTerm)))
