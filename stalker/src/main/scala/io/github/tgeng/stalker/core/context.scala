@@ -2,9 +2,9 @@ package io.github.tgeng.stalker.core
 
 import io.github.tgeng.common.indexedSeqOps._
 
-type Telescope = List[Term]
+type Telescope = List[Type]
 
-type Context = List[Term]
+type Context = List[Type]
 
 case class Substitution[T](content: IndexedSeq[T])
 

@@ -1,5 +1,7 @@
 package io.github.tgeng.stalker.core
 
+type Type = Whnf
+
 enum Term {
   case TWhnf(whnf: Whnf)
   case TRedux(fn: QualifiedName, elims: List[Elimination])

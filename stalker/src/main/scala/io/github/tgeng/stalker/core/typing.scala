@@ -39,17 +39,13 @@ def (Δ: Telescope) inferLevel (using Γ: Context)(using Σ: Signature) : Result
   } yield max(l1, l2)
 }
 
-def (eq: Type ≡ Type) inferLevel (using Γ: Context)(using Σ: Signature) : Result[Level] = {
-  val a ≡ b = eq
-  TODO()
-}
-
-def (tm: Term) hasType (ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
-  ty match {
-    case WUniverse(l) => tm.inferLevel match {
-      case Right(inferredL) if inferredL == l => ()
-      case Right(inferredL) => typingError(s"Universe level mismatch. Expected level $l, but got $inferredL.")
-      case Left(e) => Left(e)
+def (tm: Term) hasType (ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = ty.inferLevel match {
+    case Left(e) => Left(e)
+    case _ => tm ∷ ty match {
+      case _ ∷ WUniverse(l) => tm.inferLevel match {
+        case Right(inferredL) if inferredL == l => ()
+        case Right(inferredL) => typingError(s"Universe level mismatch. Expected level $l, but got $inferredL.")
+        case Left(e) => Left(e)
     }
   }
 }
@@ -95,18 +91,17 @@ extension signatureOps on (self: Signature) {
 
 type Result = Either[TypingError, *]
 type Level = Int
-type Type = Whnf
 
 case class ∷[X, Y](x: X, y: Y)
 
 case class ≡[X, Y](x: X, y: Y)
 
-extension hasType on [X](ty: Term) {
-  def ∷ (x: X) = new ∷(x, ty)
+extension termTyping on (tm: Term) {
+  def ∷ (ty: Type) = new ∷(tm, ty)
 }
 
-extension hasTypes on [X](Δ: Telescope) {
-  def ∷ (x: X) = new ∷(x, Δ)
+extension termsTyping on (tms: List[Term]) {
+  def ∷ (tys: Telescope) = new ∷(tms, tys)
 }
 
 extension isEqual on [X](lhs: X) {
