@@ -39,14 +39,20 @@ def (Δ: Telescope) inferLevel (using Γ: Context)(using Σ: Signature) : Result
   } yield max(l1, l2)
 }
 
+def (eq: ≡[Type]) inferLevel (using Γ: Context)(using Σ: Signature) : Result[Level] = TODO()
+
 def (tm: Term) hasType (ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = ty.inferLevel match {
-    case Left(e) => Left(e)
-    case _ => tm ∷ ty match {
-      case _ ∷ WUniverse(l) => tm.inferLevel match {
-        case Right(inferredL) if inferredL == l => ()
-        case Right(inferredL) => typingError(s"Universe level mismatch. Expected level $l, but got $inferredL.")
-        case Left(e) => Left(e)
+  case Left(e) => Left(e)
+  case _ => tm ∷ ty match {
+    case _ ∷ WUniverse(l) => tm.inferLevel match {
+      case Right(inferredL) if inferredL == l => ()
+      case Right(inferredL) => typingError(s"Universe level mismatch. Expected level $l, but got $inferredL.")
+      case Left(e) => Left(e)
     }
+    case (r@TRedux(_, Nil)) ∷ _ => for {
+      definition <- Σ(r)
+      _ <- (definition.ty ≡ ty).inferLevel
+    } yield ()
   }
 }
 
@@ -58,15 +64,15 @@ def (head: Term ∷ Type) gives (elimAndType: List[Elimination] ∷ Telescope)(u
   TODO()
 }
 
-def (eq: Term ≡ Term) hasType (ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
+def (eq:  ≡[Term]) hasType (ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
   TODO()
 }
 
-def (eqs: List[Term] ≡ List[Term]) hasTypes (ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
+def (eqs: ≡[List[Term]]) hasTypes (ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
   TODO()
 }
 
-def (head: Term ∷ Type) givesEquality (elimEq: List[Elimination] ≡ List[Elimination] ∷ Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
+def (head: Term ∷ Type) givesEquality (elimEq: ≡[List[Elimination]] ∷ Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
   TODO()
 }
 
@@ -94,7 +100,7 @@ type Level = Int
 
 case class ∷[X, Y](x: X, y: Y)
 
-case class ≡[X, Y](x: X, y: Y)
+case class ≡[X](a: X, b: X)
 
 extension termTyping on (tm: Term) {
   def ∷ (ty: Type) = new ∷(tm, ty)
@@ -104,8 +110,12 @@ extension termsTyping on (tms: List[Term]) {
   def ∷ (tys: Telescope) = new ∷(tms, tys)
 }
 
-extension isEqual on [X](lhs: X) {
-  def ≡ (rhs: X) = new ≡(lhs, rhs)
+extension termEqual on (lhs: Term) {
+  def ≡ (rhs: Term) = new ≡(lhs, rhs)
+}
+
+extension typeEqual on (lhs: Type) {
+  def ≡ (rhs: Type) = new ≡(lhs, rhs)
 }
 
 case class TypingError(msg: String)
