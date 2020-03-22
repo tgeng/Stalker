@@ -49,9 +49,12 @@ def (tm: Term) hasType (ty: Type)(using Γ: Context)(using Σ: Signature) : Resu
       case Right(inferredL) => typingError(s"Universe level mismatch. Expected level $l, but got $inferredL.")
       case Left(e) => Left(e)
     }
-    case (r@TRedux(_, Nil)) ∷ _ => for {
+    case (TWhnf(WVar(idx, elims))) ∷ _ => for {
+      _ <- TWhnf(WVar(idx, Nil)) ∷ Γ(idx) |- elims ∷ ty
+    } yield ()
+    case (r@TRedux(fn, elims)) ∷ _ => for {
       definition <- Σ(r)
-      _ <- (definition.ty ≡ ty).inferLevel
+      _ <- TRedux(fn, Nil) ∷ definition.ty |- elims ∷ ty
     } yield ()
   }
 }
@@ -60,7 +63,7 @@ def (tms: List[Term]) hasTypes (Δ: Telescope)(using Γ: Context)(using Σ: Sign
   TODO()
 }
 
-def (head: Term ∷ Type) gives (elimAndType: List[Elimination] ∷ Telescope)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
+def (head: Term ∷ Type) |- (elimAndType: List[Elimination] ∷ Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
   TODO()
 }
 
@@ -72,13 +75,13 @@ def (eqs: ≡[List[Term]]) hasTypes (ty: Type)(using Γ: Context)(using Σ: Sign
   TODO()
 }
 
-def (head: Term ∷ Type) givesEquality (elimEq: ≡[List[Elimination]] ∷ Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
+def (head: Term ∷ Type) |-= (elimEq: ≡[List[Elimination]] ∷ Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
   TODO()
 }
 
 // ------- magic splitter -------
 
-extension signatureOps on (self: Signature) {
+extension signatureTypingOps on (self: Signature) {
   def apply(data : WData) : Result[Declaration.Data[Status.Checked, IndexedSeq]] = self(data.qn) match {
     case d : Declaration.Data[Status.Checked, IndexedSeq] => d
     case _ => typingError(s"No data schema found for ${data.qn}")
@@ -108,6 +111,10 @@ extension termTyping on (tm: Term) {
 
 extension termsTyping on (tms: List[Term]) {
   def ∷ (tys: Telescope) = new ∷(tms, tys)
+}
+
+extension elimsTyping on (elims: List[Elimination]) {
+  def ∷ (ty: Type) = new ∷(elims, ty)
 }
 
 extension termEqual on (lhs: Term) {
