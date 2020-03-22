@@ -8,8 +8,8 @@ enum Term {
 enum Whnf {
   case WFunction(argTy: Term, bodyTy: Term)
   case WUniverse(level: Int)
-  case WData(data: QualifiedName, params: List[Term])
-  case WRecord(record: QualifiedName, params: List[Term])
+  case WData(qn: QualifiedName, params: List[Term])
+  case WRecord(qn: QualifiedName, params: List[Term])
   case WId(ty: Term, left: Term, right: Term)
   case WVar(idx: Int, elims: List[Elimination])
   case WCon(con: String, args: List[Term])

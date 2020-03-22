@@ -4,15 +4,31 @@ import scala.language.implicitConversions
 import scala.math.max
 import io.github.tgeng.common._
 import io.github.tgeng.common.sugar.{given _}
+import Term._
 import Whnf._
 import Elimination._
 import reduction.{_, given _}
 
-def (tm: Whnf) inferLevel (using Γ: Context)(using Σ: Signature) : Result[Level] = tm match {
+def (tm: Type) inferLevel (using Γ: Context)(using Σ: Signature) : Result[Level] = tm match {
   case WUniverse(l) => l + 1
   case WFunction(argTy, bodyTy) => for {
     argTyL <- argTy.inferLevel
-  } yield argTyL
+    bodyTyL <- bodyTy.inferLevel(using argTy :: Γ)
+  } yield max(argTyL, bodyTyL)
+  case wData@WData(qn, u) => for {
+    data <- Σ(wData)
+    _ <- u hasTypes data.paramTys
+  } yield data.level
+  case wRecord@WRecord(qn, u) => for {
+    record <- Σ(wRecord)
+    _ <- u hasTypes record.paramsTy
+  } yield record.level
+  case WId(ty, left, right) => for {
+    tyL <- ty.inferLevel
+    _ <- left hasType ty
+    _ <- right hasType ty
+  } yield tyL
+  case _ => typingError(s"$tm is not a type.")
 }
 
 def (Δ: Telescope) inferLevel (using Γ: Context)(using Σ: Signature) : Result[Level] = Δ match {
@@ -23,9 +39,12 @@ def (Δ: Telescope) inferLevel (using Γ: Context)(using Σ: Signature) : Result
   } yield max(l1, l2)
 }
 
-def (eq: Type ≡ Type) inferLevel (using Γ: Context)(using Σ: Signature) : Result[Level] = TODO()
+def (eq: Type ≡ Type) inferLevel (using Γ: Context)(using Σ: Signature) : Result[Level] = {
+  val a ≡ b = eq
+  TODO()
+}
 
-def (tm: Whnf) hasType (ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
+def (tm: Term) hasType (ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
   ty match {
     case WUniverse(l) => tm.inferLevel match {
       case Right(inferredL) if inferredL == l => ()
@@ -35,27 +54,44 @@ def (tm: Whnf) hasType (ty: Type)(using Γ: Context)(using Σ: Signature) : Resu
   }
 }
 
-def (tms: List[Whnf]) hasTypes (Δ: Telescope)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
+def (tms: List[Term]) hasTypes (Δ: Telescope)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
   TODO()
 }
 
-def (head: Whnf ∷ Type) gives (elimAndType: List[Elimination] ∷ Telescope)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
+def (head: Term ∷ Type) gives (elimAndType: List[Elimination] ∷ Telescope)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
   TODO()
 }
 
-def (eq: Whnf ≡ Whnf) hasType (ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
+def (eq: Term ≡ Term) hasType (ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
   TODO()
 }
 
-def (eqs: List[Whnf] ≡ List[Whnf]) hasTypes (ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
+def (eqs: List[Term] ≡ List[Term]) hasTypes (ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
   TODO()
 }
 
-def (head: Whnf ∷ Type) givesEquality (elimEq: List[Elimination] ≡ List[Elimination] ∷ Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
+def (head: Term ∷ Type) givesEquality (elimEq: List[Elimination] ≡ List[Elimination] ∷ Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
   TODO()
 }
 
 // ------- magic splitter -------
+
+extension signatureOps on (self: Signature) {
+  def apply(data : WData) : Result[Declaration.Data[Status.Checked, IndexedSeq]] = self(data.qn) match {
+    case d : Declaration.Data[Status.Checked, IndexedSeq] => d
+    case _ => typingError(s"No data schema found for ${data.qn}")
+  }
+
+  def apply(record : WRecord) : Result[Declaration.Record[Status.Checked, IndexedSeq]] = self(record.qn) match {
+    case r : Declaration.Record[Status.Checked, IndexedSeq] => r
+    case _ => typingError(s"No record schema found for ${record.qn}")
+  }
+
+  def apply(redux : TRedux) : Result[Declaration.Definition[Status.Checked, IndexedSeq]] = self(redux.fn) match {
+    case d : Declaration.Definition[Status.Checked, IndexedSeq] => d
+    case _ => typingError(s"No record schema found for ${redux.fn}")
+  }
+}
 
 type Result = Either[TypingError, *]
 type Level = Int
@@ -65,7 +101,7 @@ case class ∷[X, Y](x: X, y: Y)
 
 case class ≡[X, Y](x: X, y: Y)
 
-extension hasType on [X](ty: Whnf) {
+extension hasType on [X](ty: Term) {
   def ∷ (x: X) = new ∷(x, ty)
 }
 

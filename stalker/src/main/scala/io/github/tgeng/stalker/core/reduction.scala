@@ -10,4 +10,5 @@ object reduction {
     case TWhnf(w) => w
     case TRedux(fn, elims) => throw UnsupportedOperationException()
   }
+  given termsToWhnfs as Conversion[List[Term], List[Whnf]] = (tms: List[Term]) => tms.map(termToWhnf)
 }
