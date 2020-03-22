@@ -8,6 +8,7 @@ import Term._
 import Whnf._
 import Elimination._
 import reduction.{_, given _}
+import substitutionConversion.{given _}
 
 def (tm: Type) inferLevel (using Γ: Context)(using Σ: Signature) : Result[Level] = tm match {
   case WUniverse(l) => l + 1
@@ -35,7 +36,7 @@ def (Δ: Telescope) inferLevel (using Γ: Context)(using Σ: Signature) : Result
   case Nil => 0
   case x :: rest => for {
     l1 <- x.inferLevel
-    l2 <- rest.inferLevel
+    l2 <- rest.inferLevel(using x :: Γ)
   } yield max(l1, l2)
 }
 
@@ -44,18 +45,31 @@ def (eq: ≡[Type]) inferLevel (using Γ: Context)(using Σ: Signature) : Result
 def (tm: Term) hasType (ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = ty.inferLevel match {
   case Left(e) => Left(e)
   case _ => tm ∷ ty match {
+    // Types
     case _ ∷ WUniverse(l) => tm.inferLevel match {
       case Right(inferredL) if inferredL == l => ()
       case Right(inferredL) => typingError(s"Universe level mismatch. Expected level $l, but got $inferredL.")
       case Left(e) => Left(e)
     }
-    case (TWhnf(WVar(idx, elims))) ∷ _ => for {
+    // Heads
+    case TWhnf(WVar(idx, elims)) ∷ _ => for {
       _ <- TWhnf(WVar(idx, Nil)) ∷ Γ(idx) |- elims ∷ ty
     } yield ()
     case (r@TRedux(fn, elims)) ∷ _ => for {
       definition <- Σ(r)
       _ <- TRedux(fn, Nil) ∷ definition.ty |- elims ∷ ty
     } yield ()
+    // Values
+    case TWhnf(WCon(c, v)) ∷ (wData@WData(d, u)) => for {
+      data <- Σ(wData)
+      constructor <- data(c)     
+      _ <- u hasTypes data.paramTys
+      _ <- v hasTypes constructor.argTys(v)
+    } yield ()
+    case TWhnf(WRefl) ∷ WId(ty, u, v) if (u == v) => for {
+      _ <- u hasType ty
+    } yield ()
+    case _ => typingError(s"Type mismatch for $tm and $ty.")
   }
 }
 
@@ -95,6 +109,20 @@ extension signatureTypingOps on (self: Signature) {
   def apply(redux : TRedux) : Result[Declaration.Definition[Status.Checked, IndexedSeq]] = self(redux.fn) match {
     case d : Declaration.Definition[Status.Checked, IndexedSeq] => d
     case _ => typingError(s"No record schema found for ${redux.fn}")
+  }
+}
+
+extension dataOps on (self: Declaration.Data[Status.Checked, IndexedSeq]) {
+  def apply(name: String) : Result[Constructor] = self.cons.find(_.name == name) match {
+    case Some(c) => c
+    case None => typingError(s"Cannot find constructor '$name' for data ${self.qn}.")
+  }
+}
+
+extension recordOps on (self: Declaration.Record[Status.Checked, IndexedSeq]) {
+  def apply(name: String) : Result[Field] = self.fields.find(_.name == name) match {
+    case Some(f) => f
+    case None => typingError(s"Cannot find field '$name' for record ${self.qn}.")
   }
 }
 

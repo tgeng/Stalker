@@ -1,5 +1,7 @@
 package io.github.tgeng.stalker.core
 
+import substitutionOps._
+
 type Type = Whnf
 
 enum Term {
@@ -37,7 +39,7 @@ extension termOps on (self: Term) {
     case TRedux(fn, elims) => TRedux(fn, elims.map(_.raiseImpl))
   }
 
-  def substitute(substitution: Substitution[Term]) : Term = self.substituteImpl(using SubstituteSpec(0, substitution)).raise(-substitution.size)
+  def apply(substitution: Substitution[Term]) : Term = self.substituteImpl(using SubstituteSpec(0, substitution)).raise(-substitution.size)
 
   def substituteImpl(using spec: SubstituteSpec[Term]) : Term = self match {
     case TWhnf(whnf) => whnf.substituteImpl
@@ -46,6 +48,8 @@ extension termOps on (self: Term) {
 }
 
 extension whnfOps on (self: Whnf) {
+  def raise(amount: Int) : Whnf = self.raiseImpl(using RaiseSpec(0, amount))
+
   def raiseImpl(using spec: RaiseSpec) : Whnf = self match {
     case WFunction(argTy, bodyTy) => WFunction(argTy.raiseImpl, bodyTy.raiseImpl(using RaiseSpec(spec.bar + 1, spec.amount)))
     case WUniverse(_) => self
@@ -56,24 +60,21 @@ extension whnfOps on (self: Whnf) {
     case WCon(con, args) => WCon(con, args.map(_.raiseImpl))
     case WRefl => WRefl
   }
+
   def substituteImpl(using spec: SubstituteSpec[Term]) : Term = self match {
     case WFunction(argTy, bodyTy) => TWhnf(WFunction(
       argTy.substituteImpl,
-      bodyTy.substituteImpl(using SubstituteSpec(
-        spec.offset + 1,
-        spec.substitution.map(_.raise(1))))))
+      bodyTy.substituteImpl(using spec.raised)))
     case WUniverse(_) => TWhnf(self)
     case WData(data, params) => TWhnf(WData(data, params.map(_.substituteImpl)))
     case WRecord(record, params) => TWhnf(WRecord(record, params.map(_.substituteImpl)))
     case WId(ty, left, right) => TWhnf(WId(ty.substituteImpl, left.substituteImpl, right.substituteImpl))
     case WVar(idx, elims) =>
-      if (idx >= spec.offset) (spec.substitution(idx - spec.offset), elims.isEmpty) match {
-        case (_, true) => TWhnf(self)
-        case (TWhnf(whnf), _) => whnf match {
-          case WVar(idx, sElims) =>  TWhnf(WVar(idx, sElims ++ elims))
-          case _ => throw IllegalArgumentException(s"Invalid substitution with $spec into $self")
-        }
-        case (TRedux(fn, sElims), _) => TRedux(fn, sElims ++ elims)
+      if (idx >= spec.offset) (spec.substitution(idx - spec.offset), elims) match {
+        case (s, Nil) => s
+        case (TWhnf(WVar(idx, sElims)), _) => TWhnf(WVar(idx, sElims ++ elims.map(_.substituteImpl)))
+        case (TRedux(fn, sElims), _) => TRedux(fn, sElims ++ elims.map(_.substituteImpl))
+        case _ => throw IllegalArgumentException(s"Invalid substitution with $spec into $self")
       } else
         TWhnf(WVar(idx, elims.map(_.substituteImpl)))
     case WCon(con, args) => TWhnf(WCon(con, args.map(_.substituteImpl)))

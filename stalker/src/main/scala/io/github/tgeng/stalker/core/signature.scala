@@ -15,7 +15,7 @@ enum Declaration[S <: Status, +C[_] <: scala.collection.IndexedSeq[_]] {
 
 import Declaration._
 
-case class Constructor(name: String, args: Telescope)
+case class Constructor(name: String, argTys: Telescope)
 
 case class Field(name: String, ty: Type)
 

@@ -3,6 +3,7 @@ package io.github.tgeng.stalker.core
 import Term._
 import Whnf._
 import Elimination._
+import substitutionOps._
 
 enum Pattern {
   case PVar(idx: Int)
@@ -36,7 +37,7 @@ extension patternOps on (self: Pattern) {
     case PRefl => self
     case PCon(con, patterns) => PCon(con, patterns.map(_.substituteImpl))
     case PForcedCon(con, patterns) => PForcedCon(con, patterns.map(_.substituteImpl))
-    case PForced(t) => PForced(t.substitute(spec.substitution.map(_.toTerm)))
+    case PForced(t) => PForced(t(spec.substitution.map(_.toTerm)))
     case PAbsurd => self
   }
 }
