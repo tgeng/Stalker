@@ -1,43 +1,57 @@
 package io.github.tgeng.stalker.core
 
 import scala.language.implicitConversions
+import scala.math.max
 import io.github.tgeng.common._
 import io.github.tgeng.common.sugar.{given _}
 import Whnf._
 import Elimination._
 import reduction.{_, given _}
 
-def (tm: Whnf) hasType (ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Option[Level]] = {
+def (tm: Whnf) inferLevel (using Γ: Context)(using Σ: Signature) : Result[Level] = tm match {
+  case WUniverse(l) => l + 1
+  case WFunction(argTy, bodyTy) => for {
+    argTyL <- argTy.inferLevel
+  } yield argTyL
+}
+
+def (Δ: Telescope) inferLevel (using Γ: Context)(using Σ: Signature) : Result[Level] = Δ match {
+  case Nil => 0
+  case x :: rest => for {
+    l1 <- x.inferLevel
+    l2 <- rest.inferLevel
+  } yield max(l1, l2)
+}
+
+def (eq: Type ≡ Type) inferLevel (using Γ: Context)(using Σ: Signature) : Result[Level] = TODO()
+
+def (tm: Whnf) hasType (ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
   ty match {
-    case WUniverse(l) => tm hasType WUniverseX match {
-      case Right(Some(inferredL)) if inferredL == l => None
-      case Right(Some(inferredL)) => typingError(s"Universe level mismatch. Expected level $l, but got $inferredL.")
-      case _ => throw AssertionError("Check against type WUniverseX must yield either a level or an error.")
-    }
-    case WUniverseX => tm match {
-      case WUniverse(l) => l + 1
-      case WFunction(argTy, bodyTy) => TODO()
+    case WUniverse(l) => tm.inferLevel match {
+      case Right(inferredL) if inferredL == l => ()
+      case Right(inferredL) => typingError(s"Universe level mismatch. Expected level $l, but got $inferredL.")
+      case Left(e) => Left(e)
     }
   }
 }
 
-def (tms: List[Whnf]) hasTypes (Δ: Telescope)(using Γ: Context)(using Σ: Signature) : Result[Option[Level]] = {
+def (tms: List[Whnf]) hasTypes (Δ: Telescope)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
   TODO()
 }
 
-def (head: Whnf ∷ Type) gives (elimAndType: List[Elimination] ∷ Telescope)(using Γ: Context)(using Σ: Signature) : Result[Option[Level]] = {
+def (head: Whnf ∷ Type) gives (elimAndType: List[Elimination] ∷ Telescope)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
   TODO()
 }
 
-def (eq: Whnf ≡ Whnf) hasType (ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Option[Level]] = {
+def (eq: Whnf ≡ Whnf) hasType (ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
   TODO()
 }
 
-def (eqs: List[Whnf] ≡ List[Whnf]) hasTypes (ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Option[Level]] = {
+def (eqs: List[Whnf] ≡ List[Whnf]) hasTypes (ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
   TODO()
 }
 
-def (head: Whnf ∷ Type) givesEquality (elimEq: List[Elimination] ≡ List[Elimination] ∷ Type)(using Γ: Context)(using Σ: Signature) : Result[Option[Level]] = {
+def (head: Whnf ∷ Type) givesEquality (elimEq: List[Elimination] ≡ List[Elimination] ∷ Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
   TODO()
 }
 

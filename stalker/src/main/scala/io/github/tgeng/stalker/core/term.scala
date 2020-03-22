@@ -8,8 +8,6 @@ enum Term {
 enum Whnf {
   case WFunction(argTy: Term, bodyTy: Term)
   case WUniverse(level: Int)
-  /** Only used for type checking */
-  case WUniverseX
   case WData(data: QualifiedName, params: List[Term])
   case WRecord(record: QualifiedName, params: List[Term])
   case WId(ty: Term, left: Term, right: Term)
