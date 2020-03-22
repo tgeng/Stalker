@@ -4,45 +4,32 @@ import Term._
 import Whnf._
 import Elimination._
 
-def (ty: Type) level (using Γ: Context)(using Σ: Signature) : Result[Level] = {
+def (tm: Term) hasType (ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Option[WUniverse]] = {
   throw UnsupportedOperationException()
 }
 
-def (Δ: Telescope) level (using Γ: Context)(using Σ: Signature) : Result[Level] = {
+def (tms: List[Term]) hasTypes (Δ: Telescope)(using Γ: Context)(using Σ: Signature) : Result[Option[WUniverse]] = {
   throw UnsupportedOperationException()
 }
 
-def (eq: Type ≡ Type) level (using Γ: Context)(using Σ: Signature) : Result[Level] = {
+def (head: Term ⫶ Type) gives (elimAndType: List[Elimination] ⫶ Telescope)(using Γ: Context)(using Σ: Signature) : Result[Option[WUniverse]] = {
   throw UnsupportedOperationException()
 }
 
-def (tm: Term) hasType (ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
+def (eq : Term ≡ Term) hasType (ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Option[WUniverse]] = {
   throw UnsupportedOperationException()
 }
 
-def (tms: List[Term]) hasTypes (Δ: Telescope)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
+def (eqs : List[Term] ≡ List[Term]) hasTypes (ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Option[WUniverse]] = {
   throw UnsupportedOperationException()
 }
 
-def (head: Term ⫶ Type) gives (elimAndType: List[Elimination] ⫶ Telescope)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
-  throw UnsupportedOperationException()
-}
-
-def (eq : Term ≡ Term) hasType (ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
-  throw UnsupportedOperationException()
-}
-
-def (eqs : List[Term] ≡ List[Term]) hasTypes (ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
-  throw UnsupportedOperationException()
-}
-
-def (head: Term ⫶ Type) givesEquality (elimEq: List[Elimination] ≡ List[Elimination] ⫶ Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
+def (head: Term ⫶ Type) givesEquality (elimEq: List[Elimination] ≡ List[Elimination] ⫶ Type)(using Γ: Context)(using Σ: Signature) : Result[Option[WUniverse]] = {
   throw UnsupportedOperationException()
 }
 
 // ------- magic splitter -------
 
-type Level = Int
 type Result = Either[TypingError, *]
 
 type Type = Term

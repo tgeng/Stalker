@@ -34,4 +34,5 @@ import Clause._
 import scala.collection.mutable
 
 type SignatureT[+C[_] <: scala.collection.IndexedSeq[_]] = C[Declaration[Checked, scala.collection.IndexedSeq]]
-type Signature = SignatureT[scala.collection.IndexedSeq]
+
+type Signature = Map[QualifiedName, Declaration[Checked, IndexedSeq]]
