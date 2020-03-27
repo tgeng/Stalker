@@ -18,16 +18,16 @@ def (tm: Type) inferLevel (using Γ: Context)(using Σ: Signature) : Result[Leve
   } yield max(argTyL, bodyTyL)
   case wData@WData(qn, u) => for {
     data <- Σ(wData)
-    _ <- u hasTypes data.paramTys
+    _ <- u ∷ data.paramTys
   } yield data.level
   case wRecord@WRecord(qn, u) => for {
     record <- Σ(wRecord)
-    _ <- u hasTypes record.paramsTy
+    _ <- u ∷ record.paramsTy
   } yield record.level
   case WId(ty, left, right) => for {
     tyL <- ty.inferLevel
-    _ <- left hasType ty
-    _ <- right hasType ty
+    _ <- left ∷ ty
+    _ <- right ∷ ty
   } yield tyL
   case _ => typingError(s"$tm is not a type.")
 }
@@ -42,65 +42,63 @@ def (Δ: Telescope) inferLevel (using Γ: Context)(using Σ: Signature) : Result
 
 def (eq: ≡[Type]) inferLevel (using Γ: Context)(using Σ: Signature) : Result[Level] = TODO()
 
-def (tm: Term) hasType (ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = ty.inferLevel match {
-  case Left(e) => Left(e)
-  case _ => tm ∷ ty match {
-    // Types
-    case _ ∷ WUniverse(l) => tm.inferLevel match {
-      case Right(inferredL) if inferredL == l => ()
-      case Right(inferredL) => typingError(s"Universe level mismatch. Expected level $l, but got $inferredL.")
-      case Left(e) => Left(e)
-    }
-    // Heads
-    case TWhnf(WVar(idx, elims)) ∷ _ => for {
-      _ <- TWhnf(WVar(idx, Nil)) ∷ Γ(idx) |- elims ∷ ty
-    } yield ()
-    case (r@TRedux(fn, elims)) ∷ _ => for {
-      definition <- Σ(r)
-      _ <- TRedux(fn, Nil) ∷ definition.ty |- elims ∷ ty
-    } yield ()
-    // Values
-    case TWhnf(WCon(c, v)) ∷ (wData@WData(d, u)) => for {
-      data <- Σ(wData)
-      constructor <- data(c)     
-      _ <- u hasTypes data.paramTys
-      _ <- v hasTypes constructor.argTys(v)
-    } yield ()
-    case TWhnf(WRefl) ∷ WId(ty, u, v) if (u == v) => for {
-      _ <- u hasType ty
-    } yield ()
-    case _ => typingError(s"Type mismatch for $tm and $ty.")
+object typing { given key as typing.type = this }
+def (j: Term ∷ Type) apply (using Γ: Context)(using Σ: Signature)(using d : typing.type) : Result[Unit] = j match {
+  // Types
+  case _A ∷ WUniverse(l) => _A.inferLevel match {
+    case Right(inferredL) if inferredL == l => ()
+    case Right(inferredL) => judgementError(j)
+    case Left(e) => Left(e)
   }
+  // Heads
+  case TWhnf(WVar(idx, elims)) ∷ _A => for {
+    _ <- TWhnf(WVar(idx, Nil)) ∷ Γ(idx) |- elims ∷ _A
+  } yield ()
+  case (r@TRedux(fn, elims)) ∷ _A => for {
+    definition <- Σ(r)
+    _ <- TRedux(fn, Nil) ∷ definition.ty |- elims ∷ _A
+  } yield ()
+  // Values
+  case TWhnf(WCon(c, v̅)) ∷ (wData@WData(d, u̅)) => for {
+    data <- Σ(wData)
+    constructor <- data(c)     
+    _ <- u̅ ∷ data.paramTys
+    _ <- v̅ ∷ constructor.argTys(v̅)
+  } yield ()
+  case TWhnf(WRefl) ∷ WId(_A, u, v) if (u == v) => for {
+    _ <- u ∷ _A
+  } yield ()
+  case _ => judgementError(j)
 }
 
-def (tms: List[Term]) hasTypes (Δ: Telescope)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
-  Δ.inferLevel match {
-    case Right(_) => ()
-    case Left(e) => return Left(e)
-  }
-  tms ∷ Δ match {
-    case Nil ∷ Nil => ()
-    case (tm :: tms) ∷ (ty :: Δ) => for {
-      _ <- tm hasType ty 
-      _ <- (tms hasTypes Δ)(using Δ(tm))
-    } yield ()
-    case _ => typingError(s"Type mismatch for $tms and $Δ")
-  }
+object telescopeTyping { given key as telescopeTyping.type = this }
+def (j: List[Term] ∷ Telescope) apply (using Γ: Context)(using Σ: Signature)(using d : telescopeTyping.type) : Result[Unit] = j match {
+  case Nil ∷ Nil => ()
+  case (x :: u̅) ∷ (_A :: _Δ) => for {
+    _ <- x ∷ _A
+    _ <- _Δ.inferLevel
+    _ <- (u̅ ∷ _Δ)(using _Δ(x))
+  } yield ()
+  case _ => judgementError(j)
 }
 
-def (head: Term ∷ Type) |- (elimAndType: List[Elimination] ∷ Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
+object drvElim { given key as drvElim.type = this }
+def (j: Term ∷ Type |- List[Elimination] ∷ Type) apply (using Γ: Context)(using Σ: Signature)(using d : drvElim.type) : Result[Unit] = {
   TODO()
 }
 
-def (eq:  ≡[Term]) hasType (ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
+object eqTyping { given key as eqTyping.type = this }
+def (j: ≡[Term] ∷ Type) apply (using Γ: Context)(using Σ: Signature)(using d : eqTyping.type) : Result[Unit] = {
   TODO()
 }
 
-def (eqs: ≡[List[Term]]) hasTypes (ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
+object eqTelescopeTyping { given key as eqTelescopeTyping.type = this }
+def (j: ≡[List[Term]] ∷ Telescope) apply (using Γ: Context)(using Σ: Signature)(using d : eqTelescopeTyping.type) : Result[Unit] = {
   TODO()
 }
 
-def (head: Term ∷ Type) |-= (elimEq: ≡[List[Elimination]] ∷ Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
+object drvEqElim { given key as drvEqElim.type = this }
+def (j: Term ∷ Type |- ≡[List[Elimination]] ∷ Type) check(using Γ: Context)(using Σ: Signature)(using d : drvEqElim.type) : Result[Unit] = {
   TODO()
 }
 
@@ -144,26 +142,23 @@ case class ∷[X, Y](x: X, y: Y)
 
 case class ≡[X](a: X, b: X)
 
-extension termTyping on (tm: Term) {
-  def ∷ (ty: Type) = new ∷(tm, ty)
+case class |-[X, Y](a: X, b: Y)
+
+extension typingRelation on [X, Y](x: X) {
+  def ∷ (y: Y) = new ∷(x, y)
 }
 
-extension termsTyping on (tms: List[Term]) {
-  def ∷ (tys: Telescope) = new ∷(tms, tys)
+extension equalityRelation on [X](x: X) {
+  def ≡ (y: X) = new ≡(x, y)
 }
 
-extension elimsTyping on (elims: List[Elimination]) {
-  def ∷ (ty: Type) = new ∷(elims, ty)
+extension derivationRelation on [X, Y](x: X) {
+  def |- (y: Y) = new |-(x, y)
 }
 
-extension termEqual on (lhs: Term) {
-  def ≡ (rhs: Term) = new ≡(lhs, rhs)
-}
-
-extension typeEqual on (lhs: Type) {
-  def ≡ (rhs: Type) = new ≡(lhs, rhs)
-}
+given typingRightConversion[A, B, C](using bToC: Conversion[B, C]) as Conversion[A ∷ B, A ∷ C] = (ab: A ∷ B) => ab match { case a ∷ b => a ∷ bToC(b)}
 
 case class TypingError(msg: String)
 
+def judgementError(judgement: ∷[?, ?] | |-[?, ?] | ≡[?] ) : Either[TypingError, Nothing] = typingError(s"Invalid judgement $judgement")
 def typingError(msg: String) : Either[TypingError, Nothing] = Left(TypingError(msg))
