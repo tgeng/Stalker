@@ -14,11 +14,13 @@ extension substitutionOps on [T, R](self: Substitution[T]) {
 }
 
 private def termsToSubstitution(terms: List[Term]) : Substitution[Term] = terms.reverse.toIndexedSeq
+private def termToSubstitution(term: Term) : Substitution[Term] = IndexedSeq(term)
 
 extension substitutionSpecTermOps on (self: SubstituteSpec[Term]) {
   def raised = SubstituteSpec(self.offset + 1, self.substitution.map(_.raise(1)))
 }
 
 object substitutionConversion {
-  given toSubstitution as Conversion[List[Term], Substitution[Term]] = termsToSubstitution
+  given termsToSubstitution as Conversion[List[Term], Substitution[Term]] = termsToSubstitution
+  given termToSubstitution as Conversion[Term, Substitution[Term]] = termToSubstitution
 }

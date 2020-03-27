@@ -74,7 +74,18 @@ def (tm: Term) hasType (ty: Type)(using Γ: Context)(using Σ: Signature) : Resu
 }
 
 def (tms: List[Term]) hasTypes (Δ: Telescope)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
-  TODO()
+  Δ.inferLevel match {
+    case Right(_) => ()
+    case Left(e) => return Left(e)
+  }
+  tms ∷ Δ match {
+    case Nil ∷ Nil => ()
+    case (tm :: tms) ∷ (ty :: Δ) => for {
+      _ <- tm hasType ty 
+      _ <- (tms hasTypes Δ)(using Δ(tm))
+    } yield ()
+    case _ => typingError(s"Type mismatch for $tms and $Δ")
+  }
 }
 
 def (head: Term ∷ Type) |- (elimAndType: List[Elimination] ∷ Type)(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
