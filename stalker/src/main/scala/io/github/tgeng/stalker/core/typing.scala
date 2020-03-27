@@ -16,12 +16,12 @@ def (tm: Type) inferLevel (using Γ: Context)(using Σ: Signature) : Result[Leve
     argTyL <- argTy.inferLevel
     bodyTyL <- bodyTy.inferLevel(using argTy :: Γ)
   } yield max(argTyL, bodyTyL)
-  case wData@WData(qn, u) => for {
-    data <- Σ(wData)
+  case _D@WData(qn, u) => for {
+    data <- Σ(_D)
     _ <- u ∷ data.paramTys
   } yield data.level
-  case wRecord@WRecord(qn, u) => for {
-    record <- Σ(wRecord)
+  case _R@WRecord(qn, u) => for {
+    record <- Σ(_R)
     _ <- u ∷ record.paramsTy
   } yield record.level
   case WId(ty, left, right) => for {
@@ -51,12 +51,12 @@ def (j: Term ∷ Type) apply (using Γ: Context)(using Σ: Signature)(using d : 
     case Left(e) => Left(e)
   }
   // Heads
-  case TWhnf(WVar(idx, elims)) ∷ _A => for {
-    _ <- TWhnf(WVar(idx, Nil)) ∷ Γ(idx) |- elims ∷ _A
+  case TWhnf(WVar(idx, e̅)) ∷ _A => for {
+    _ <- TWhnf(WVar(idx, Nil)) ∷ Γ(idx) |- e̅ ∷ _A
   } yield ()
-  case (r@TRedux(fn, elims)) ∷ _A => for {
+  case (r@TRedux(fn, e̅)) ∷ _A => for {
     definition <- Σ(r)
-    _ <- TRedux(fn, Nil) ∷ definition.ty |- elims ∷ _A
+    _ <- TRedux(fn, Nil) ∷ definition.ty |- e̅ ∷ _A
   } yield ()
   // Values
   case TWhnf(WCon(c, v̅)) ∷ (wData@WData(d, u̅)) => for {
@@ -82,9 +82,18 @@ def (j: List[Term] ∷ Telescope) apply (using Γ: Context)(using Σ: Signature)
   case _ => judgementError(j)
 }
 
-object drvElim { given key as drvElim.type = this }
-def (j: Term ∷ Type |- List[Elimination] ∷ Type) apply (using Γ: Context)(using Σ: Signature)(using d : drvElim.type) : Result[Unit] = {
-  TODO()
+object elimTyping { given key as elimTyping.type = this }
+def (j: Term ∷ Type |- List[Elimination] ∷ Type) apply (using Γ: Context)(using Σ: Signature)(using d : elimTyping.type) : Result[Unit] = j match {
+  case u ∷ _A |- Nil ∷ _B if (_A == _B) => ()
+  case u ∷ WFunction(_A, _B) |- (ETerm(v) :: e̅) ∷ _C => for {
+    _ <- v ∷ _A
+    uv <- app(u, v)
+    _Bv = _B(v)
+    _ <- uv ∷ _Bv
+    _ <- uv ∷ _Bv |- e̅ ∷ _C
+  } yield ()
+  case u ∷ (_R@WRecord(_, v̅)) |- (EProj(π) :: e̅) ∷ _C => TODO()
+  case _ => judgementError(j)
 }
 
 object eqTyping { given key as eqTyping.type = this }
@@ -97,12 +106,21 @@ def (j: ≡[List[Term]] ∷ Telescope) apply (using Γ: Context)(using Σ: Signa
   TODO()
 }
 
-object drvEqElim { given key as drvEqElim.type = this }
-def (j: Term ∷ Type |- ≡[List[Elimination]] ∷ Type) check(using Γ: Context)(using Σ: Signature)(using d : drvEqElim.type) : Result[Unit] = {
+object eqElimTyping { given key as eqElimTyping.type = this }
+def (j: Term ∷ Type |- ≡[List[Elimination]] ∷ Type) check(using Γ: Context)(using Σ: Signature)(using d : eqElimTyping.type) : Result[Unit] = {
   TODO()
 }
 
 // ------- magic splitter -------
+
+def app(x: Term, t: Term) = appElim(x, ETerm(t))
+def app(x: Term, f: String) = appElim(x, EProj(f))
+
+def appElim(x: Term, e: Elimination) : Result[Term] = x match {
+  case TRedux(fn, elims) => TRedux(fn, elims :+ e)
+  case TWhnf(WVar(idx, elims)) => TWhnf(WVar(idx, elims :+ e))
+  case _ => typingError(s"Cannot apply $e to $x.")
+}
 
 extension signatureTypingOps on (self: Signature) {
   def apply(data : WData) : Result[Declaration.Data[Status.Checked, IndexedSeq]] = self(data.qn) match {
