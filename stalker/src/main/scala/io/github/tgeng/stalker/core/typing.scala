@@ -65,7 +65,8 @@ def (j: Term ∷ Type) apply (using Γ: Context)(using Σ: Signature)(using d : 
     _ <- u̅ ∷ data.paramTys
     _ <- v̅ ∷ constructor.argTys(v̅)
   } yield ()
-  case TWhnf(WRefl) ∷ WId(_A, u, v) if (u == v) => for {
+  case TWhnf(WRefl) ∷ WId(_A, u, v) => for {
+    _ <- u ≡ v ∷ _A
     _ <- u ∷ _A
   } yield ()
   case _ => judgementError(j)
@@ -84,7 +85,9 @@ def (j: List[Term] ∷ Telescope) apply (using Γ: Context)(using Σ: Signature)
 
 object elimTyping { given key as elimTyping.type = this }
 def (j: Term ∷ Type |- List[Elimination] ∷ Type) apply (using Γ: Context)(using Σ: Signature)(using d : elimTyping.type) : Result[Unit] = j match {
-  case u ∷ _A |- Nil ∷ _B if (_A == _B) => ()
+  case u ∷ _A |- Nil ∷ _B  => for {
+    _ <- (_A ≡ _B).inferLevel
+  } yield ()
   case u ∷ WFunction(_A, _B) |- (ETerm(v) :: e̅) ∷ _C => for {
     _ <- v ∷ _A
     uv <- app(u, v)
