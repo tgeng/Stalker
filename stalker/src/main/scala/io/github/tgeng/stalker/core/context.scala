@@ -2,7 +2,6 @@ package io.github.tgeng.stalker.core
 
 import scala.language.implicitConversions
 import io.github.tgeng.common.indexedSeqOps._
-import reduction.{_, given _}
 import substitutionOps._
 
 /** First element on the left. */
@@ -18,7 +17,7 @@ extension telescopeOps on (self: Telescope) {
     .map(_.raise(-s.size))
   def substituteImpl(using spec: SubstituteSpec[Term]) : Telescope = self match {
     case Nil => Nil
-    case ty :: rest => ty.substituteImpl :: rest.substituteImpl(using spec.raised)
+    case ty :: rest => reduce(ty.substituteImpl) :: rest.substituteImpl(using spec.raised)
   }
 }
 
