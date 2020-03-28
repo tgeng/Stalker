@@ -15,9 +15,9 @@ extension telescopeOps on (self: Telescope) {
   def apply(s: Substitution[Term])(using Γ: Context)(using Σ: Signature) = self.substituteImpl(
     using SubstituteSpec(0, s.map(_.raise(s.size))))
     .map(_.raise(-s.size))
-  def substituteImpl(using spec: SubstituteSpec[Term])(using Γ: Context)(using Σ: Signature) : Telescope = self match {
+  def substituteImpl(using spec: SubstituteSpec[Term])(using Γ: Context)(using Σ: Signature) : List[Term] = self match {
     case Nil => Nil
-    case ty :: rest => reduce(ty.substituteImpl) :: rest.substituteImpl(using spec.raised)
+    case ty :: rest => ty.substituteImpl :: rest.substituteImpl(using spec.raised)
   }
 }
 
