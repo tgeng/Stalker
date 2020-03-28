@@ -13,17 +13,22 @@ given inferTermLevelConversion(using Γ: Context)(using Σ: Signature) as Conver
 given inferTypeLevelConversion(using Γ: Context)(using Σ: Signature) as Conversion[Type, Result[Level]] = _.level
 def (tm: Type)level(using Γ: Context)(using Σ: Signature) : Result[Level] = tm match {
   case WUniverse(l) => Right(l + 1)
-  case WFunction(argTy, bodyTy) => for {
-    argTyL <- argTy
-    bodyTyL <- bodyTy.level(using argTy :: Γ)
-  } yield max(argTyL, bodyTyL)
+  case WFunction(_A, _B) => {
+    val rA = reduce(_A)
+    for {
+      lA <- rA
+      _Θ = rA :: Γ
+      rB = reduce(_B)(using _Θ)
+      lB <- rB.level(using _Θ)
+    } yield max(lA, lB)
+  }
   case _D@WData(qn, u) => for {
     data <- Σ(_D)
     _ <- u ∷ data.paramTys
   } yield data.level
   case _R@WRecord(qn, u) => for {
     record <- Σ(_R)
-    _ <- u ∷ record.paramsTy
+    _ <- u ∷ record.paramsTys
   } yield record.level
   case WId(ty, left, right) => {
     val tyW = reduce(ty)
@@ -46,7 +51,42 @@ def (Δ: Telescope)level(using Γ: Context)(using Σ: Signature) : Result[Level]
 }
 
 given inferTypeEqLevelConversion(using Γ: Context)(using Σ: Signature) as Conversion[≡[Type], Result[Level]] = _.level
-def (eq: ≡[Type])level(using Γ: Context)(using Σ: Signature) : Result[Level] = TODO()
+def (eq: ≡[Type])level(using Γ: Context)(using Σ: Signature) : Result[Level] = eq match {
+  case _A ≡ _B if _A == _B => _A.level
+  case WFunction(_A1, _B1) ≡ WFunction(_A2, _B2) => {
+    val rA1 = reduce(_A1)
+    val rA2 = reduce(_A2)
+    for {
+      lA <- rA1 ≡ rA2
+      _Θ = rA2 :: Γ
+      rB1 = reduce(_B1)(using _Θ)
+      rB2 = reduce(_B2)(using _Θ)
+      lB <- rB1 ≡ rB2
+    } yield max(lA, lB)
+  }
+  case WVar(x, e̅1) ≡ WVar(y, e̅2) if (x == y) => TWhnf(WVar(x, Nil)) ∷ Γ(x) |- e̅1 ≡ e̅2
+  case WId(_A1, u1, v1) ≡ WId(_A2, u2, v2) => {
+    val rA1 = reduce(_A1)
+    val rA2 = reduce(_A2)
+    for {
+      l <- rA1 ≡ rA2
+      _ <- u1 ≡ u2 ∷ rA1
+      _ <- v1 ≡ v2 ∷ rA1
+    } yield l
+  }
+  case (d@WData(d1, u̅1)) ≡ WData(d2, u̅2) if d1 == d2 => for {
+    data <- Σ(d)
+    _ <- u̅1 ≡ u̅2 ∷ data.paramTys
+  } yield data.level
+  case (r@WRecord(r1, u̅1)) ≡ WRecord(r2, u̅2) if r1 == r2 => for {
+    record <- Σ(r)
+    _ <- u̅1 ≡ u̅2 ∷ record.paramsTys
+  } yield record.level
+  case _ => typingError(s"Cannot infer level of $eq")
+}
+
+given inferElimLevelConversion(using Γ: Context)(using Σ: Signature) as Conversion[Term ∷ Type |- ≡[List[Elimination]], Result[Level]] = _.level
+def (elim: Term ∷ Type |- ≡[List[Elimination]])level(using Γ: Context)(using Σ: Signature) : Result[Level] = TODO()
 
 given checkTermConversion(using Γ: Context)(using Σ: Signature) as Conversion[Term ∷ Type, Result[Unit]] = _.check
 extension checkTerm on (j: Term ∷ Type) {
@@ -191,15 +231,19 @@ extension telescopeTypingRelation on (x̅: List[Term]) {
 }
 
 extension elimTypingRelation on (e̅: List[Elimination]) {
-  def ∷ (_A: Type) = new ∷(e̅, _A)
+  def ∷ (A: Type) = new ∷(e̅, A)
 }
 
 extension eqTermTypingRelation on (e: ≡[Term]) {
-  def ∷ (_A: Type) = new ∷(e, _A)
+  def ∷ (A: Type) = new ∷(e, A)
+}
+
+extension eqTelescopeTypingRelation on (e: ≡[List[Term]]) {
+  def ∷ (Δ: Telescope) = new ∷(e, Δ)
 }
 
 extension eqElimTypingRelation on (e: ≡[Elimination]) {
-  def ∷ (_A: Type) = new ∷(e, _A)
+  def ∷ (A: Type) = new ∷(e, A)
 }
 
 extension equalityRelation on [X](x: X) {

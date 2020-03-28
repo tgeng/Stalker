@@ -9,7 +9,7 @@ import Status._
 
 enum Declaration[S <: Status, +C[_] <: scala.collection.IndexedSeq[_]] {
   case Data(qn: QualifiedName, paramTys: Telescope, level: Int, cons: C[Constructor])
-  case Record(qn: QualifiedName, paramsTy: Telescope, level: Int, fields: C[Field])
+  case Record(qn: QualifiedName, paramsTys: Telescope, level: Int, fields: C[Field])
   case Definition(qn: QualifiedName, ty: Type, clauses: C[Clause[S]])
 }
 

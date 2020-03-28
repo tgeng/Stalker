@@ -6,11 +6,11 @@ import Whnf._
 import Elimination._
 
 object reduction {
-  given termToWhnf as Conversion[Term, Whnf] = (tm: Term) => reduce(tm)
-  given termsToWhnfs as Conversion[List[Term], List[Whnf]] = (tms: List[Term]) => tms.map(termToWhnf)
+  given termToWhnf(using Γ: Context)(using Σ: Signature) as Conversion[Term, Whnf] = (tm: Term) => reduce(tm)
+  given termsToWhnfs(using Γ: Context)(using Σ: Signature) as Conversion[List[Term], List[Whnf]] = (tms: List[Term]) => tms.map(termToWhnf)
 }
 
-def reduce(tm: Term) = tm match {
+def reduce(tm: Term)(using Γ: Context)(using Σ: Signature) = tm match {
   case TWhnf(w) => w
   case TRedux(fn, elims) => throw UnsupportedOperationException()
 }

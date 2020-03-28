@@ -12,10 +12,10 @@ type Context = List[Type]
 
 extension telescopeOps on (self: Telescope) {
   def toContext = self.reverse
-  def apply(s: Substitution[Term]) = self.substituteImpl(
+  def apply(s: Substitution[Term])(using Γ: Context)(using Σ: Signature) = self.substituteImpl(
     using SubstituteSpec(0, s.map(_.raise(s.size))))
     .map(_.raise(-s.size))
-  def substituteImpl(using spec: SubstituteSpec[Term]) : Telescope = self match {
+  def substituteImpl(using spec: SubstituteSpec[Term])(using Γ: Context)(using Σ: Signature) : Telescope = self match {
     case Nil => Nil
     case ty :: rest => reduce(ty.substituteImpl) :: rest.substituteImpl(using spec.raised)
   }
