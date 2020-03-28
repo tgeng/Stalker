@@ -9,111 +9,127 @@ import Elimination._
 import reduction.{_, given _}
 import substitutionConversion.{given _}
 
-def inferLevel(tm: Type) (using Γ: Context)(using Σ: Signature) : Result[Level] = tm match {
+given inferTermLevelConversion(using Γ: Context)(using Σ: Signature) as Conversion[Term, Result[Level]] = _.level
+given inferTypeLevelConversion(using Γ: Context)(using Σ: Signature) as Conversion[Type, Result[Level]] = _.level
+def (tm: Type)level(using Γ: Context)(using Σ: Signature) : Result[Level] = tm match {
   case WUniverse(l) => Right(l + 1)
   case WFunction(argTy, bodyTy) => for {
-    argTyL <- inferLevel(argTy)
-    bodyTyL <- inferLevel(bodyTy)(using argTy :: Γ)
+    argTyL <- argTy
+    bodyTyL <- bodyTy.level(using argTy :: Γ)
   } yield max(argTyL, bodyTyL)
   case _D@WData(qn, u) => for {
     data <- Σ(_D)
-    _ <- check(u ∷ data.paramTys)
+    _ <- u ∷ data.paramTys
   } yield data.level
   case _R@WRecord(qn, u) => for {
     record <- Σ(_R)
-    _ <- check(u ∷ record.paramsTy)
+    _ <- u ∷ record.paramsTy
   } yield record.level
   case WId(ty, left, right) => {
     val tyW = reduce(ty)
     for {
-      tyL <- inferLevel(tyW)
-      _ <- check(left ∷ tyW)
-      _ <- check(right ∷ tyW)
+      tyL <- tyW
+      _ <- left ∷ tyW
+      _ <- right ∷ tyW
     } yield tyL
   }
   case _ => typingError(s"$tm is not a type.")
 }
 
-def inferLevel(Δ: Telescope)(using Γ: Context)(using Σ: Signature) : Result[Level] = Δ match {
+given inferTelescopeLevelConversion(using Γ: Context)(using Σ: Signature) as Conversion[Telescope, Result[Level]] = _.level
+def (Δ: Telescope)level(using Γ: Context)(using Σ: Signature) : Result[Level] = Δ match {
   case Nil => Right(0)
   case x :: rest => for {
-    l1 <- inferLevel(x)
-    l2 <- inferLevel(rest)(using x :: Γ)
+    l1 <- x
+    l2 <- rest.level(using x :: Γ)
   } yield max(l1, l2)
 }
 
-def inferLevel(eq: ≡[Type])(using Γ: Context)(using Σ: Signature) : Result[Level] = TODO()
+given inferTypeEqLevelConversion(using Γ: Context)(using Σ: Signature) as Conversion[≡[Type], Result[Level]] = _.level
+def (eq: ≡[Type])level(using Γ: Context)(using Σ: Signature) : Result[Level] = TODO()
 
-object typing { given key as typing.type = this }
-def check(j: Term ∷ Type)(using Γ: Context)(using Σ: Signature)(using d : typing.type) : Result[Unit] = j match {
-  // Types
-  case _A ∷ WUniverse(l) => inferLevel(_A) match {
-    case Right(inferredL) if inferredL == l => Right(())
-    case Right(inferredL) => judgementError(j)
-    case Left(e) => Left(e)
+given checkTermConversion(using Γ: Context)(using Σ: Signature) as Conversion[Term ∷ Type, Result[Unit]] = _.check
+extension checkTerm on (j: Term ∷ Type) {
+  def check(using Γ: Context)(using Σ: Signature) : Result[Unit] = j match {
+    // Types
+    case _A ∷ WUniverse(l) => _A.level match {
+      case Right(inferredL) if inferredL == l => Right(())
+      case Right(inferredL) => judgementError(j)
+      case Left(e) => Left(e)
+    }
+    // Heads
+    case TWhnf(WVar(idx, e̅)) ∷ _A => for {
+      _ <- TWhnf(WVar(idx, Nil)) ∷ Γ(idx) |- e̅ ∷ _A
+    } yield ()
+    case (r@TRedux(fn, e̅)) ∷ _A => for {
+      definition <- Σ(r)
+      _ <- TRedux(fn, Nil) ∷ definition.ty |- e̅ ∷ _A
+    } yield ()
+    // Values
+    case TWhnf(WCon(c, v̅)) ∷ (wData@WData(d, u̅)) => for {
+      data <- Σ(wData)
+      constructor <- data(c)     
+      _ <- u̅ ∷ data.paramTys
+      _ <- v̅ ∷ constructor.argTys(v̅)
+    } yield ()
+    case TWhnf(WRefl) ∷ WId(_A, u, v) => for {
+      _ <- u ≡ v ∷ _A
+      _ <- u ∷ _A
+    } yield ()
+    case _ => judgementError(j)
   }
-  // Heads
-  case TWhnf(WVar(idx, e̅)) ∷ _A => for {
-    _ <- check(TWhnf(WVar(idx, Nil)) ∷ Γ(idx) |- e̅ ∷ _A)
-  } yield ()
-  case (r@TRedux(fn, e̅)) ∷ _A => for {
-    definition <- Σ(r)
-    _ <- check(TRedux(fn, Nil) ∷ definition.ty |- e̅ ∷ _A)
-  } yield ()
-  // Values
-  case TWhnf(WCon(c, v̅)) ∷ (wData@WData(d, u̅)) => for {
-    data <- Σ(wData)
-    constructor <- data(c)     
-    _ <- check(u̅ ∷ data.paramTys)
-    _ <- check(v̅ ∷ constructor.argTys(v̅))
-  } yield ()
-  case TWhnf(WRefl) ∷ WId(_A, u, v) => for {
-    _ <- check(u ≡ v ∷ _A)
-    _ <- check(u ∷ _A)
-  } yield ()
-  case _ => judgementError(j)
 }
 
-object telescopeTyping { given key as telescopeTyping.type = this }
-def check(j: List[Term] ∷ Telescope)(using Γ: Context)(using Σ: Signature)(using d : telescopeTyping.type) : Result[Unit] = j match {
-  case Nil ∷ Nil => Right(())
-  case (x :: u̅) ∷ (_A :: _Δ) => for {
-    _ <- check(x ∷ _A)
-    _ <- inferLevel(_Δ)
-    _ <- check(u̅ ∷ _Δ)(using _Δ(x))
-  } yield ()
-  case _ => judgementError(j)
+given checkTermsConversion(using Γ: Context)(using Σ: Signature) as Conversion[List[Term] ∷ Telescope, Result[Unit]] = _.check
+extension checkTerms on (j: List[Term] ∷ Telescope) {
+  def check(using Γ: Context)(using Σ: Signature) : Result[Unit] = j match {
+    case Nil ∷ Nil => Right(())
+    case (x :: u̅) ∷ (_A :: _Δ) => for {
+      _ <- x ∷ _A
+      _ <- _Δ.level
+      _ <- (u̅ ∷ _Δ).check(using _Δ(x))
+    } yield ()
+    case _ => judgementError(j)
+  }
 }
 
-object elimTyping { given key as elimTyping.type = this }
-def check(j: Term ∷ Type |- List[Elimination] ∷ Type)(using Γ: Context)(using Σ: Signature)(using d : elimTyping.type) : Result[Unit] = j match {
-  case u ∷ _A |- Nil ∷ _B  => for {
-    _ <- inferLevel(_A ≡ _B)
-  } yield ()
-  case u ∷ WFunction(_A, _B) |- (ETerm(v) :: e̅) ∷ _C => for {
-    _ <- check(v ∷ _A)
-    uv <- app(u, v)
-    _Bv = _B(v)
-    _ <- check(uv ∷ _Bv)
-    _ <- check(uv ∷ _Bv |- e̅ ∷ _C)
-  } yield ()
-  case u ∷ (_R@WRecord(_, v̅)) |- (EProj(π) :: e̅) ∷ _C => for {
-    record <- Σ(_R)
-    field <- record(π) 
-    uπ <- app(u, π)
-    _ <- check(uπ ∷ field.ty(v̅ :+ u) |- e̅ ∷ _C)
-  } yield ()
-  case _ => judgementError(j)
+given checkElimConversion(using Γ: Context)(using Σ: Signature) as Conversion[Term ∷ Type |- List[Elimination] ∷ Type, Result[Unit]] = _.check
+extension checkElim on (j: Term ∷ Type |- List[Elimination] ∷ Type) {
+  def check(using Γ: Context)(using Σ: Signature) : Result[Unit] = j match {
+    case u ∷ _A |- Nil ∷ _B  => for {
+      _ <- _A ≡ _B
+    } yield ()
+    case u ∷ WFunction(_A, _B) |- (ETerm(v) :: e̅) ∷ _C => for {
+      _ <- v ∷ _A
+      uv <- app(u, v)
+      _Bv = _B(v)
+      _ <- uv ∷ _Bv
+      _ <- uv ∷ _Bv |- e̅ ∷ _C
+    } yield ()
+    case u ∷ (_R@WRecord(_, v̅)) |- (EProj(π) :: e̅) ∷ _C => for {
+      record <- Σ(_R)
+      field <- record(π) 
+      uπ <- app(u, π)
+      _ <- uπ ∷ field.ty(v̅ :+ u) |- e̅ ∷ _C
+    } yield ()
+    case _ => judgementError(j)
+  }
 }
 
-object eqTyping { given key as eqTyping.type = this }
-def check(j: ≡[Term] ∷ Type)(using Γ: Context)(using Σ: Signature)(using d : eqTyping.type) : Result[Unit] = TODO()
+given checkTermEqConversion(using Γ: Context)(using Σ: Signature) as Conversion[≡[Term] ∷ Type, Result[Unit]] = _.check
+extension checkTermEq on (j: ≡[Term] ∷ Type) {
+  def check(using Γ: Context)(using Σ: Signature) : Result[Unit] = TODO()
+}
 
-object eqTelescopeTyping { given key as eqTelescopeTyping.type = this }
-def check(j: ≡[List[Term]] ∷ Telescope)(using Γ: Context)(using Σ: Signature)(using d : eqTelescopeTyping.type) : Result[Unit] = TODO() 
+given checkTermsEqConversion(using Γ: Context)(using Σ: Signature) as Conversion[≡[List[Term]] ∷ Telescope, Result[Unit]] = _.check
+extension checkTermsEq on (j: ≡[List[Term]] ∷ Telescope) {
+  def check(using Γ: Context)(using Σ: Signature) : Result[Unit] = TODO() 
+}
 
-object eqElimTyping { given key as eqElimTyping.type = this }
-def check(j: Term ∷ Type |- ≡[List[Elimination]] ∷ Type)(using Γ: Context)(using Σ: Signature)(using d : eqElimTyping.type) : Result[Unit] = TODO()
+given checkElimEqConversion(using Γ: Context)(using Σ: Signature) as Conversion[Term ∷ Type |- ≡[List[Elimination]] ∷ Type, Result[Unit]] = _.check
+extension checkElimEq on (j: Term ∷ Type |- ≡[List[Elimination]] ∷ Type) {
+  def check(using Γ: Context)(using Σ: Signature) : Result[Unit] = TODO()
+}
 
 // ------- magic splitter -------
 
