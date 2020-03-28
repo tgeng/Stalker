@@ -8,7 +8,7 @@ opaque type Substitution = IndexedSeq[*]
 case class SubstituteSpec[T](offset: Int, substitution: Substitution[T])
 
 extension substitutionOps on [T, R](self: Substitution[T]) {
-  def apply(idx: Int) = self(idx)
+  def get(idx: Int) = self(idx)
   def map(fn: T => R) : Substitution[R] = self.map(fn)
   def size = self.size
 }

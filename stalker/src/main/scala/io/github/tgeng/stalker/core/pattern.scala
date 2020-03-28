@@ -33,7 +33,7 @@ extension patternOps on (self: Pattern) {
   }
 
   def substituteImpl(using spec: SubstituteSpec[Pattern]) : Pattern = self match {
-    case PVar(idx) => if (idx >= spec.offset) spec.substitution(idx - spec.offset) else self
+    case PVar(idx) => if (idx >= spec.offset) spec.substitution.get(idx - spec.offset) else self
     case PRefl => self
     case PCon(con, patterns) => PCon(con, patterns.map(_.substituteImpl))
     case PForcedCon(con, patterns) => PForcedCon(con, patterns.map(_.substituteImpl))

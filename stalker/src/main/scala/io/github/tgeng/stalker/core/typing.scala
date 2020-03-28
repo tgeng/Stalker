@@ -92,7 +92,11 @@ def (j: Term ∷ Type |- List[Elimination] ∷ Type) apply (using Γ: Context)(u
     _ <- uv ∷ _Bv
     _ <- uv ∷ _Bv |- e̅ ∷ _C
   } yield ()
-  case u ∷ (_R@WRecord(_, v̅)) |- (EProj(π) :: e̅) ∷ _C => TODO()
+  case u ∷ (_R@WRecord(_, v̅)) |- (EProj(π) :: e̅) ∷ _C => for {
+    record <- Σ(_R)
+    field <- record(π) 
+    _ <- app(u, π) ∷ field.ty(v̅ :+ u) |- e̅ ∷ _C
+  } yield ()
   case _ => judgementError(j)
 }
 

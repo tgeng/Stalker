@@ -39,7 +39,10 @@ extension termOps on (self: Term) {
     case TRedux(fn, elims) => TRedux(fn, elims.map(_.raiseImpl))
   }
 
-  def apply(substitution: Substitution[Term]) : Term = self.substituteImpl(using SubstituteSpec(0, substitution)).raise(-substitution.size)
+  def apply(substitution: Substitution[Term]) : Term = 
+    self.substituteImpl(
+        using SubstituteSpec( 0, substitution.map(_.raise(substitution.size))))
+      .raise(-substitution.size)
 
   def substituteImpl(using spec: SubstituteSpec[Term]) : Term = self match {
     case TWhnf(whnf) => whnf.substituteImpl
@@ -61,6 +64,11 @@ extension whnfOps on (self: Whnf) {
     case WRefl => WRefl
   }
 
+  def apply(substitution: Substitution[Term]) : Term = 
+    self.substituteImpl(
+        using SubstituteSpec( 0, substitution.map(_.raise(substitution.size))))
+      .raise(-substitution.size)
+
   def substituteImpl(using spec: SubstituteSpec[Term]) : Term = self match {
     case WFunction(argTy, bodyTy) => TWhnf(WFunction(
       argTy.substituteImpl,
@@ -70,7 +78,7 @@ extension whnfOps on (self: Whnf) {
     case WRecord(record, params) => TWhnf(WRecord(record, params.map(_.substituteImpl)))
     case WId(ty, left, right) => TWhnf(WId(ty.substituteImpl, left.substituteImpl, right.substituteImpl))
     case WVar(idx, elims) =>
-      if (idx >= spec.offset) (spec.substitution(idx - spec.offset), elims) match {
+      if (idx >= spec.offset) (spec.substitution.get(idx - spec.offset), elims) match {
         case (s, Nil) => s
         case (TWhnf(WVar(idx, sElims)), _) => TWhnf(WVar(idx, sElims ++ elims.map(_.substituteImpl)))
         case (TRedux(fn, sElims), _) => TRedux(fn, sElims ++ elims.map(_.substituteImpl))
