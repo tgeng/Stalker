@@ -80,14 +80,41 @@ def (eq: ≡[Type])level(using Γ: Context)(using Σ: Signature) : Result[Level]
   case _ => typingError(s"Cannot infer level of $eq")
 }
 
-def (elim: Term ∷ Type |- ≡[List[Elimination]])level(using Γ: Context)(using Σ: Signature) : Result[Level] = TODO()
+def (elim: Term ∷ Type |- ≡[List[Elimination]])level(using Γ: Context)(using Σ: Signature) : Result[Level] = {
+  elim match {
+    case x ∷ _A |- e̅1 ≡ e̅2 => (for {
+      _ <- (x ∷ _A).check
+    } yield ()) match {
+      case Right(_) => ()
+      case Left(e) => return Left(e)
+    }
+  }
+  elim match {
+    case u ∷ _A |- Nil ≡ Nil => _A.level
+    case u ∷ WFunction(_A, _B) |- (ETerm(v1) :: e̅1) ≡ (ETerm(v2) :: e̅2) => for {
+      wA <- _A.whnf
+      _ <- (v1 ≡ v2 ∷ wA).check
+      wB <- _B(v1).whnf
+      uv <- app(u, v1)
+      l <- (uv ∷ wB |- e̅1 ≡ e̅2).level
+    } yield l
+    case u ∷ (r@WRecord(_, v̅)) |- (EProj(π) :: e̅1) ≡ (EProj(π1) :: e̅2) if π == π1 => for {
+      record <- Σ(r)
+      field <- record(π)
+      wA <- field.ty(v̅ :+ u).whnf
+      uπ <- app(u, π)
+      l <- (uπ ∷ wA |- e̅1 ≡ e̅2).level
+    } yield l
+    case _ => typingError(s"Cannot infer level of $elim")
+  }
+}
 
 extension checkTerm on (j: Term ∷ Type) {
   def check(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
     j match {
       case _ ∷ _A => _A.level match {
         case Right(_) => ()
-        case _ => return judgementError(j)
+        case Left(e) => return Left(e)
       }
     }
     j match {
@@ -175,10 +202,13 @@ extension checkElim on (j: Term ∷ Type |- List[Elimination] ∷ Type) {
 extension checkTermEq on (j: ≡[Term] ∷ Type) {
   def check(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
     j match {
-      case x ≡ y ∷ _A if x == y => for{
+      case x ≡ y ∷ _A if x == y => (for{
         _ <- _A.level
         _ <- (x ∷ _A).check
-      } yield ()
+      } yield ()) match {
+        case Right(_) => return Right(())
+        case _ => ()
+      }
       case x ≡ y ∷ _A => (for {
         _ <- _A.level
         _ <- (x ∷ _A).check
@@ -226,11 +256,54 @@ extension checkTermEq on (j: ≡[Term] ∷ Type) {
 }
 
 extension checkTermsEq on (j: ≡[List[Term]] ∷ Telescope) {
-  def check(using Γ: Context)(using Σ: Signature) : Result[Unit] = TODO() 
+  def check(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
+    j match {
+      case _ ≡ _ ∷ Γ => Γ.level match {
+        case Right(_) => ()
+        case _ => return judgementError(j)
+      }
+    }
+    j match {
+      case Nil ≡ Nil ∷ Nil => Right(())
+      case (u :: u̅) ≡ (v :: v̅) ∷ (_A :: _Δ) => for {
+        _ <- (u ≡ v ∷ _A).check
+        _Θ <- _Δ(u).tele
+        _ <- (u̅ ≡ v̅ ∷ _Θ).check(using _A :: Γ)
+      } yield ()
+    }
+  }
 }
 
 extension checkElimEq on (j: Term ∷ Type |- ≡[List[Elimination]] ∷ Type) {
-  def check(using Γ: Context)(using Σ: Signature) : Result[Unit] = TODO()
+  def check(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
+    j match {
+      case x ∷ _A |- e̅1 ≡ e̅2 ∷ _C => (for {
+        _ <- (x ∷ _A).check
+        _ <- _C.level
+      } yield ()) match {
+        case Right(_) => ()
+        case Left(e) => return Left(e)
+      }
+    }
+    j match {
+      case u ∷ _A |- Nil ≡ Nil ∷ _C => (_A ≡ _C).level.map(l => ())
+      case u ∷ WFunction(_A, _B) |- (ETerm(v1) :: e̅1) ≡ (ETerm(v2) :: e̅2) ∷ _C => for {
+        wA <- _A.whnf
+        _ <- (v1 ≡ v2 ∷ wA).check
+        wB <- _B(v1).whnf
+        uv <- app(u, v1)
+        _ <- (uv ∷ wB |- e̅1 ≡ e̅2 ∷ _C).check
+      } yield ()
+      case u ∷ (r@WRecord(_, v̅)) |- (EProj(π) :: e̅1) ≡ (EProj(π1) :: e̅2) ∷ _C if π == π1 => for {
+        record <- Σ(r)
+        field <- record(π)
+        wA <- field.ty(v̅ :+ u).whnf
+        uπ <- app(u, π)
+        _ <- (uπ ∷ wA |- e̅1 ≡ e̅2 ∷ _C).check
+      } yield ()
+      case _ => judgementError(j)
+    }
+  }
 }
 
 def (tm: Term).whnf(using Γ: Context)(using Σ: Signature) : Result[Whnf] = tm match {
