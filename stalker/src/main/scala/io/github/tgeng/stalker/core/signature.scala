@@ -7,13 +7,13 @@ enum Status {
 
 import Status._
 
-enum Declaration[S <: Status, +C[_] <: scala.collection.IndexedSeq[_]] {
-  case Data(qn: QualifiedName, paramTys: Telescope, level: Int, cons: C[Constructor])
-  case Record(qn: QualifiedName, paramsTys: Telescope, level: Int, fields: C[Field])
-  case Definition(qn: QualifiedName, ty: Type, clauses: C[Clause[S]])
+enum DeclarationT[S <: Status, +C[_] <: scala.collection.IndexedSeq[_]] {
+  case DataT(qn: QualifiedName, paramTys: Telescope, level: Int, cons: C[Constructor])
+  case RecordT(qn: QualifiedName, paramsTys: Telescope, level: Int, fields: C[Field])
+  case DefinitionT(qn: QualifiedName, ty: Type, clauses: List[Clause[S]])
 }
 
-import Declaration._
+import DeclarationT._
 
 case class Constructor(name: String, argTys: Telescope)
 
@@ -33,6 +33,11 @@ import Clause._
 
 import scala.collection.mutable
 
-type SignatureT[+C[_] <: scala.collection.IndexedSeq[_]] = C[Declaration[Checked, scala.collection.IndexedSeq]]
+type SignatureT[+C[_] <: scala.collection.IndexedSeq[_]] = C[DeclarationT[Checked, scala.collection.IndexedSeq]]
 
-type Signature = Map[QualifiedName, Declaration[Checked, IndexedSeq]]
+type Signature = Map[QualifiedName, DeclarationT[Checked, IndexedSeq]]
+type Declaration = DeclarationT[Checked, IndexedSeq]
+import DeclarationT._
+type Data = DataT[Checked, IndexedSeq]
+type Record = RecordT[Checked, IndexedSeq]
+type Definition = DefinitionT[Checked, IndexedSeq]

@@ -310,8 +310,21 @@ def (tm: Term).whnf(using Γ: Context)(using Σ: Signature) : Result[Whnf] = tm 
   case TWhnf(w) => Right(w)
   case r@TRedux(fn, elims) => for {
     definition <- Σ(r)
+    rhs <- firstMatch(definition.clauses, elims, definition)
+    r <- rhs.whnf
+  } yield r
+}
 
-  } yield TODO()
+import Clause._
+private def firstMatch(cs: List[Clause[Status.Checked]], e̅: List[Elimination], d: Definition)(using Γ: Context)(using Σ: Signature) : Result[Term] = cs match {
+  case Nil => typingError(s"No matched clause found with eliminators ${e̅}. Is definition ${d.qn} exhaustive?")
+  case c :: cs => c match {
+    case CheckedClause(_, q̅, v, _) => e̅ / q̅ match {
+      case Right(Right(σ)) => return Right(v(σ))
+      case Right(Left(_)) => firstMatch(cs, e̅, d)
+      case Left(e) => return Left(e)
+    }
+  }
 }
 
 def (tms: List[Term]).tele(using Γ: Context)(using Σ: Signature) : Result[Telescope] = tms match {
@@ -353,9 +366,20 @@ def (e̅: List[Elimination]) / (q̅: List[CoPattern])(using Γ: Context)(using �
   case (Nil, Nil) => matched(Nil)
   case (e :: e̅, q :: q̅) => for {
     eq <- e / q
-    eqs <- e̅ / q̅
+    eqs <- eq match {
+      // Skip matching if `e / q` already produces a mismatch. 
+      case Left(_) => mismatch(e, q)
+      case _ => e̅ / q̅
+    }
   } yield eq ⊎ eqs
-  case _ => mismatch(e̅, q̅)
+  // This could happen in the following cases
+  // * partial application: we simply make it stuck so we don't need to introduce
+  //   another syntax for storing partial applications. In practice, one can
+  //   compile partial applicable definition into sub functions.
+  // * extra arguments: type error indeed
+  // * wrong number of args for constructor: type error indeed
+  // * mismatched field: this would have resulted an earlier mismatch instead.
+  case _ => typingError(s"stuck when matching ${e̅} with ${q̅}")
 }
 
 // ------- magic splitter -------
@@ -370,30 +394,30 @@ def appElim(x: Term, e: Elimination) : Result[Term] = x match {
 }
 
 extension signatureTypingOps on (self: Signature) {
-  def apply(data : WData) : Result[Declaration.Data[Status.Checked, IndexedSeq]] = self(data.qn) match {
-    case d : Declaration.Data[Status.Checked, IndexedSeq] => Right(d)
+  def apply(data : WData) : Result[Data] = self(data.qn) match {
+    case d : Data => Right(d)
     case _ => typingError(s"No data schema found for ${data.qn}")
   }
 
-  def apply(record : WRecord) : Result[Declaration.Record[Status.Checked, IndexedSeq]] = self(record.qn) match {
-    case r : Declaration.Record[Status.Checked, IndexedSeq] => Right(r)
+  def apply(record : WRecord) : Result[Record] = self(record.qn) match {
+    case r : Record => Right(r)
     case _ => typingError(s"No record schema found for ${record.qn}")
   }
 
-  def apply(redux : TRedux) : Result[Declaration.Definition[Status.Checked, IndexedSeq]] = self(redux.fn) match {
-    case d : Declaration.Definition[Status.Checked, IndexedSeq] => Right(d)
+  def apply(redux : TRedux) : Result[Definition] = self(redux.fn) match {
+    case d : Definition => Right(d)
     case _ => typingError(s"No record schema found for ${redux.fn}")
   }
 }
 
-extension dataOps on (self: Declaration.Data[Status.Checked, IndexedSeq]) {
+extension dataOps on (self: Data) {
   def apply(name: String) : Result[Constructor] = self.cons.find(_.name == name) match {
     case Some(c) => Right(c)
     case None => typingError(s"Cannot find constructor '$name' for data ${self.qn}.")
   }
 }
 
-extension recordOps on (self: Declaration.Record[Status.Checked, IndexedSeq]) {
+extension recordOps on (self: Record) {
   def apply(name: String) : Result[Field] = self.fields.find(_.name == name) match {
     case Some(f) => Right(f)
     case None => typingError(s"Cannot find field '$name' for record ${self.qn}.")
@@ -463,15 +487,14 @@ extension derivationRelation on [X, Y](x: X) {
 }
 
 case class TypingError(msg: String)
-case class Mismatch(v: List[Elimination], p: List[CoPattern])
+case class Mismatch(v: Elimination, p: CoPattern)
 
 def judgementError(judgement: ∷[?, ?] | |-[?, ?] | ≡[?] ) : Either[TypingError, Nothing] = typingError(s"Invalid judgement $judgement")
 def typingError(msg: String) : Either[TypingError, Nothing] = Left(TypingError(msg))
 
 def matched(s: Substitution[Term]) : MatchResult = Right(Right(s))
 
-def mismatch(e: List[Elimination], q: List[CoPattern]) : MatchResult = Right(Left(Mismatch(e, q)))
-def mismatch(e: Elimination, q: CoPattern) : MatchResult = mismatch(e :: Nil, q :: Nil)
+def mismatch(e: Elimination, q: CoPattern) : MatchResult = Right(Left(Mismatch(e, q)))
 def mismatch(t: Term, p: Pattern) : MatchResult = mismatch(ETerm(t), QPattern(p))
 
 def (s1: Either[Mismatch, Substitution[Term]]) ⊎ (s2: Either[Mismatch, Substitution[Term]]) : Either[Mismatch, Substitution[Term]] = 
