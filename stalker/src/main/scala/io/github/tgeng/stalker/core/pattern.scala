@@ -6,6 +6,12 @@ import Elimination._
 import substitutionOps._
 
 enum Pattern {
+  // A pattern is defined under a context containing all the (linear) free variables.
+  // Since pattern construction does not introduce any bindings, 0 always points
+  // to the rightmost (aka, first in context) variable. The context is generated
+  // from the pattern, with the left most PVar bound to the leftmost (last in context)
+  // binding in the context. Therefore, the left most PVar index is the biggest,
+  // e.g. context.size - 1.
   case PVar(idx: Int)
   case PRefl
   case PCon(con: String, patterns: List[Pattern])

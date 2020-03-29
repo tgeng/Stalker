@@ -12,6 +12,7 @@ extension substitutionOps on [T, R](self: Substitution[T]) {
   def map(fn: T => R) : Substitution[R] = self.map(fn)
   def size = self.size
 }
+def disjointUnion[T](self: Substitution[T], other: Substitution[T]) : Substitution[T] = other ++ self
 
 private def termsToSubstitution(terms: List[Term]) : Substitution[Term] = terms.reverse.toIndexedSeq
 private def termToSubstitution(term: Term) : Substitution[Term] = IndexedSeq(term)

@@ -308,7 +308,10 @@ extension checkElimEq on (j: Term ∷ Type |- ≡[List[Elimination]] ∷ Type) {
 
 def (tm: Term).whnf(using Γ: Context)(using Σ: Signature) : Result[Whnf] = tm match {
   case TWhnf(w) => Right(w)
-  case TRedux(fn, elims) => TODO()
+  case r@TRedux(fn, elims) => for {
+    definition <- Σ(r)
+
+  } yield TODO()
 }
 
 def (tms: List[Term]).tele(using Γ: Context)(using Σ: Signature) : Result[Telescope] = tms match {
@@ -317,6 +320,42 @@ def (tms: List[Term]).tele(using Γ: Context)(using Σ: Signature) : Result[Tele
     wTm <- tm.whnf
     wRest <- rest.tele
   } yield wTm :: wRest
+}
+
+import Pattern._
+import CoPattern._
+
+def (v: Term) / (p: Pattern)(using Γ: Context)(using Σ: Signature) : MatchResult = p match {
+  case PVar(_) => matched(v)
+  case PRefl | PForced(_) => matched(Nil)
+  case PCon(c1, p̅) => v.whnf match {
+    case Right(WCon(c2, v̅)) => if(c1 == c2) {
+     v̅.map(ETerm(_)) / p̅.map(QPattern(_))
+    } else {
+      mismatch(v, p)
+    }
+    case _ => typingError(s"stuck when reducing $v")
+  }
+  case PForcedCon(_, p̅) => v.whnf match {
+    case Right(WCon(_, v̅)) => v̅.map(ETerm(_)) / p̅.map(QPattern(_))
+    case _ => typingError(s"stuck when reducing $v")
+  }
+  case PAbsurd => throw IllegalStateException("Checked pattern should not contain absurd pattern.")
+}
+
+def (e: Elimination) / (q: CoPattern)(using Γ: Context)(using Σ: Signature) : MatchResult = (e, q) match {
+  case (ETerm(t), QPattern(p)) => t / p
+  case (EProj(π1), QProj(π2)) if π1 == π2 => matched(Nil)
+  case _ => mismatch(e, q)
+}
+
+def (e̅: List[Elimination]) / (q̅: List[CoPattern])(using Γ: Context)(using Σ: Signature) : MatchResult = (e̅, q̅) match {
+  case (Nil, Nil) => matched(Nil)
+  case (e :: e̅, q :: q̅) => for {
+    eq <- e / q
+    eqs <- e̅ / q̅
+  } yield eq ⊎ eqs
+  case _ => mismatch(e̅, q̅)
 }
 
 // ------- magic splitter -------
@@ -362,6 +401,7 @@ extension recordOps on (self: Declaration.Record[Status.Checked, IndexedSeq]) {
 }
 
 type Result = Either[TypingError, *]
+type MatchResult = Either[TypingError, Either[Mismatch, Substitution[Term]]]
 type Level = Int
 
 case class ∷[X, Y](x: X, y: Y)
@@ -423,6 +463,16 @@ extension derivationRelation on [X, Y](x: X) {
 }
 
 case class TypingError(msg: String)
+case class Mismatch(v: List[Elimination], p: List[CoPattern])
 
 def judgementError(judgement: ∷[?, ?] | |-[?, ?] | ≡[?] ) : Either[TypingError, Nothing] = typingError(s"Invalid judgement $judgement")
 def typingError(msg: String) : Either[TypingError, Nothing] = Left(TypingError(msg))
+
+def matched(s: Substitution[Term]) : MatchResult = Right(Right(s))
+
+def mismatch(e: List[Elimination], q: List[CoPattern]) : MatchResult = Right(Left(Mismatch(e, q)))
+def mismatch(e: Elimination, q: CoPattern) : MatchResult = mismatch(e :: Nil, q :: Nil)
+def mismatch(t: Term, p: Pattern) : MatchResult = mismatch(ETerm(t), QPattern(p))
+
+def (s1: Either[Mismatch, Substitution[Term]]) ⊎ (s2: Either[Mismatch, Substitution[Term]]) : Either[Mismatch, Substitution[Term]] = 
+  s1.flatMap(s1 => s2.map(s2 => disjointUnion(s1, s2)))
