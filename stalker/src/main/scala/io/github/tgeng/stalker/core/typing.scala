@@ -20,13 +20,13 @@ def (tm: Type)level(using Γ: Context)(using Σ: Signature) : Result[Level] = tm
       lB <- rB.level(using _Θ)
     } yield max(lA, lB)
   }
-  case _D@WData(qn, u) => for {
-    data <- Σ(_D)
+  case WData(qn, u) => for {
+    data <- Σ getData qn
     _ <- (u ∷ data.paramTys).check
   } yield data.level
-  case _R@WRecord(qn, u) => for {
-    record <- Σ(_R)
-    _ <- (u ∷ record.paramsTys).check
+  case WRecord(qn, u) => for {
+    record <- Σ getRecord qn
+    _ <- (u ∷ record.paramTys).check
   } yield record.level
   case WId(_A, x, y) => {
     for {
@@ -70,13 +70,13 @@ def (eq: ≡[Type])level(using Γ: Context)(using Σ: Signature) : Result[Level]
       _ <- (v1 ≡ v2 ∷ wA1).check
     } yield l
   }
-  case (d@WData(d1, u̅1)) ≡ WData(d2, u̅2) if d1 == d2 => for {
-    data <- Σ(d)
+  case WData(d1, u̅1) ≡ WData(d2, u̅2) if d1 == d2 => for {
+    data <- Σ getData d1
     _ <- (u̅1 ≡ u̅2 ∷ data.paramTys).check
   } yield data.level
-  case (r@WRecord(r1, u̅1)) ≡ WRecord(r2, u̅2) if r1 == r2 => for {
-    record <- Σ(r)
-    _ <- (u̅1 ≡ u̅2 ∷ record.paramsTys).check
+  case WRecord(r1, u̅1) ≡ WRecord(r2, u̅2) if r1 == r2 => for {
+    record <- Σ getRecord r1
+    _ <- (u̅1 ≡ u̅2 ∷ record.paramTys).check
   } yield record.level
   case _ => typingError(s"Cannot infer level of $eq")
 }
@@ -99,8 +99,8 @@ def (elim: Term ∷ Type |- ≡[List[Elimination]])level(using Γ: Context)(usin
       uv <- app(u, v1)
       l <- (uv ∷ wB |- e̅1 ≡ e̅2).level
     } yield l
-    case u ∷ (r@WRecord(_, v̅)) |- (EProj(π) :: e̅1) ≡ (EProj(π1) :: e̅2) if π == π1 => for {
-      record <- Σ(r)
+    case u ∷ WRecord(r, v̅) |- (EProj(π) :: e̅1) ≡ (EProj(π1) :: e̅2) if π == π1 => for {
+      record <- Σ getRecord r
       field <- record(π)
       wA <- field.ty(v̅ :+ u).whnf
       uπ <- app(u, π)
@@ -131,13 +131,13 @@ extension checkTerm on (j: Term ∷ Type) {
       case TWhnf(WVar(idx, e̅)) ∷ _A => for {
         _ <- (TWhnf(WVar(idx, Nil)) ∷ Γ(idx) |- e̅ ∷ _A).check
       } yield ()
-      case (r@TRedux(fn, e̅)) ∷ _A => for {
-        definition <- Σ(r)
+      case TRedux(fn, e̅) ∷ _A => for {
+        definition <- Σ getDefinition fn
         _ <- (TRedux(fn, Nil) ∷ definition.ty |- e̅ ∷ _A).check
       } yield ()
       // Values
-      case TWhnf(WCon(c, v̅)) ∷ (wData@WData(d, u̅)) => for {
-        data <- Σ(wData)
+      case TWhnf(WCon(c, v̅)) ∷ WData(d, u̅) => for {
+        data <- Σ getData d
         constructor <- data(c)     
         _ <- (u̅ ∷ data.paramTys).check
         _Δ <- constructor.argTys(v̅).tele
@@ -188,8 +188,8 @@ extension checkElim on (j: Term ∷ Type |- List[Elimination] ∷ Type) {
         _ <- (uv ∷ wBv).check
         _ <- (uv ∷ wBv |- e̅ ∷ _C).check
       } yield ()
-      case u ∷ (_R@WRecord(_, v̅)) |- (EProj(π) :: e̅) ∷ _C => for {
-        record <- Σ(_R)
+      case u ∷ WRecord(r, v̅) |- (EProj(π) :: e̅) ∷ _C => for {
+        record <- Σ getRecord r
         field <- record(π) 
         uπ <- app(u, π)
         ft <- field.ty(v̅ :+ u).whnf
@@ -220,8 +220,8 @@ extension checkTermEq on (j: ≡[Term] ∷ Type) {
       }
     }
     j match {
-      case (r@TRedux(f1, e̅1)) ≡ TRedux(f2, e̅2) ∷ _B if f1 == f2 => for {
-        fn <- Σ(r)
+      case TRedux(f1, e̅1) ≡ TRedux(f2, e̅2) ∷ _B if f1 == f2 => for {
+        fn <- Σ getDefinition f1
         _ <- (TRedux(f1, Nil) ∷ fn.ty |- e̅1 ≡ e̅2 ∷ _B).check
       } yield ()
       // function eta rule
@@ -242,8 +242,8 @@ extension checkTermEq on (j: ≡[Term] ∷ Type) {
             case _ => judgementError(j)
           }
           case WVar(x, e̅1) ≡ WVar(y, e̅2) ∷ _A if x == y => (TWhnf(WVar(x, Nil)) ∷ Γ(x) |- e̅1 ≡ e̅2 ∷ _A).check
-          case WCon(c1, v̅1) ≡ WCon(c2, v̅2) ∷ (d@WData(_, u̅)) if c1 == c2 => for {
-            data <- Σ(d)
+          case WCon(c1, v̅1) ≡ WCon(c2, v̅2) ∷ WData(d, u̅) if c1 == c2 => for {
+            data <- Σ getData d
             con <- data(c1)
             _ <- (u̅ ∷ data.paramTys).check
             _Δ <- con.argTys(u̅).tele
@@ -295,8 +295,8 @@ extension checkElimEq on (j: Term ∷ Type |- ≡[List[Elimination]] ∷ Type) {
         uv <- app(u, v1)
         _ <- (uv ∷ wB |- e̅1 ≡ e̅2 ∷ _C).check
       } yield ()
-      case u ∷ (r@WRecord(_, v̅)) |- (EProj(π) :: e̅1) ≡ (EProj(π1) :: e̅2) ∷ _C if π == π1 => for {
-        record <- Σ(r)
+      case u ∷ WRecord(r, v̅) |- (EProj(π) :: e̅1) ≡ (EProj(π1) :: e̅2) ∷ _C if π == π1 => for {
+        record <- Σ getRecord r
         field <- record(π)
         wA <- field.ty(v̅ :+ u).whnf
         uπ <- app(u, π)
@@ -309,8 +309,8 @@ extension checkElimEq on (j: Term ∷ Type |- ≡[List[Elimination]] ∷ Type) {
 
 def (tm: Term).whnf(using Γ: Context)(using Σ: Signature) : Result[Whnf] = tm match {
   case TWhnf(w) => Right(w)
-  case r@TRedux(fn, elims) => for {
-    definition <- Σ(r)
+  case TRedux(fn, elims) => for {
+    definition <- Σ getDefinition fn
     rhs <- firstMatch(definition.clauses, elims, definition)
     r <- rhs.whnf
   } yield r
@@ -394,23 +394,6 @@ def appElim(x: Term, e: Elimination) : Result[Term] = x match {
   case TRedux(fn, elims) => Right(TRedux(fn, elims :+ e))
   case TWhnf(WVar(idx, elims)) => Right(TWhnf(WVar(idx, elims :+ e)))
   case _ => typingError(s"Cannot apply $e to $x.")
-}
-
-extension signatureTypingOps on (self: Signature) {
-  def apply(data : WData) : Result[Data] = self get data.qn match {
-    case Some(d@Data(_, _, _, _)) => Right(d)
-    case _ => typingError(s"No data schema found for ${data.qn}")
-  }
-
-  def apply(record : WRecord) : Result[Record] = self get record.qn match {
-    case Some(r@Record(_, _, _, _)) => Right(r)
-    case _ => typingError(s"No record schema found for ${record.qn}")
-  }
-
-  def apply(redux : TRedux) : Result[Definition] = self get redux.fn match {
-    case Some(d@Definition(_, _, _)) => Right(d)
-    case _ => typingError(s"No definition found for ${redux.fn}")
-  }
 }
 
 extension dataTypingOps on (self: Data) {
