@@ -394,30 +394,30 @@ def appElim(x: Term, e: Elimination) : Result[Term] = x match {
 }
 
 extension signatureTypingOps on (self: Signature) {
-  def apply(data : WData) : Result[Data] = self(data.qn) match {
-    case d : Data => Right(d)
+  def apply(data : WData) : Result[Data] = self get data.qn match {
+    case Some(d@Data(_, _, _, _)) => Right(d)
     case _ => typingError(s"No data schema found for ${data.qn}")
   }
 
-  def apply(record : WRecord) : Result[Record] = self(record.qn) match {
-    case r : Record => Right(r)
+  def apply(record : WRecord) : Result[Record] = self get record.qn match {
+    case Some(r@Record(_, _, _, _)) => Right(r)
     case _ => typingError(s"No record schema found for ${record.qn}")
   }
 
-  def apply(redux : TRedux) : Result[Definition] = self(redux.fn) match {
-    case d : Definition => Right(d)
-    case _ => typingError(s"No record schema found for ${redux.fn}")
+  def apply(redux : TRedux) : Result[Definition] = self get redux.fn match {
+    case Some(d@Definition(_, _, _)) => Right(d)
+    case _ => typingError(s"No definition found for ${redux.fn}")
   }
 }
 
-extension dataOps on (self: Data) {
+extension dataTypingOps on (self: Data) {
   def apply(name: String) : Result[Constructor] = self.cons.find(_.name == name) match {
     case Some(c) => Right(c)
     case None => typingError(s"Cannot find constructor '$name' for data ${self.qn}.")
   }
 }
 
-extension recordOps on (self: Record) {
+extension recordTypingOps on (self: Record) {
   def apply(name: String) : Result[Field] = self.fields.find(_.name == name) match {
     case Some(f) => Right(f)
     case None => typingError(s"Cannot find field '$name' for record ${self.qn}.")
@@ -427,6 +427,20 @@ extension recordOps on (self: Record) {
 type Result = Either[TypingError, *]
 type MatchResult = Either[TypingError, Either[Mismatch, Substitution[Term]]]
 type Level = Int
+
+case class TypingError(msg: String)
+case class Mismatch(v: Elimination, p: CoPattern)
+
+def judgementError(judgement: ∷[?, ?] | |-[?, ?] | ≡[?] ) : Either[TypingError, Nothing] = typingError(s"Invalid judgement $judgement")
+def typingError(msg: String) : Either[TypingError, Nothing] = Left(TypingError(msg))
+
+def matched(s: Substitution[Term]) : MatchResult = Right(Right(s))
+
+def mismatch(e: Elimination, q: CoPattern) : MatchResult = Right(Left(Mismatch(e, q)))
+def mismatch(t: Term, p: Pattern) : MatchResult = mismatch(ETerm(t), QPattern(p))
+
+def (s1: Either[Mismatch, Substitution[Term]]) ⊎ (s2: Either[Mismatch, Substitution[Term]]) : Either[Mismatch, Substitution[Term]] = 
+  s1.flatMap(s1 => s2.map(s2 => disjointUnion(s1, s2)))
 
 case class ∷[X, Y](x: X, y: Y)
 
@@ -485,17 +499,3 @@ extension elimEqRelation on (x: List[Elimination]) {
 extension derivationRelation on [X, Y](x: X) {
   def |- (y: Y) = new |-(x, y)
 }
-
-case class TypingError(msg: String)
-case class Mismatch(v: Elimination, p: CoPattern)
-
-def judgementError(judgement: ∷[?, ?] | |-[?, ?] | ≡[?] ) : Either[TypingError, Nothing] = typingError(s"Invalid judgement $judgement")
-def typingError(msg: String) : Either[TypingError, Nothing] = Left(TypingError(msg))
-
-def matched(s: Substitution[Term]) : MatchResult = Right(Right(s))
-
-def mismatch(e: Elimination, q: CoPattern) : MatchResult = Right(Left(Mismatch(e, q)))
-def mismatch(t: Term, p: Pattern) : MatchResult = mismatch(ETerm(t), QPattern(p))
-
-def (s1: Either[Mismatch, Substitution[Term]]) ⊎ (s2: Either[Mismatch, Substitution[Term]]) : Either[Mismatch, Substitution[Term]] = 
-  s1.flatMap(s1 => s2.map(s2 => disjointUnion(s1, s2)))
