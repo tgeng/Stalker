@@ -1,5 +1,6 @@
 package io.github.tgeng.stalker.core
 
+import scala.util.control.NonLocalReturns._
 import scala.language.implicitConversions
 import scala.math.max
 import io.github.tgeng.common._
@@ -316,15 +317,17 @@ def (tm: Term).whnf(using Γ: Context)(using Σ: Signature) : Result[Whnf] = tm 
 }
 
 import Clause._
-private def firstMatch(cs: List[Clause[Status.Checked]], e̅: List[Elimination], d: Definition)(using Γ: Context)(using Σ: Signature) : Result[Term] = cs match {
-  case Nil => typingError(s"No matched clause found with eliminators ${e̅}. Is definition ${d.qn} exhaustive?")
-  case c :: cs => c match {
-    case CheckedClause(_, q̅, v, _) => e̅ / q̅ match {
-      case Right(Right(σ)) => return Right(v(σ))
-      case Right(Left(_)) => firstMatch(cs, e̅, d)
-      case Left(e) => return Left(e)
+private def firstMatch(cs: scala.collection.Seq[Clause[Status.Checked]], e̅: List[Elimination], d: Definition)(using Γ: Context)(using Σ: Signature) : Result[Term] = returning[Result[Term]] {
+  for (c <- cs) {
+    c match {
+      case CheckedClause(_, q̅, v, _) => e̅ / q̅ match {
+        case Right(Right(σ)) => throwReturn[Result[Term]](Right(v(σ)))
+        case Right(Left(_)) => firstMatch(cs, e̅, d)
+        case Left(e) => throwReturn[Result[Term]](Left(e))
+      }
     }
   }
+  throwReturn[Result[Term]](typingError(s"No matched clause found with eliminators ${e̅}. Is definition ${d.qn} exhaustive?"))
 }
 
 def (tms: List[Term]).tele(using Γ: Context)(using Σ: Signature) : Result[Telescope] = tms match {
@@ -432,7 +435,7 @@ case class TypingError(msg: String)
 case class Mismatch(v: Elimination, p: CoPattern)
 
 def judgementError(judgement: ∷[?, ?] | |-[?, ?] | ≡[?] ) : Either[TypingError, Nothing] = typingError(s"Invalid judgement $judgement")
-def typingError(msg: String) : Either[TypingError, Nothing] = Left(TypingError(msg))
+def typingError(msg: String) : Result[Nothing] = Left(TypingError(msg))
 
 def matched(s: Substitution[Term]) : MatchResult = Right(Right(s))
 

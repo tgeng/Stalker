@@ -1,7 +1,7 @@
 package io.github.tgeng.stalker.core
 
 import scala.collection.Map
-import scala.collection.IndexedSeq
+import scala.collection.Seq
 
 enum Status {
   case Unchecked()
@@ -10,10 +10,10 @@ enum Status {
 
 import Status._
 
-enum DeclarationT[S <: Status, +C[_] <: IndexedSeq[_]] {
+enum DeclarationT[S <: Status, +C[_] <: Seq[_]] {
   case DataT(qn: QualifiedName, paramTys: Telescope, level: Int, cons: C[Constructor])
   case RecordT(qn: QualifiedName, paramsTys: Telescope, level: Int, fields: C[Field])
-  case DefinitionT(qn: QualifiedName, ty: Type, clauses: List[Clause[S]])
+  case DefinitionT(qn: QualifiedName, ty: Type, clauses: C[Clause[S]])
 }
 
 import DeclarationT._
@@ -36,9 +36,9 @@ enum UncheckedRhs {
 
 import UncheckedRhs._
 
-type Declaration = DeclarationT[Checked, IndexedSeq]
-type Data = DataT[Checked, IndexedSeq]
-type Record = RecordT[Checked, IndexedSeq]
-type Definition = DefinitionT[Checked, IndexedSeq]
+type Declaration = DeclarationT[Checked, Seq]
+type Data = DataT[Checked, Seq]
+type Record = RecordT[Checked, Seq]
+type Definition = DefinitionT[Checked, Seq]
 
 type Signature = Map[QualifiedName, Declaration]
