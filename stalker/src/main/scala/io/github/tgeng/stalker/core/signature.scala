@@ -74,6 +74,10 @@ object mutable {
   import Whnf._
   given t as Telescope = Nil 
 
+  object Signature {
+    def create : Signature = HashMap[QualifiedName, Declaration]()
+  }
+
   extension signatureOps on (Σ: Signature) {
     def += (d: Data) : Result[Unit] = {
       given s as Signature = Σ

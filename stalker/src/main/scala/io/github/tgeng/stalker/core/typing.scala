@@ -232,6 +232,18 @@ extension checkTermEq on (j: ≡[Term] ∷ Type) {
         wB <- _B.whnf
         _ <- (fx ≡ gx ∷ wB).check(using wA :: Γ)
       } yield ()
+      // record eta rule
+      // TODO: limit this rule to only run if the record is not recursive
+      case r ≡ s ∷ WRecord(qn, params) => for {
+        record <- Σ getRecord qn
+        _ <- record.fields.foldLeft[Result[Unit]](Right(()))((acc, f) => for {
+          _ <- acc
+          rf <- app(r, f.name)
+          sf <- app(s, f.name)
+          _A <- f.ty(params :+ r).whnf
+          _ <- (rf ≡ sf ∷ _A).check
+        } yield ())
+      } yield ()
       case x ≡ y ∷ _A => for {
         wX <- x.whnf
         wY <- y.whnf

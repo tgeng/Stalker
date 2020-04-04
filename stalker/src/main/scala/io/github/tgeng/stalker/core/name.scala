@@ -12,4 +12,6 @@ enum QualifiedName {
   def / (subName: String) : QualifiedName = QualifiedName.Sub(this, subName)
 }
 
-val root = QualifiedName.Root()
+object QualifiedName {
+  val root = QualifiedName.Root()
+}
