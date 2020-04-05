@@ -430,17 +430,6 @@ type Level = Int
 case class TypingError(msg: String)
 case class Mismatch(v: Elimination, p: CoPattern)
 
-def judgementError(judgement: ∷[?, ?] | |-[?, ?] | ≡[?] ) : Either[TypingError, Nothing] = typingError(s"Invalid judgement $judgement")
-def typingError(msg: String) : Result[Nothing] = Left(TypingError(msg))
-
-def matched(s: Substitution[Term]) : MatchResult = Right(Right(s))
-
-def mismatch(e: Elimination, q: CoPattern) : MatchResult = Right(Left(Mismatch(e, q)))
-def mismatch(t: Term, p: Pattern) : MatchResult = mismatch(ETerm(t), QPattern(p))
-
-def (s1: Either[Mismatch, Substitution[Term]]) ⊎ (s2: Either[Mismatch, Substitution[Term]]) : Either[Mismatch, Substitution[Term]] = 
-  s1.flatMap(s1 => s2.map(s2 => disjointUnion(s1, s2)))
-
 case class ∷[X, Y](x: X, y: Y)
 
 case class ≡[X](a: X, b: X)
@@ -498,3 +487,11 @@ extension elimEqRelation on (x: List[Elimination]) {
 extension derivationRelation on [X, Y](x: X) {
   def |- (y: Y) = new |-(x, y)
 }
+
+private def judgementError(judgement: ∷[?, ?] | |-[?, ?] | ≡[?] ) : Either[TypingError, Nothing] = typingError(s"Invalid judgement $judgement")
+private def typingError(msg: String) : Result[Nothing] = Left(TypingError(msg))
+private def matched(s: Substitution[Term]) : MatchResult = Right(Right(s))
+private def mismatch(e: Elimination, q: CoPattern) : MatchResult = Right(Left(Mismatch(e, q)))
+private def mismatch(t: Term, p: Pattern) : MatchResult = mismatch(ETerm(t), QPattern(p))
+private def (s1: Either[Mismatch, Substitution[Term]]) ⊎ (s2: Either[Mismatch, Substitution[Term]]) : Either[Mismatch, Substitution[Term]] = 
+  s1.flatMap(s1 => s2.map(s2 => disjointUnion(s1, s2)))

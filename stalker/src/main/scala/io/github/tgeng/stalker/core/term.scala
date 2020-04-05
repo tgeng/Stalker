@@ -1,5 +1,6 @@
 package io.github.tgeng.stalker.core
 
+import io.github.tgeng.stalker.common.QualifiedName
 import substitutionOps._
 
 type Type = Whnf

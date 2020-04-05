@@ -4,6 +4,7 @@ import scala.collection.Map
 import scala.collection.Seq
 import scala.collection.mutable.HashMap
 import scala.collection.mutable.ArrayBuffer
+import io.github.tgeng.stalker.common.QualifiedName
 import typing._
 import typing.checkElim
 import typing.checkTerm
