@@ -4,8 +4,11 @@ import scala.collection.Map
 import scala.collection.Seq
 import scala.collection.mutable.HashMap
 import scala.collection.mutable.ArrayBuffer
+import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.core.typing.level
+import io.github.tgeng.stalker.core.typing.tele
+import io.github.tgeng.stalker.core.typing.whnf
 import typing.checkElim
 import typing.checkTerm
 
@@ -16,24 +19,26 @@ enum Status {
 
 import Status._
 
-enum DeclarationT[S <: Status, +C[_]] {
-  case DataT(qn: QualifiedName, paramTys: Telescope, level: Int, cons: C[Constructor])
-  case RecordT(qn: QualifiedName, paramTys: Telescope, level: Int, fields: C[Field])
-  case DefinitionT(qn: QualifiedName, ty: Type, clauses: C[Clause[S]])
+enum DeclarationT[+S <: Status, +C[_], +T] {
+  case DataT(val qn: QualifiedName, paramTys: List[Binding[T]], level: Int, cons: C[ConstructorT[T]])
+  case RecordT(val qn: QualifiedName, paramTys: List[Binding[T]], level: Int, fields: C[FieldT[T]])
+  case DefinitionT(val qn: QualifiedName, ty: T, clauses: C[ClauseT[S, T]])
+
+  def qn: QualifiedName
 }
 
 import DeclarationT._
 
-case class Constructor(name: String, argTys: Telescope)
+case class ConstructorT[+T](name: String, argTys: List[Binding[T]])
 
-case class Field(name: String, ty: Type)
+case class FieldT[+T](name: String, ty: T)
 
-enum Clause[T <: Status] {
-  case UncheckedClause(lhs: List[CoPattern], rhs: UncheckedRhs) extends Clause[Unchecked]
-  case CheckedClause(bindings: Telescope, lhs: List[CoPattern], rhs: Term, ty: Type)
+enum ClauseT[+S <: Status, +T] {
+  case UncheckedClause(lhs: List[CoPattern], rhs: UncheckedRhs) extends ClauseT[Unchecked, T]
+  case CheckedClause(bindings: List[Binding[T]], lhs: List[CoPattern], rhs: Term, ty: T) extends ClauseT[Checked, T]
 }
 
-import Clause._
+import ClauseT._
 
 enum UncheckedRhs {
   case UTerm(t: Term)
@@ -42,37 +47,48 @@ enum UncheckedRhs {
 
 import UncheckedRhs._
 
-type SignatureT[+C[_]] = Map[QualifiedName, DeclarationT[Checked, C]]
+type SignatureT[+C[_], T] = Map[QualifiedName, DeclarationT[Checked, C, T]]
 
-extension signatureTOps on [C[_]](Σ: SignatureT[C]) {
-  def getData(qn: QualifiedName) : Result[DataT[Checked, C]] = Σ get qn match {
-    case Some(d : DataT[Checked, C]) => Right(d.asInstanceOf[DataT[Checked, C]])
+extension signatureTOps on [C[_], T](Σ: SignatureT[C, T]) {
+  def getData(qn: QualifiedName) : Result[DataT[Checked, C, T]] = Σ get qn match {
+    case Some(d : DataT[Checked, C, T]) => Right(d.asInstanceOf[DataT[Checked, C, T]])
     case _ => typingError(s"No data schema found for $qn")
   }
 
-  def getRecord(qn: QualifiedName) : Result[RecordT[Checked, C]] = Σ get qn match {
-    case Some(r : RecordT[Checked, C]) => Right(r.asInstanceOf[RecordT[Checked, C]])
+  def getRecord(qn: QualifiedName) : Result[RecordT[Checked, C, T]] = Σ get qn match {
+    case Some(r : RecordT[Checked, C, T]) => Right(r.asInstanceOf[RecordT[Checked, C, T]])
     case _ => typingError(s"No record schema found for $qn")
   }
 
-  def getDefinition(qn: QualifiedName) : Result[DefinitionT[Checked, C]] = Σ get qn match {
-    case Some(d : DefinitionT[Checked, C]) => Right(d.asInstanceOf[DefinitionT[Checked, C]])
+  def getDefinition(qn: QualifiedName) : Result[DefinitionT[Checked, C, T]] = Σ get qn match {
+    case Some(d : DefinitionT[Checked, C, T]) => Right(d.asInstanceOf[DefinitionT[Checked, C, T]])
     case _ => typingError(s"No definition found for $qn")
   }
 }
 
-type Declaration = DeclarationT[Checked, Seq]
-type Data = DataT[Checked, Seq]
-type Record = RecordT[Checked, Seq]
-type Definition = DefinitionT[Checked, Seq]
+type Declaration = DeclarationT[Checked, Seq, Type]
+type Data = DataT[Checked, Seq, Type]
+type Record = RecordT[Checked, Seq, Type]
+type Definition = DefinitionT[Checked, Seq, Type]
 type Signature = Map[QualifiedName, Declaration]
+type Constructor = ConstructorT[Type]
+type Field = FieldT[Type]
+type Clause[S <: Status] = ClauseT[S, Type]
 
 object mutable {
-  type Declaration = DeclarationT[Checked, ArrayBuffer]
-  type Data = DataT[Checked, ArrayBuffer]
-  type Record = RecordT[Checked, ArrayBuffer]
-  type Definition = DefinitionT[Checked, ArrayBuffer]
+  type Declaration = DeclarationT[Checked, ArrayBuffer, Type]
+  type Data = DataT[Checked, ArrayBuffer, Type]
+  type Record = RecordT[Checked, ArrayBuffer, Type]
+  type Definition = DefinitionT[Checked, ArrayBuffer, Type]
   type Signature = HashMap[QualifiedName, Declaration]
+
+  type PreDeclaration = DeclarationT[Checked, ArrayBuffer, Term] 
+  type PreData = DataT[Checked, ArrayBuffer, Term]
+  type PreRecord = RecordT[Checked, ArrayBuffer, Term]
+  type PreDefinition = DefinitionT[Checked, ArrayBuffer, Term]
+  type PreConstructor = ConstructorT[Term]
+  type PreField = FieldT[Term]
+  type PreClause[S <: Status] = ClauseT[S, Term]
 
   import Term._
   import Whnf._
@@ -82,62 +98,103 @@ object mutable {
     def create : Signature = HashMap[QualifiedName, Declaration]()
   }
 
+  extension preDeclarationOps on (self: PreDeclaration) {
+    def normalize(using Γ: Context)(using Σ: Signature) : Result[Declaration] = self match {
+      case DataT(qn, paramTys, level, cons) => for {
+        wParamTys <- paramTys.tele
+        wCons <- cons.liftMap(_.normalize(using wParamTys.toContext))
+      } yield DataT(qn, wParamTys, level, wCons)
+      case r@RecordT(qn, paramTys, level, fields) => for {
+        wParamTys <- paramTys.tele
+        wFields <- fields.liftMap(_.normalize(using r.getSelfType :: wParamTys.toContext))
+      } yield RecordT(qn, wParamTys, level, wFields)
+      case DefinitionT(qn, ty, clauses) => for {
+        wTy <- ty.whnf
+        wClauses <- clauses.liftMap(_.normalize)
+      } yield DefinitionT(qn, wTy, wClauses)
+    }
+  }
+  
+  extension recordOps on (self: RecordT[?, ?, ?]) {
+    def getSelfType : Type =
+      Whnf.WRecord(self.qn, ((self.paramTys.size - 1) to 0).map(i => Term.TWhnf(Whnf.WVar(i, Nil))).toList)
+  }
+  
+  extension preConstructorOps on (self: PreConstructor) {
+    def normalize(using Γ: Context)(using Σ: Signature) : Result[Constructor] = for {
+      wArgTys <- self.argTys.tele
+    } yield ConstructorT(self.name, wArgTys)
+  }
+  
+  extension preFieldsOps on (self: PreField) {
+    def normalize(using Γ: Context)(using Σ: Signature) : Result[Field] = for {
+      wTy <- self.ty.whnf
+    } yield FieldT(self.name, wTy)
+  }
+  
+  extension preClauseOps on [S <: Status](self: PreClause[S]) {
+    def normalize(using Γ: Context)(using Σ: Signature): Result[Clause[S]] = self match {
+      case UncheckedClause(lhs, rhs) => Right(UncheckedClause(lhs, rhs))
+      case CheckedClause(bindings, lhs, rhs, ty) => for {
+        wBindings <- bindings.liftMap(b => b.ty.whnf.map(Binding(_)(b.name)))
+        wTy <- ty.whnf
+      } yield CheckedClause(wBindings, lhs, rhs, wTy)
+    }
+  }
+
   extension signatureOps on (Σ: Signature) {
-    def += (d: Data) : Result[Unit] = {
+
+    def += (d: PreDeclaration) : Result[Unit] = {
       given Signature = Σ
       for {
-        _ <- d.paramTys.level
-      } yield Σ(d.qn) = d
+        wD <- d.normalize
+        _ <- wD match {
+          case d : Data => d.paramTys.level
+          case r : Record => r.paramTys.level
+          case d : Definition => d.ty.level
+        }
+      } yield Σ(d.qn) = wD
     } 
 
-    def += (qn: QualifiedName, c: Constructor) : Result[Unit] = {
+    def += (qn: QualifiedName, c: PreConstructor) : Result[Unit] = {
       given s as Signature = Σ
       for {
         data <- Σ getData qn
-        cL <- c.argTys.level(using data.paramTys.toContext)
+        wC <- c.normalize
+        cL <- wC.argTys.level(using data.paramTys.toContext)
         _ <- cL <= data.level match {
           case true => Right(())
           case _ => typingError(s"Level of arguments in constructor $c is above that of data declaration $qn.")
         }
-      } yield { data.cons.append(c); () }
+      } yield { data.cons.append(wC); () }
     }
 
-    def += (r: Record) : Result[Unit] = {
-      given s as Signature = Σ
-      for {
-        _ <- r.paramTys.level
-      } yield Σ(r.qn) = r
-    } 
-
-    def += (qn: QualifiedName, f: Field) : Result[Unit] = {
+    def += (qn: QualifiedName, f: PreField) : Result[Unit] = {
       given s as Signature = Σ
       for {
         record <- Σ getRecord qn
-        cL <- f.ty.level(using WRecord(qn, ((record.paramTys.size - 1) to 0).map(i => TWhnf(WVar(i, Nil))).toList) :: record.paramTys.toContext)
+        wF <- f.normalize
+        cL <- wF.ty.level(using record.getSelfType :: record.paramTys.toContext)
         _ <- cL <= record.level match {
           case true => Right(())
           case _ => typingError(s"Level of field $f is above that of record declaration $qn.")
         }
-      } yield { record.fields.append(f); () }
+      } yield { record.fields.append(wF); () }
     }
 
-    def += (d: Definition) : Result[Unit] = {
+    def += (qn: QualifiedName, c: PreClause[Checked]) : Result[Unit] = {
       given s as Signature = Σ
       for {
-        _ <- d.ty.level
-      } yield Σ(d.qn) = d
-    } 
-
-    def += (qn: QualifiedName, c: Clause[Checked]) : Result[Unit] = {
-      given s as Signature = Σ
-      c match {
-      case CheckedClause(_Δ, q̅, v, _B) => for {
-          definition <- Σ getDefinition qn
-          _ <- _Δ.level
-          _ <- (TRedux(qn, Nil) ∷ definition.ty |- q̅.map(_.toElimination) ∷ _B).check(using _Δ.toContext)
-          _ <- (v ∷ _B).check(using _Δ.toContext)
-        } yield { definition.clauses.append(c); ()}
-      }
+        wC <- c.normalize
+        r <- wC match {
+          case CheckedClause(_Δ, q̅, v, _B) => for {
+            definition <- Σ getDefinition qn
+            _ <- _Δ.level
+            _ <- (TRedux(qn, Nil) ∷ definition.ty |- q̅.map(_.toElimination) ∷ _B).check(using _Δ.toContext)
+            _ <- (v ∷ _B).check(using _Δ.toContext)
+          } yield definition.clauses.append(wC)
+        }
+      } yield ()
     }
   }
 }

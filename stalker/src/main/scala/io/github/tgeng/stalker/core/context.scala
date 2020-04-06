@@ -1,10 +1,9 @@
 package io.github.tgeng.stalker.core
 
 import scala.language.implicitConversions
-import io.github.tgeng.common.indexedSeqOps._
 import substitutionOps._
 
-case class Binding[T](ty: T)(val name: String)
+case class Binding[+T](ty: T)(val name: String)
 
 extension bindingOps on [T, R](self: Binding[T]) {
   def map(f: T => R) = Binding[R](f(self.ty))(self.name)

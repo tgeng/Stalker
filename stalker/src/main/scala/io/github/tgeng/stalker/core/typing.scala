@@ -8,7 +8,7 @@ import substitutionConversion.{given _}
 import Term._
 import Whnf._
 import Elimination._
-import Clause._
+import ClauseT._
 import Pattern._
 import CoPattern._
 
