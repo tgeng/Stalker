@@ -9,8 +9,8 @@ import io.github.tgeng.stalker.core.Whnf._
 
 class TermSpec extends UnitSpec {
   "empty Σ and Γ" - {
-    given Σ : Signature = mutable.Signature.create
-    given Γ : Telescope = List.empty
+    given Σ : Signature = signatureBuilder.Signature.create
+    given Γ : Context = List.empty
 
     "type level" in {
       TWhnf(WUniverse(0)) should haveLevel(1)

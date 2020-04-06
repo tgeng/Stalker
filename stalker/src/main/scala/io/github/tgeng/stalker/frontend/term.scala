@@ -13,7 +13,7 @@ enum Term {
   case TData(qn: QualifiedName, params: List[Term])
   case TRecord(qn: QualifiedName, params: List[Term])
   case TId(ty: Term, left: Term, right: Term)
-  case TVar(idx: Int, elims: List[Elimination])
+  case TVar(name: String, elims: List[Elimination])
   case TCon(con: String, args: List[Term])
   case TRefl
 }
@@ -37,7 +37,10 @@ extension termOps on (self: Term) {
       dbLeft <- left.toDbTerm
       dbRight <- right.toDbTerm
     } yield TWhnf(WId(dbTy, dbLeft, dbRight))
-    case TVar(idx, elims) => elims.liftMap(_.toDbElimination).map(es => TWhnf(WVar(idx, es)))
+    case TVar(name, elims) => for {
+      wElims <- elims.liftMap(_.toDbElimination)
+      idx <- ctx.get(name)
+    } yield TWhnf(WVar(idx, wElims))
     case TCon(con, args) => args.liftMap(_.toDbTerm).map(ts => TWhnf(WCon(con, ts)))
     case TRefl => Right(TWhnf(WRefl))
   }

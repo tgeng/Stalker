@@ -4,6 +4,7 @@ import scala.collection.Map
 import scala.collection.Seq
 import scala.collection.mutable.HashMap
 import scala.collection.mutable.ArrayBuffer
+import io.github.tgeng.common._
 import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.core.typing.level
@@ -73,7 +74,7 @@ type Definition = DefinitionT[Checked, Seq, Type]
 type Signature = Map[QualifiedName, Declaration]
 type Constructor = ConstructorT[Type]
 type Field = FieldT[Type]
-type Clause[S <: Status] = ClauseT[S, Type]
+type Clause = ClauseT[Checked, Type]
 
 object signatureBuilder {
   type Declaration = DeclarationT[Checked, ArrayBuffer, Type]
@@ -82,13 +83,14 @@ object signatureBuilder {
   type Definition = DefinitionT[Checked, ArrayBuffer, Type]
   type Signature = HashMap[QualifiedName, Declaration]
 
-  type PreDeclaration = DeclarationT[Checked, ArrayBuffer, Term] 
-  type PreData = DataT[Checked, ArrayBuffer, Term]
-  type PreRecord = RecordT[Checked, ArrayBuffer, Term]
-  type PreDefinition = DefinitionT[Checked, ArrayBuffer, Term]
+  type PreDeclaration = DeclarationT[Unchecked, ArrayBuffer, Term] 
+  type PreData = DataT[Unchecked, ArrayBuffer, Term]
+  type PreRecord = RecordT[Unchecked, ArrayBuffer, Term]
+  type PreDefinition = DefinitionT[Unchecked, ArrayBuffer, Term]
   type PreConstructor = ConstructorT[Term]
   type PreField = FieldT[Term]
-  type PreClause[S <: Status] = ClauseT[S, Term]
+  type PreUncheckedClause = ClauseT[Unchecked, Term]
+  type PreClause = ClauseT[Unchecked, Type]
 
   import Term._
   import Whnf._
@@ -110,7 +112,7 @@ object signatureBuilder {
       } yield RecordT(qn, wParamTys, level, wFields)
       case DefinitionT(qn, ty, clauses) => for {
         wTy <- ty.whnf
-        wClauses <- clauses.liftMap(_.normalize)
+        wClauses <- clauses.liftMap(c => c.normalize.flatMap(_.elaborate))
       } yield DefinitionT(qn, wTy, wClauses)
     }
   }
@@ -132,13 +134,19 @@ object signatureBuilder {
     } yield FieldT(self.name, wTy)
   }
   
-  extension preClauseOps on [S <: Status](self: PreClause[S]) {
-    def normalize(using Γ: Context)(using Σ: Signature): Result[Clause[S]] = self match {
+  extension preUncheckedClauseOps on (self: PreUncheckedClause) {
+    def normalize(using Γ: Context)(using Σ: Signature): Result[PreClause] = self match {
       case UncheckedClause(lhs, rhs) => Right(UncheckedClause(lhs, rhs))
-      case CheckedClause(bindings, lhs, rhs, ty) => for {
-        wBindings <- bindings.liftMap(b => b.ty.whnf.map(Binding(_)(b.name)))
-        wTy <- ty.whnf
-      } yield CheckedClause(wBindings, lhs, rhs, wTy)
+      // case CheckedClause(bindings, lhs, rhs, ty) => for {
+      //   wBindings <- bindings.liftMap(b => b.ty.whnf.map(Binding(_)(b.name)))
+      //   wTy <- ty.whnf
+      // } yield CheckedClause(wBindings, lhs, rhs, wTy)
+    }
+  }
+
+  extension preClauseOps on (self: PreClause) {
+    def elaborate(using Γ: Context)(using Σ: Signature): Result[Clause] = self match {
+      case UncheckedClause(lhs, rhs) => TODO()
     }
   }
 
@@ -182,19 +190,25 @@ object signatureBuilder {
       } yield { record.fields.append(wF); () }
     }
 
-    def += (qn: QualifiedName, c: PreClause[Checked]) : Result[Unit] = {
+    def += (qn: QualifiedName, c: PreUncheckedClause) : Result[Unit] = {
       given s as Signature = Σ
       for {
         wC <- c.normalize
-        r <- wC match {
-          case CheckedClause(_Δ, q̅, v, _B) => for {
-            definition <- Σ getDefinition qn
-            _ <- _Δ.level
-            _ <- (TRedux(qn, Nil) ∷ definition.ty |- q̅.map(_.toElimination) ∷ _B).check(using _Δ.toContext)
-            _ <- (v ∷ _B).check(using _Δ.toContext)
-          } yield definition.clauses.append(wC)
-        }
+        eC <- wC.elaborate
+        r <- Σ.addCheckedClause(qn, eC)
       } yield ()
+    }
+
+    def addCheckedClause(qn: QualifiedName, c: Clause) : Result[Unit] ={
+      given s as Signature = Σ
+      c match {
+        case CheckedClause(_Δ, q̅, v, _B) => for {
+          definition <- Σ getDefinition qn
+          _ <- _Δ.level
+          _ <- (TRedux(qn, Nil) ∷ definition.ty |- q̅.map(_.toElimination) ∷ _B).check(using _Δ.toContext)
+          _ <- (v ∷ _B).check(using _Δ.toContext)
+        } yield { definition.clauses.append(c); ()}
+      }
     }
   }
 }

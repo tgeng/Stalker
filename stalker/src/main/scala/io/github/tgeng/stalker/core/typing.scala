@@ -323,7 +323,7 @@ object typing {
     }
   }
   
-  def (tm: Term).whnf(using Γ: Context)(using Σ: Signature) : Result[Whnf] = tm match {
+  def (tm: Term) whnf(using Γ: Context)(using Σ: Signature) : Result[Whnf] = tm match {
     case TWhnf(w) => Right(w)
     case TRedux(fn, elims) => for {
       definition <- Σ getDefinition fn
@@ -332,7 +332,7 @@ object typing {
     } yield r
   }
   
-  private def firstMatch(cs: scala.collection.Seq[Clause[Status.Checked]], e̅: List[Elimination], d: Definition)(using Γ: Context)(using Σ: Signature) : Result[Term] = returning[Result[Term]] {
+  private def firstMatch(cs: scala.collection.Seq[Clause], e̅: List[Elimination], d: Definition)(using Γ: Context)(using Σ: Signature) : Result[Term] = returning[Result[Term]] {
     for (c <- cs) {
       c match {
         case CheckedClause(_, q̅, v, _) => e̅ / q̅ match {

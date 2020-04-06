@@ -1,28 +1,23 @@
 package io.github.tgeng.stalker.frontend
 
+import scala.collection.mutable.ArrayBuffer
 import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.core.signatureBuilder._
 import io.github.tgeng.stalker.core.Status
-import Status._
 
-enum DeclarationT[S <: Status, +C[_]] {
-  case DataT(qn: QualifiedName, paramTys: Telescope, level: Int, cons: C[Constructor])
-  case RecordT(qn: QualifiedName, paramTys: Telescope, level: Int, fields: C[Field])
-  case DefinitionT(qn: QualifiedName, ty: Term, clauses: C[Clause[S]])
+enum Declaration {
+  case Data(qn: QualifiedName, paramTys: Telescope, level: Int, cons: ArrayBuffer[Constructor])
+  case Record(qn: QualifiedName, paramTys: Telescope, level: Int, fields: ArrayBuffer[Field])
+  case Definition(qn: QualifiedName, ty: Term, clauses: ArrayBuffer[UncheckedClause])
 }
 
-import DeclarationT._
+import Declaration._
 
 case class Constructor(name: String, argTys: Telescope)
 
 case class Field(name: String, ty: Term)
 
-enum Clause[T <: Status] {
-  case UncheckedClause(lhs: List[CoPattern], rhs: UncheckedRhs) extends Clause[Unchecked]
-  case CheckedClause(bindings: Telescope, lhs: List[CoPattern], rhs: Term, ty: Term)
-}
-
-import Clause._
+case class UncheckedClause(lhs: List[CoPattern], rhs: UncheckedRhs)
 
 enum UncheckedRhs {
   case UTerm(t: Term)
