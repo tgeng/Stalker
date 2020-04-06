@@ -46,8 +46,8 @@ object typing {
   def (Δ: Telescope)level(using Γ: Context)(using Σ: Signature) : Result[Level] = Δ match {
     case Nil => Right(0)
     case _A :: _Δ => for {
-      lA <- _A.level
-      lΔ <- _Δ.level(using _A :: Γ)
+      lA <- _A.ty.level
+      lΔ <- _Δ.level(using _A.ty :: Γ)
     } yield max(lA, lΔ)
   }
   
@@ -160,9 +160,9 @@ object typing {
     def check(using Γ: Context)(using Σ: Signature) : Result[Unit] = j match {
       case Nil ∷ Nil => Right(())
       case (x :: u̅) ∷ (_A :: _Δ) => for {
-        _ <- (x ∷ _A).check
+        _ <- (x ∷ _A.ty).check
         _Θ <- _Δ(x).tele
-        _ <- (u̅ ∷ _Δ).check(using _Θ)
+        _ <- (u̅ ∷ _Θ).check(using _A.ty :: Γ)
       } yield ()
       case _ => judgementError(j)
     }
@@ -275,7 +275,7 @@ object typing {
   extension checkTermsEq on (j: ≡[List[Term]] ∷ Telescope) {
     def check(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
       j match {
-        case _ ≡ _ ∷ Γ => Γ.level match {
+        case _ ≡ _ ∷ _Δ => _Δ.level match {
           case Right(_) => ()
           case _ => return judgementError(j)
         }
@@ -283,9 +283,9 @@ object typing {
       j match {
         case Nil ≡ Nil ∷ Nil => Right(())
         case (u :: u̅) ≡ (v :: v̅) ∷ (_A :: _Δ) => for {
-          _ <- (u ≡ v ∷ _A).check
+          _ <- (u ≡ v ∷ _A.ty).check
           _Θ <- _Δ(u).tele
-          _ <- (u̅ ≡ v̅ ∷ _Θ).check(using _A :: Γ)
+          _ <- (u̅ ≡ v̅ ∷ _Θ).check(using _A.ty :: Γ)
         } yield ()
       }
     }
@@ -345,12 +345,12 @@ object typing {
     throwReturn[Result[Term]](typingError(s"No matched clause found with eliminators ${e̅}. Is definition ${d.qn} exhaustive?"))
   }
   
-  def (tms: List[Term]).tele(using Γ: Context)(using Σ: Signature) : Result[Telescope] = tms match {
+  def (tms: List[Binding[Term]]).tele(using Γ: Context)(using Σ: Signature) : Result[Telescope] = tms match {
     case Nil => Right(Nil)
     case tm :: rest => for {
-      wTm <- tm.whnf
+      wTm <- tm.ty.whnf
       wRest <- rest.tele
-    } yield wTm :: wRest
+    } yield Binding(wTm)(tm.name) :: wRest
   }
   
   def (v: Term) / (p: Pattern)(using Γ: Context)(using Σ: Signature) : MatchResult = p match {

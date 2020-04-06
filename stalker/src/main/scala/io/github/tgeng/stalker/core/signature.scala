@@ -5,7 +5,7 @@ import scala.collection.Seq
 import scala.collection.mutable.HashMap
 import scala.collection.mutable.ArrayBuffer
 import io.github.tgeng.stalker.common.QualifiedName
-import typing._
+import io.github.tgeng.stalker.core.typing.level
 import typing.checkElim
 import typing.checkTerm
 
@@ -30,7 +30,7 @@ case class Field(name: String, ty: Type)
 
 enum Clause[T <: Status] {
   case UncheckedClause(lhs: List[CoPattern], rhs: UncheckedRhs) extends Clause[Unchecked]
-  case CheckedClause(bindings: Telescope, lhs: List[CoPattern], rhs: Term, ty: Type) extends Clause[Checked]
+  case CheckedClause(bindings: Telescope, lhs: List[CoPattern], rhs: Term, ty: Type)
 }
 
 import Clause._
@@ -76,7 +76,7 @@ object mutable {
 
   import Term._
   import Whnf._
-  given t as Telescope = Nil 
+  given Context = Nil 
 
   object Signature {
     def create : Signature = HashMap[QualifiedName, Declaration]()
@@ -84,7 +84,7 @@ object mutable {
 
   extension signatureOps on (Σ: Signature) {
     def += (d: Data) : Result[Unit] = {
-      given s as Signature = Σ
+      given Signature = Σ
       for {
         _ <- d.paramTys.level
       } yield Σ(d.qn) = d
@@ -94,7 +94,7 @@ object mutable {
       given s as Signature = Σ
       for {
         data <- Σ getData qn
-        cL <- c.argTys.level(using data.paramTys)
+        cL <- c.argTys.level(using data.paramTys.toContext)
         _ <- cL <= data.level match {
           case true => Right(())
           case _ => typingError(s"Level of arguments in constructor $c is above that of data declaration $qn.")
@@ -113,9 +113,7 @@ object mutable {
       given s as Signature = Σ
       for {
         record <- Σ getRecord qn
-        cL <- f.ty.level(using 
-          record.paramTys :+ 
-          WRecord(qn, ((record.paramTys.size - 1) to 0).map(i => TWhnf(WVar(i, Nil))).toList))
+        cL <- f.ty.level(using WRecord(qn, ((record.paramTys.size - 1) to 0).map(i => TWhnf(WVar(i, Nil))).toList) :: record.paramTys.toContext)
         _ <- cL <= record.level match {
           case true => Right(())
           case _ => typingError(s"Level of field $f is above that of record declaration $qn.")
@@ -136,8 +134,8 @@ object mutable {
       case CheckedClause(_Δ, q̅, v, _B) => for {
           definition <- Σ getDefinition qn
           _ <- _Δ.level
-          _ <- (TRedux(qn, Nil) ∷ definition.ty |- q̅.map(_.toElimination) ∷ _B).check(using _Δ)
-          _ <- (v ∷ _B).check(using _Δ)
+          _ <- (TRedux(qn, Nil) ∷ definition.ty |- q̅.map(_.toElimination) ∷ _B).check(using _Δ.toContext)
+          _ <- (v ∷ _B).check(using _Δ.toContext)
         } yield { definition.clauses.append(c); ()}
       }
     }

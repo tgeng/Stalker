@@ -4,23 +4,25 @@ import scala.language.implicitConversions
 import io.github.tgeng.common.indexedSeqOps._
 import substitutionOps._
 
+case class Binding[T](ty: T)(val name: String)
+
+extension bindingOps on [T, R](self: Binding[T]) {
+  def map(f: T => R) = Binding[R](f(self.ty))(self.name)
+}
+
 /** First element on the left. */
-type Telescope = List[Type]
+type Telescope = List[Binding[Type]]
 
 /** First element on the right. */
 type Context = List[Type]
 
 extension telescopeOps on (self: Telescope) {
-  def toContext = self.reverse
+  def toContext = self.reverse.map(_.ty)
   def apply(s: Substitution[Term])(using Γ: Context)(using Σ: Signature) = self.substituteImpl(
     using SubstituteSpec(0, s.map(_.raise(s.size))))
-    .map(_.raise(-s.size))
-  def substituteImpl(using spec: SubstituteSpec[Term])(using Γ: Context)(using Σ: Signature) : List[Term] = self match {
+    .map(_.map(_.raise(-s.size)))
+  def substituteImpl(using spec: SubstituteSpec[Term])(using Γ: Context)(using Σ: Signature) : List[Binding[Term]] = self match {
     case Nil => Nil
-    case ty :: rest => ty.substituteImpl :: rest.substituteImpl(using spec.raised)
+    case ty :: rest => ty.map(_.substituteImpl) :: rest.substituteImpl(using spec.raised)
   }
-}
-
-extension contextOps on (self: Context) {
-  def toTelescope : Telescope = self.reverse
 }

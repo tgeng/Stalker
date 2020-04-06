@@ -11,7 +11,7 @@ enum Term {
 }
 
 enum Whnf {
-  case WFunction(argTy: Term, bodyTy: Term)
+  case WFunction(argTy: Term, bodyTy: Term)(val argName: String)
   case WUniverse(level: Int)
   case WData(qn: QualifiedName, params: List[Term])
   case WRecord(qn: QualifiedName, params: List[Term])
@@ -55,7 +55,7 @@ extension whnfOps on (self: Whnf) {
   def raise(amount: Int) : Whnf = self.raiseImpl(using RaiseSpec(0, amount))
 
   def raiseImpl(using spec: RaiseSpec) : Whnf = self match {
-    case WFunction(argTy, bodyTy) => WFunction(argTy.raiseImpl, bodyTy.raiseImpl(using RaiseSpec(spec.bar + 1, spec.amount)))
+    case f@WFunction(argTy, bodyTy) => WFunction(argTy.raiseImpl, bodyTy.raiseImpl(using RaiseSpec(spec.bar + 1, spec.amount)))(f.argName)
     case WUniverse(_) => self
     case WData(data, params) => WData(data, params.map(_.raiseImpl))
     case WRecord(record, params) => WRecord(record, params.map(_.raiseImpl))
@@ -71,9 +71,9 @@ extension whnfOps on (self: Whnf) {
       .raise(-substitution.size)
 
   def substituteImpl(using spec: SubstituteSpec[Term]) : Term = self match {
-    case WFunction(argTy, bodyTy) => TWhnf(WFunction(
+    case f@WFunction(argTy, bodyTy) => TWhnf(WFunction(
       argTy.substituteImpl,
-      bodyTy.substituteImpl(using spec.raised)))
+      bodyTy.substituteImpl(using spec.raised))(f.argName))
     case WUniverse(_) => TWhnf(self)
     case WData(data, params) => TWhnf(WData(data, params.map(_.substituteImpl)))
     case WRecord(record, params) => TWhnf(WRecord(record, params.map(_.substituteImpl)))
