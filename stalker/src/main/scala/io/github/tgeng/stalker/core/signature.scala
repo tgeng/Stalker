@@ -75,7 +75,7 @@ type Constructor = ConstructorT[Type]
 type Field = FieldT[Type]
 type Clause[S <: Status] = ClauseT[S, Type]
 
-object mutable {
+object signatureBuilder {
   type Declaration = DeclarationT[Checked, ArrayBuffer, Type]
   type Data = DataT[Checked, ArrayBuffer, Type]
   type Record = RecordT[Checked, ArrayBuffer, Type]
