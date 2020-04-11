@@ -94,7 +94,7 @@ object signatureBuilder {
 
   import Term._
   import Whnf._
-  given Context = Context.empty
+  given Γ as Context = Context.empty
 
   object Signature {
     def create : Signature = HashMap[QualifiedName, Declaration]()
@@ -104,11 +104,11 @@ object signatureBuilder {
     def normalize(using Γ: Context)(using Σ: Signature) : Result[Declaration] = self match {
       case DataT(qn, paramTys, level, cons) => for {
         wParamTys <- paramTys.tele
-        wCons <- cons.liftMap(_.normalize(using wParamTys.toContext))
+        wCons <- cons.liftMap(_.normalize(using Γ + wParamTys))
       } yield DataT(qn, wParamTys, level, wCons)
       case r@RecordT(qn, paramTys, level, fields) => for {
         wParamTys <- paramTys.tele
-        wFields <- fields.liftMap(_.normalize(using Binding(r.getSelfType)("self") +: wParamTys.toContext))
+        wFields <- fields.liftMap(_.normalize(using Γ + wParamTys + "self" ∷ r.getSelfType))
       } yield RecordT(qn, wParamTys, level, wFields)
       case DefinitionT(qn, ty, clauses) => for {
         wTy <- ty.whnf
@@ -163,7 +163,7 @@ object signatureBuilder {
       for {
         data <- Σ getData qn
         wC <- c.normalize
-        cL <- wC.argTys.level(using data.paramTys.toContext)
+        cL <- wC.argTys.level(using Γ + data.paramTys)
         _ <- cL <= data.level match {
           case true => Right(())
           case _ => typingError(s"Level of arguments in constructor $c is above that of data declaration $qn.")
@@ -176,7 +176,7 @@ object signatureBuilder {
       for {
         record <- Σ getRecord qn
         wF <- f.normalize
-        cL <- wF.ty.level(using Binding(record.getSelfType)("self") +: record.paramTys.toContext)
+        cL <- wF.ty.level(using Γ + record.paramTys + "self" ∷ record.getSelfType)
         _ <- cL <= record.level match {
           case true => Right(())
           case _ => typingError(s"Level of field $f is above that of record declaration $qn.")
@@ -190,8 +190,8 @@ object signatureBuilder {
         case CheckedClause(_Δ, q̅, v, _B) => for {
           definition <- Σ getDefinition qn
           _ <- _Δ.level
-          _ <- (TRedux(qn, Nil) ∷ definition.ty |- q̅.map(_.toElimination) ∷ _B).check(using _Δ.toContext)
-          _ <- (v ∷ _B).check(using _Δ.toContext)
+          _ <- (TRedux(qn, Nil) ∷ definition.ty |- q̅.map(_.toElimination) ∷ _B).check(using Γ + _Δ)
+          _ <- (v ∷ _B).check(using Γ + _Δ)
         } yield { definition.clauses.append(c); ()}
       }
     }

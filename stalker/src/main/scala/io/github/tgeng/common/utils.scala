@@ -11,4 +11,11 @@ extension extraSeqOps on [L, R1, R2, CC[_], C <: SeqOps[R1, CC, C]] (self: C) {
   def liftMap(f: R1 => Option[R2]) : Option[CC[R2]] = 
     self.foldRight[Option[CC[R2]]](Some(self.empty.asInstanceOf[CC[R2]]))((e, acc) => acc.flatMap(acc => f(e)
     .map(e => (e +: acc.asInstanceOf[SeqOps[R1, CC, C]]).asInstanceOf[CC[R2]])))
+
+  def allRight(f : R1 => Either[L, ?]) : Either[L, Unit] = self.foldLeft[Either[L, Unit]](Right(())) {(acc, e) =>
+    for {
+      _ <- acc
+      _ <- f(e)
+    } yield ()
+  }
 }

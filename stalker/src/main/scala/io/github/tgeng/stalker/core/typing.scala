@@ -5,6 +5,7 @@ import scala.language.implicitConversions
 import scala.math.max
 import io.github.tgeng.common._
 import io.github.tgeng.stalker.common._
+import io.github.tgeng.common.extraSeqOps
 import substitutionConversion.{given _}
 import Term._
 import Whnf._
@@ -20,7 +21,7 @@ object typing {
       for {
         wA <- _A.whnf
         lA <- wA.level
-        _Θ = Binding(wA)(f.argName) +: Γ
+        _Θ = Γ + f.argName ∷ wA
         rB <- _B.whnf(using _Θ)
         lB <- rB.level(using _Θ)
       } yield max(lA, lB)
@@ -48,7 +49,7 @@ object typing {
     case Nil => Right(0)
     case _A :: _Δ => for {
       lA <- _A.ty.level
-      lΔ <- _Δ.level(using _A +: Γ)
+      lΔ <- _Δ.level(using Γ + _A)
     } yield max(lA, lΔ)
   }
   
@@ -59,7 +60,7 @@ object typing {
         wA1 <- _A1.whnf
         wA2 <- _A2.whnf
         lA <- (wA1 ≡ wA2).level
-        _Θ = Binding(wA2)(f.argName) +: Γ
+        _Θ = Γ + f.argName ∷ wA2
         wB1 <- _B1.whnf(using _Θ)
         wB2 <- _B2.whnf(using _Θ)
         lB <- (wB1 ≡ wB2).level(using _Θ)
@@ -163,7 +164,7 @@ object typing {
       case (x :: u̅) ∷ (_A :: _Δ) => for {
         _ <- (x ∷ _A.ty).check
         _Θ <- _Δ(x).tele
-        _ <- (u̅ ∷ _Θ).check(using _A +: Γ)
+        _ <- (u̅ ∷ _Θ).check(using Γ + _A)
       } yield ()
       case _ => judgementError(j)
     }
@@ -235,19 +236,20 @@ object typing {
           gx <- app(g, TWhnf(WVar(0, Nil)))
           wA <- _A.whnf
           wB <- _B.whnf
-          _ <- (fx ≡ gx ∷ wB).check(using Binding(wA)(_F.argName) +: Γ)
+          _ <- (fx ≡ gx ∷ wB).check(using Γ + _F.argName ∷ wA)
         } yield ()
         // record eta rule
         // TODO: limit this rule to only run if the record is not recursive
         case r ≡ s ∷ WRecord(qn, params) => for {
           record <- Σ getRecord qn
-          _ <- record.fields.foldLeft[Result[Unit]](Right(()))((acc, f) => for {
-            _ <- acc
-            rf <- app(r, f.name)
-            sf <- app(s, f.name)
-            _A <- f.ty(params :+ r).whnf
-            _ <- (rf ≡ sf ∷ _A).check
-          } yield ())
+          _ <- record.fields.allRight{ f => 
+            for {
+              rf <- app(r, f.name)
+              sf <- app(s, f.name)
+              _A <- f.ty(params :+ r).whnf
+              _ <- (rf ≡ sf ∷ _A).check
+            } yield ()
+          }
         } yield ()
         case x ≡ y ∷ _A => for {
           wX <- x.whnf
@@ -286,7 +288,7 @@ object typing {
         case (u :: u̅) ≡ (v :: v̅) ∷ (_A :: _Δ) => for {
           _ <- (u ≡ v ∷ _A.ty).check
           _Θ <- _Δ(u).tele
-          _ <- (u̅ ≡ v̅ ∷ _Θ).check(using _A +: Γ)
+          _ <- (u̅ ≡ v̅ ∷ _Θ).check(using Γ + _A)
         } yield ()
       }
     }
@@ -413,9 +415,38 @@ object typing {
         Σ += (f, CheckedClause(Γ.toTelescope, q̅, v, _C))
       }
       // CtIntro
-      // case (f, q̅) := CLam(_Q) ∷ WFunction(_A, _B) => (f, q̅.map(_.raise(1)) :+ QPattern(PVar(0)))
+      case (f, q̅) := CLam(_Q) ∷ (_F@WFunction(_A, _B)) => for {
+        wA <- _A.whnf
+        wB <- _B.whnf
+        _ <- ((f, q̅.map(_.raise(1)) :+ QPattern(PVar(0))) := _Q ∷ wB).check(using Γ + _F.argName ∷ wA)
+      } yield ()
       // CtCosplit
+      case (f, q̅) := CRecord(_Qs) ∷ WRecord(qn, v̅) => for {
+        record <- Σ getRecord qn
+        σ : Substitution[Term] = v̅ :+ TRedux(f, q̅.map(_.toElimination))
+        _ <- record.fields.allRight { field =>
+          for {
+            wA <- field.ty(σ).whnf
+            _ <- ((f, q̅ :+ QProj(field.name)) := _Qs(field.name) ∷ wA).check
+          } yield ()
+        }
+      } yield ()
       // CtSplitCon
+      // case (f, q̅) := CDataCase(x, branches) ∷ WData(qn, v̅) => {
+      //   val (_Γ1, _A, _Γ2) = Γ.splitAt(x)
+      //   for {
+      //     data <- Σ getData qn
+      //     _ <- data.cons.allRight { c =>
+      //       {
+      //         val Δ = c.argTys(v̅)
+      //         val ρ = 
+      //         for {
+                
+      //         } yield ()
+      //       }
+      //     }
+      //   } yield ()
+      // }
       // CtSplitEq
       // CtSplitAbsurdEq
     }
@@ -494,6 +525,10 @@ extension eqElimTypingRelation on (e: ≡[Elimination]) {
   def ∷ (A: Type) = new ∷(e, A)
 }
 
+extension caseTreeTypingRelation on (Q: CaseTree) {
+  def ∷ (A: Type) = new ∷(Q, A)
+}
+
 extension termEqRelation on (x: Term) {
   def ≡ (y: Term) = new ≡(x, y)
 }
@@ -515,7 +550,7 @@ extension derivationRelation on [X, Y](x: X) {
 }
 
 extension caseTreeDefRelation on (t: (QualifiedName, List[CoPattern])) {
-  def := (_Q: CaseTree) = new :=(t, _Q)
+  def := (typing: CaseTree ∷ Type) = new :=(t, typing)
 }
 
 private def judgementError(judgement: ∷[?, ?] | |-[?, ?] | ≡[?] | :=[?, ?]) : Either[TypingError, Nothing] = typingError(s"Invalid judgement $judgement")
