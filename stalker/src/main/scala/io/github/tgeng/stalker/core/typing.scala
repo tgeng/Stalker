@@ -408,10 +408,16 @@ object typing {
       }
     }
     j match {
+      // CtDone
       case (f, q̅) := CTerm(v) ∷ _C => (v ∷ _C).check.flatMap{x => 
         Σ += (f, CheckedClause(Γ.toTelescope, q̅, v, _C))
       }
-      // TODO : implement this
+      // CtIntro
+      // case (f, q̅) := CLam(_Q) ∷ WFunction(_A, _B) => (f, q̅.map(_.raise(1)) :+ QPattern(PVar(0)))
+      // CtCosplit
+      // CtSplitCon
+      // CtSplitEq
+      // CtSplitAbsurdEq
     }
   }
   
@@ -517,5 +523,7 @@ private def typingError(msg: String) : Result[Nothing] = Left(TypingError(msg))
 private def matched(s: Substitution[Term]) : MatchResult = Right(Right(s))
 private def mismatch(e: Elimination, q: CoPattern) : MatchResult = Right(Left(Mismatch(e, q)))
 private def mismatch(t: Term, p: Pattern) : MatchResult = mismatch(ETerm(t), QPattern(p))
-private def (s1: Either[Mismatch, Substitution[Term]]) ⊎ (s2: Either[Mismatch, Substitution[Term]]) : Either[Mismatch, Substitution[Term]] = 
-  s1.flatMap(s1 => s2.map(s2 => disjointUnion(s1, s2)))
+private def (s1e: Either[Mismatch, Substitution[Term]]) ⊎ (s2e: Either[Mismatch, Substitution[Term]]) : Either[Mismatch, Substitution[Term]] = for {
+  s1 <- s1e
+  s2 <- s2e
+} yield s1 ⊎ s2

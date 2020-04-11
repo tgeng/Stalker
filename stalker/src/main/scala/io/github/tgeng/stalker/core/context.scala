@@ -1,7 +1,6 @@
 package io.github.tgeng.stalker.core
 
 import scala.language.implicitConversions
-import substitutionOps._
 
 case class Binding[+T](ty: T)(val name: String)
 
@@ -17,9 +16,8 @@ type Context = IndexedSeq[Binding[Type]]
 
 extension telescopeOps on (self: Telescope) {
   def toContext : Context = self.toIndexedSeq.reverse
-  def apply(s: Substitution[Term])(using Γ: Context)(using Σ: Signature) = self.substituteImpl(
-    using SubstituteSpec(0, s.map(_.raise(s.size))))
-    .map(_.map(_.raise(-s.size)))
+  def apply(s: Substitution[Term])(using Γ: Context)(using Σ: Signature) = self.substituteImpl(using SubstituteSpec(0, s)) 
+
   def substituteImpl(using spec: SubstituteSpec[Term])(using Γ: Context)(using Σ: Signature) : List[Binding[Term]] = self match {
     case Nil => Nil
     case ty :: rest => ty.map(_.substituteImpl) :: rest.substituteImpl(using spec.raised)
