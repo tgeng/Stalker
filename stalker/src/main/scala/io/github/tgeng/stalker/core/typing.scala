@@ -4,6 +4,7 @@ import scala.util.control.NonLocalReturns._
 import scala.language.implicitConversions
 import scala.math.max
 import io.github.tgeng.common._
+import io.github.tgeng.stalker.common._
 import substitutionConversion.{given _}
 import Term._
 import Whnf._
@@ -15,11 +16,11 @@ import CoPattern._
 object typing {
   def (tm: Type)level(using Γ: Context)(using Σ: Signature) : Result[Level] = tm match {
     case WUniverse(l) => Right(l + 1)
-    case WFunction(_A, _B) => {
+    case f@WFunction(_A, _B) => {
       for {
         wA <- _A.whnf
         lA <- wA.level
-        _Θ = wA :: Γ
+        _Θ = Binding(wA)(f.argName) +: Γ
         rB <- _B.whnf(using _Θ)
         lB <- rB.level(using _Θ)
       } yield max(lA, lB)
@@ -47,24 +48,24 @@ object typing {
     case Nil => Right(0)
     case _A :: _Δ => for {
       lA <- _A.ty.level
-      lΔ <- _Δ.level(using _A.ty :: Γ)
+      lΔ <- _Δ.level(using _A +: Γ)
     } yield max(lA, lΔ)
   }
   
   def (eq: ≡[Type])level(using Γ: Context)(using Σ: Signature) : Result[Level] = eq match {
     case _A ≡ _B if _A == _B => _A.level
-    case WFunction(_A1, _B1) ≡ WFunction(_A2, _B2) => {
+    case (f@WFunction(_A1, _B1)) ≡ WFunction(_A2, _B2) => {
       for {
         wA1 <- _A1.whnf
         wA2 <- _A2.whnf
         lA <- (wA1 ≡ wA2).level
-        _Θ = wA2 :: Γ
+        _Θ = Binding(wA2)(f.argName) +: Γ
         wB1 <- _B1.whnf(using _Θ)
         wB2 <- _B2.whnf(using _Θ)
         lB <- (wB1 ≡ wB2).level(using _Θ)
       } yield max(lA, lB)
     }
-    case WVar(x, e̅1) ≡ WVar(y, e̅2) if (x == y) => (TWhnf(WVar(x, Nil)) ∷ Γ(x) |- e̅1 ≡ e̅2).level
+    case WVar(x, e̅1) ≡ WVar(y, e̅2) if (x == y) => (TWhnf(WVar(x, Nil)) ∷ Γ(x).ty |- e̅1 ≡ e̅2).level
     case WId(_A1, u1, v1) ≡ WId(_A2, u2, v2) => {
       for {
         wA1 <- _A1.whnf
@@ -133,7 +134,7 @@ object typing {
         }
         // Heads
         case TWhnf(WVar(idx, e̅)) ∷ _A => for {
-          _ <- (TWhnf(WVar(idx, Nil)) ∷ Γ(idx) |- e̅ ∷ _A).check
+          _ <- (TWhnf(WVar(idx, Nil)) ∷ Γ(idx).ty |- e̅ ∷ _A).check
         } yield ()
         case TRedux(fn, e̅) ∷ _A => for {
           definition <- Σ getDefinition fn
@@ -162,7 +163,7 @@ object typing {
       case (x :: u̅) ∷ (_A :: _Δ) => for {
         _ <- (x ∷ _A.ty).check
         _Θ <- _Δ(x).tele
-        _ <- (u̅ ∷ _Θ).check(using _A.ty :: Γ)
+        _ <- (u̅ ∷ _Θ).check(using _A +: Γ)
       } yield ()
       case _ => judgementError(j)
     }
@@ -229,12 +230,12 @@ object typing {
           _ <- (TRedux(f1, Nil) ∷ fn.ty |- e̅1 ≡ e̅2 ∷ _B).check
         } yield ()
         // function eta rule
-        case f ≡ g ∷ WFunction(_A, _B) => for {
+        case f ≡ g ∷ (_F@WFunction(_A, _B)) => for {
           fx <- app(f, TWhnf(WVar(0, Nil)))
           gx <- app(g, TWhnf(WVar(0, Nil)))
           wA <- _A.whnf
           wB <- _B.whnf
-          _ <- (fx ≡ gx ∷ wB).check(using wA :: Γ)
+          _ <- (fx ≡ gx ∷ wB).check(using Binding(wA)(_F.argName) +: Γ)
         } yield ()
         // record eta rule
         // TODO: limit this rule to only run if the record is not recursive
@@ -257,7 +258,7 @@ object typing {
               case Right(inferredLevel) if inferredLevel == l => Right(())
               case _ => judgementError(j)
             }
-            case WVar(x, e̅1) ≡ WVar(y, e̅2) ∷ _A if x == y => (TWhnf(WVar(x, Nil)) ∷ Γ(x) |- e̅1 ≡ e̅2 ∷ _A).check
+            case WVar(x, e̅1) ≡ WVar(y, e̅2) ∷ _A if x == y => (TWhnf(WVar(x, Nil)) ∷ Γ(x).ty |- e̅1 ≡ e̅2 ∷ _A).check
             case WCon(c1, v̅1) ≡ WCon(c2, v̅2) ∷ WData(d, u̅) if c1 == c2 => for {
               data <- Σ getData d
               con <- data(c1)
@@ -285,7 +286,7 @@ object typing {
         case (u :: u̅) ≡ (v :: v̅) ∷ (_A :: _Δ) => for {
           _ <- (u ≡ v ∷ _A.ty).check
           _Θ <- _Δ(u).tele
-          _ <- (u̅ ≡ v̅ ∷ _Θ).check(using _A.ty :: Γ)
+          _ <- (u̅ ≡ v̅ ∷ _Θ).check(using _A +: Γ)
         } yield ()
       }
     }
@@ -396,6 +397,23 @@ object typing {
     // * mismatched field: this would have resulted an earlier mismatch instead.
     case _ => typingError(s"stuck when matching ${e̅} with ${q̅}")
   }
+
+  import CaseTree._
+
+  def (j: (QualifiedName, List[CoPattern]) := CaseTree ∷ Type) check(using Γ: Context)(using Σ: signatureBuilder.Signature) : Result[Unit] = {
+    j match {
+      case (f, q̅) := _Q ∷ _C => (TRedux(f, q̅.map(_.toElimination)) ∷ _C).check match {
+        case Right(_) => ()
+        case _ => return judgementError(j)
+      }
+    }
+    j match {
+      case (f, q̅) := CTerm(v) ∷ _C => (v ∷ _C).check.flatMap{x => 
+        Σ += (f, CheckedClause(Γ.toTelescope, q̅, v, _C))
+      }
+      // TODO : implement this
+    }
+  }
   
   // ------- magic splitter -------
   
@@ -435,6 +453,8 @@ case class ∷[X, Y](x: X, y: Y)
 case class ≡[X](a: X, b: X)
 
 case class |-[X, Y](a: X, b: Y)
+
+case class :=[X, Y](a: X, b: Y)
 
 extension typingRelation on (x: Term) {
   def ∷ (y: Type) = new ∷(x, y)
@@ -488,7 +508,11 @@ extension derivationRelation on [X, Y](x: X) {
   def |- (y: Y) = new |-(x, y)
 }
 
-private def judgementError(judgement: ∷[?, ?] | |-[?, ?] | ≡[?] ) : Either[TypingError, Nothing] = typingError(s"Invalid judgement $judgement")
+extension caseTreeDefRelation on (t: (QualifiedName, List[CoPattern])) {
+  def := (_Q: CaseTree) = new :=(t, _Q)
+}
+
+private def judgementError(judgement: ∷[?, ?] | |-[?, ?] | ≡[?] | :=[?, ?]) : Either[TypingError, Nothing] = typingError(s"Invalid judgement $judgement")
 private def typingError(msg: String) : Result[Nothing] = Left(TypingError(msg))
 private def matched(s: Substitution[Term]) : MatchResult = Right(Right(s))
 private def mismatch(e: Elimination, q: CoPattern) : MatchResult = Right(Left(Mismatch(e, q)))

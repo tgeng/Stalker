@@ -94,7 +94,7 @@ object signatureBuilder {
 
   import Term._
   import Whnf._
-  given Context = Nil 
+  given Context = Context.empty
 
   object Signature {
     def create : Signature = HashMap[QualifiedName, Declaration]()
@@ -108,11 +108,11 @@ object signatureBuilder {
       } yield DataT(qn, wParamTys, level, wCons)
       case r@RecordT(qn, paramTys, level, fields) => for {
         wParamTys <- paramTys.tele
-        wFields <- fields.liftMap(_.normalize(using r.getSelfType :: wParamTys.toContext))
+        wFields <- fields.liftMap(_.normalize(using Binding(r.getSelfType)("self") +: wParamTys.toContext))
       } yield RecordT(qn, wParamTys, level, wFields)
       case DefinitionT(qn, ty, clauses) => for {
         wTy <- ty.whnf
-        wClauses <- clauses.liftMap(c => c.normalize.flatMap(_.elaborate))
+        wClauses <- elaborate
       } yield DefinitionT(qn, wTy, wClauses)
     }
   }
@@ -141,12 +141,6 @@ object signatureBuilder {
       //   wBindings <- bindings.liftMap(b => b.ty.whnf.map(Binding(_)(b.name)))
       //   wTy <- ty.whnf
       // } yield CheckedClause(wBindings, lhs, rhs, wTy)
-    }
-  }
-
-  extension preClauseOps on (self: PreClause) {
-    def elaborate(using Γ: Context)(using Σ: Signature): Result[Clause] = self match {
-      case UncheckedClause(lhs, rhs) => TODO()
     }
   }
 
@@ -182,7 +176,7 @@ object signatureBuilder {
       for {
         record <- Σ getRecord qn
         wF <- f.normalize
-        cL <- wF.ty.level(using record.getSelfType :: record.paramTys.toContext)
+        cL <- wF.ty.level(using Binding(record.getSelfType)("self") +: record.paramTys.toContext)
         _ <- cL <= record.level match {
           case true => Right(())
           case _ => typingError(s"Level of field $f is above that of record declaration $qn.")
@@ -190,16 +184,7 @@ object signatureBuilder {
       } yield { record.fields.append(wF); () }
     }
 
-    def += (qn: QualifiedName, c: PreUncheckedClause) : Result[Unit] = {
-      given s as Signature = Σ
-      for {
-        wC <- c.normalize
-        eC <- wC.elaborate
-        r <- Σ.addCheckedClause(qn, eC)
-      } yield ()
-    }
-
-    def addCheckedClause(qn: QualifiedName, c: Clause) : Result[Unit] ={
+    def +=(qn: QualifiedName, c: Clause) : Result[Unit] ={
       given s as Signature = Σ
       c match {
         case CheckedClause(_Δ, q̅, v, _B) => for {

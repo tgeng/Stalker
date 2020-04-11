@@ -13,10 +13,10 @@ extension bindingOps on [T, R](self: Binding[T]) {
 type Telescope = List[Binding[Type]]
 
 /** First element on the right. */
-type Context = List[Type]
+type Context = IndexedSeq[Binding[Type]]
 
 extension telescopeOps on (self: Telescope) {
-  def toContext = self.reverse.map(_.ty)
+  def toContext : Context = self.toIndexedSeq.reverse
   def apply(s: Substitution[Term])(using Γ: Context)(using Σ: Signature) = self.substituteImpl(
     using SubstituteSpec(0, s.map(_.raise(s.size))))
     .map(_.map(_.raise(-s.size)))
@@ -24,4 +24,12 @@ extension telescopeOps on (self: Telescope) {
     case Nil => Nil
     case ty :: rest => ty.map(_.substituteImpl) :: rest.substituteImpl(using spec.raised)
   }
+}
+
+object Context {
+  val empty : Context = IndexedSeq()
+}
+
+extension contextOps on (self: Context) {
+  def toTelescope : Telescope = self.reverse.toList
 }
