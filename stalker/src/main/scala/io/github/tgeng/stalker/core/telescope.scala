@@ -20,6 +20,4 @@ extension telescopeOps on (self: Telescope) {
     case Nil => Nil
     case ty :: rest => ty.map(_.substituteImpl) :: rest.substituteImpl(using spec.raised)
   }
-
-  def idSubst : Substitution[Pattern] = Substitution.id(self.size, Pattern.PVar(_))
 }

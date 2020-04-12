@@ -432,21 +432,26 @@ object typing {
         }
       } yield ()
       // CtSplitCon
-      // case (f, q̅) := CDataCase(x, branches) ∷ WData(qn, v̅) => {
-      //   val (_Γ1, _A, _Γ2) = Γ.splitAt(x)
-      //   for {
-      //     data <- Σ getData qn
-      //     _ <- data.cons.allRight { c =>
-      //       {
-      //         val Δ = c.argTys(v̅)
-      //         val ρ = _Γ1.idSubst ⊎  ⊎_Γ2.idSubst
-      //         for {
-                
-      //         } yield ()
-      //       }
-      //     }
-      //   } yield ()
-      // }
+      case (f, q̅) := CDataCase(x, branches) ∷ _C => {
+        val (_Γ1, _A, _Γ2) = Γ.splitAt(x)
+        _A.ty match {
+          case WData(qn, v̅) => for {
+            data <- Σ getData qn
+            _ <- data.cons.allRight { c =>
+              {
+                val Δ = c.argTys.subst(v̅)
+                val ρ1 = Substitution.id(_Γ1.size) ⊎ Substitution(c.argTys.size, IndexedSeq(PCon(c.name, (c.argTys.size - 1 to 0).map(i => PVar(i)).toList)))
+                val ρ2 = ρ1 ⊎ Substitution.id(_Γ2.size)
+                for {
+                  wC <- _C.subst(ρ2.map(_.toTerm)).whnf
+                  _ <- ((f, q̅.map(_.subst(ρ2))) := branches(c.name) ∷ wC).check
+                } yield ()
+              }
+            }
+          } yield ()
+          case _ => judgementError(j)
+        }
+      }
       // CtSplitEq
       // CtSplitAbsurdEq
     }

@@ -21,7 +21,7 @@ case class Substitution[T <: Raisable[T]] (sourceContextSize: Int, content : Ind
 }
 
 object Substitution {
-  def id[T <: Raisable[T]](size: Int, f: Int => T) : Substitution[T] = Substitution(size, (0 until size).map(f))
+  def id(size: Int) : Substitution[Pattern] = Substitution(size, (0 until size).map(Pattern.PVar(_)))
 }
 
 case class RaiseSpec(bar:Int, amount:Int)
