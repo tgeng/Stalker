@@ -1,8 +1,10 @@
 package io.github.tgeng.stalker.core
 
+import scala.language.implicitConversions
 import Term._
 import Whnf._
 import Elimination._
+import substitutionConversion.{given _}
 
 enum Pattern extends Raisable[Pattern] with Substitutable[Pattern, Pattern] {
   // A pattern is defined under a context containing all the (linear) free variables.
@@ -28,7 +30,7 @@ enum Pattern extends Raisable[Pattern] with Substitutable[Pattern, Pattern] {
   }
 
   def raiseImpl(using spec: RaiseSpec) : Pattern = this match {
-    case PVar(idx) => if (idx >= spec.bar) PVar(idx + spec.amount) else this
+    case PVar(idx) => PVar(spec.trans(idx))
     case PRefl => this
     case PCon(con, patterns) => PCon(con, patterns.map(_.raiseImpl))
     case PForcedCon(con, patterns) => PForcedCon(con, patterns.map(_.raiseImpl))
@@ -37,11 +39,14 @@ enum Pattern extends Raisable[Pattern] with Substitutable[Pattern, Pattern] {
   }
 
   def substituteImpl(using spec: SubstituteSpec[Pattern]) : Pattern = this match {
-    case PVar(idx) => if (idx >= spec.offset) spec.substitution.get(idx - spec.offset) else this
+    case PVar(idx) => spec.trans(idx) match {
+      case Right(p) => p
+      case Left(idx) => PVar(idx)
+    }
     case PRefl => this
     case PCon(con, patterns) => PCon(con, patterns.map(_.substituteImpl))
     case PForcedCon(con, patterns) => PForcedCon(con, patterns.map(_.substituteImpl))
-    case PForced(t) => PForced(t.subst(spec.substitution.map(_.toTerm)))
+    case PForced(t) => PForced(t.substituteImpl(using spec))
     case PAbsurd => this
   }
 }

@@ -401,6 +401,7 @@ object typing {
   }
 
   import CaseTree._
+  import USuccess._
 
   def (j: (QualifiedName, List[CoPattern]) := CaseTree ∷ Type) check(using Γ: Context)(using Σ: signatureBuilder.Signature) : Result[Unit] = {
     j match {
@@ -443,8 +444,8 @@ object typing {
                 val ρ2 = ρ1 ⊎ Substitution.id(_Γ2.size)
                 for {
                   _Δ <- c.argTys.subst(v̅).tele
-                  _Γ2mod <- _Γ2.subst(ρ1.map(_.toTerm)).tele
-                  wC <- _C.subst(ρ2.map(_.toTerm)).whnf
+                  _Γ2mod <- _Γ2.subst(ρ1).tele
+                  wC <- _C.subst(ρ2).whnf
                   _ <- ((f, q̅.map(_.subst(ρ2))) := branches(c.name) ∷ wC).check(using _Γ1 + _Δ + _Γ2mod)
                 } yield ()
               }
@@ -454,7 +455,32 @@ object typing {
         }
       }
       // CtSplitEq
+      case (f, q̅) := CIdCase(x, τ, _Q) ∷ _C => {
+        val (_Γ1, _A, _Γ2) = Γ.splitAt(x)
+        _A.ty match {
+          case WId(u, v, _B) => for {
+            wB <- _B.whnf
+            UPositive(_Γ1u, ρ, τu) <- ((u =? v) ∷ wB).unify
+            τumod = τu ⊎ Substitution.id(_Γ2.size)
+            ρmod = ρ ⊎ Substitution.id(_Γ2.size) if (τumod == τ)
+            wC <- _C.subst(ρmod).whnf
+            wΓ2 <- _Γ2.subst(ρ).tele
+            _ <- ((f, q̅.map(_.subst(ρmod))) := _Q ∷ wC).check(using _Γ1 + wΓ2)
+          } yield ()
+          case _ => judgementError(j)
+        }
+      }
       // CtSplitAbsurdEq
+      case (f, q̅) := CAbsurdCase(x) ∷ _C => {
+        val (_Γ1, _A, _Γ2) = Γ.splitAt(x)
+        _A.ty match {
+          case WId(u, v, _B) => for {
+            wB <- _B.whnf
+            UNegative <- ((u =? v) ∷ wB).unify
+          } yield ()
+          case _ => judgementError(j)
+        }
+      }
     }
   }
   
@@ -568,3 +594,11 @@ private def (s1e: Either[Mismatch, Substitution[Term]]) ⊎ (s2e: Either[Mismatc
   s1 <- s1e
   s2 <- s2e
 } yield s1 ⊎ s2
+
+extension resultFilter on [T](r: Result[T]) {
+  def withFilter(p : T => Boolean) : Result[T] = r match {
+    case Right(t) if (p(t)) => Right(t)
+    case Right(t) => typingError(s"Result $t does not satisfy predicate $p")
+    case e => e
+  }
+}

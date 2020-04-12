@@ -32,12 +32,12 @@ enum Whnf extends Raisable[Whnf] with Substitutable[Term, Term] {
   case WRefl
 
   def raiseImpl(using spec: RaiseSpec) : Whnf = this match {
-    case f@WFunction(argTy, bodyTy) => WFunction(argTy.raiseImpl, bodyTy.raiseImpl(using RaiseSpec(spec.bar + 1, spec.amount)))(f.argName)
+    case f@WFunction(argTy, bodyTy) => WFunction(argTy.raiseImpl, bodyTy.raiseImpl(using spec.raised))(f.argName)
     case WUniverse(_) => this
     case WData(data, params) => WData(data, params.map(_.raiseImpl))
     case WRecord(record, params) => WRecord(record, params.map(_.raiseImpl))
     case WId(ty: Term, left: Term, right: Term) => WId(ty.raiseImpl, left.raiseImpl, right.raiseImpl)
-    case WVar(idx, elims) => WVar(if(idx >= spec.bar) idx + 1 else idx, elims.map(_.raiseImpl))
+    case WVar(idx, elims) => WVar(spec.trans(idx), elims.map(_.raiseImpl))
     case WCon(con, args) => WCon(con, args.map(_.raiseImpl))
     case WRefl => WRefl
   }
@@ -50,14 +50,15 @@ enum Whnf extends Raisable[Whnf] with Substitutable[Term, Term] {
     case WData(data, params) => TWhnf(WData(data, params.map(_.substituteImpl)))
     case WRecord(record, params) => TWhnf(WRecord(record, params.map(_.substituteImpl)))
     case WId(ty, left, right) => TWhnf(WId(ty.substituteImpl, left.substituteImpl, right.substituteImpl))
-    case WVar(idx, elims) =>
-      if (idx >= spec.offset) (spec.substitution.get(idx - spec.offset), elims) match {
+    case WVar(idx, elims) => spec.trans(idx) match {
+      case Right(t) => (t, elims.map(_.substituteImpl)) match {
         case (s, Nil) => s
-        case (TWhnf(WVar(idx, sElims)), _) => TWhnf(WVar(idx, sElims ++ elims.map(_.substituteImpl)))
-        case (TRedux(fn, sElims), _) => TRedux(fn, sElims ++ elims.map(_.substituteImpl))
+        case (TWhnf(WVar(idx, sElims)), elims) => TWhnf(WVar(idx, sElims ++ elims))
+        case (TRedux(fn, sElims), elims) => TRedux(fn, sElims ++ elims)
         case _ => throw IllegalArgumentException(s"Invalid substitution with $spec into $this")
-      } else
-        TWhnf(WVar(idx + spec.substitution.sourceContextSize, elims.map(_.substituteImpl)))
+      }
+      case Left(idx) => TWhnf(WVar(idx, elims.map(_.substituteImpl)))
+    }
     case WCon(con, args) => TWhnf(WCon(con, args.map(_.substituteImpl)))
     case WRefl => TWhnf(this)
   }
