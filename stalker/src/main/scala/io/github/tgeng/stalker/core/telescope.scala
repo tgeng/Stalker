@@ -14,10 +14,12 @@ extension bindingOps on [T, R](self: Binding[T]) {
 type Telescope = List[Binding[Type]]
 
 extension telescopeOps on (self: Telescope) {
-  def apply(s: Substitution[Term])(using Γ: Context)(using Σ: Signature) = self.substituteImpl(using SubstituteSpec(0, s)) 
+  def subst(s: Substitution[Term])(using Γ: Context)(using Σ: Signature) = self.substituteImpl(using SubstituteSpec(0, s)) 
 
   def substituteImpl(using spec: SubstituteSpec[Term])(using Γ: Context)(using Σ: Signature) : List[Binding[Term]] = self match {
     case Nil => Nil
     case ty :: rest => ty.map(_.substituteImpl) :: rest.substituteImpl(using spec.raised)
   }
+
+  def idSubst : Substitution[Pattern] = Substitution.id(self.size, Pattern.PVar(_))
 }

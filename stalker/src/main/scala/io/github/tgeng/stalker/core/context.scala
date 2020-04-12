@@ -18,4 +18,6 @@ extension contextOps on (self: Context) {
   def + (tys: Telescope) : Context = tys.reverse ++ self
 
   def apply(idx : Int) = self.asInstanceOf[IndexedSeq[Binding[Type]]](idx)
+
+  def idSubst : Substitution[Pattern] = Substitution.id(self.size, Pattern.PVar(_))
 }

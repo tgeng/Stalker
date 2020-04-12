@@ -101,14 +101,14 @@ object typing {
       case u ∷ WFunction(_A, _B) |- (ETerm(v1) :: e̅1) ≡ (ETerm(v2) :: e̅2) => for {
         wA <- _A.whnf
         _ <- (v1 ≡ v2 ∷ wA).check
-        wB <- _B(v1).whnf
+        wB <- _B.subst(v1).whnf
         uv <- app(u, v1)
         l <- (uv ∷ wB |- e̅1 ≡ e̅2).level
       } yield l
       case u ∷ WRecord(r, v̅) |- (EProj(π) :: e̅1) ≡ (EProj(π1) :: e̅2) if π == π1 => for {
         record <- Σ getRecord r
         field <- record(π)
-        wA <- field.ty(v̅ :+ u).whnf
+        wA <- field.ty.subst(v̅ :+ u).whnf
         uπ <- app(u, π)
         l <- (uπ ∷ wA |- e̅1 ≡ e̅2).level
       } yield l
@@ -146,7 +146,7 @@ object typing {
           data <- Σ getData d
           constructor <- data(c)     
           _ <- (u̅ ∷ data.paramTys).check
-          _Δ <- constructor.argTys(v̅).tele
+          _Δ <- constructor.argTys.subst(v̅).tele
           _ <- (v̅ ∷ _Δ).check
         } yield ()
         case TWhnf(WRefl) ∷ WId(_A, u, v) => for {
@@ -163,7 +163,7 @@ object typing {
       case Nil ∷ Nil => Right(())
       case (x :: u̅) ∷ (_A :: _Δ) => for {
         _ <- (x ∷ _A.ty).check
-        _Θ <- _Δ(x).tele
+        _Θ <- _Δ.subst(x).tele
         _ <- (u̅ ∷ _Θ).check(using Γ + _A)
       } yield ()
       case _ => judgementError(j)
@@ -189,7 +189,7 @@ object typing {
           wA <- _A.whnf
           _ <- (v ∷ wA).check
           uv <- app(u, v)
-          _Bv = _B(v)
+          _Bv = _B.subst(v)
           wBv <- _Bv.whnf
           _ <- (uv ∷ wBv).check
           _ <- (uv ∷ wBv |- e̅ ∷ _C).check
@@ -198,7 +198,7 @@ object typing {
           record <- Σ getRecord r
           field <- record(π) 
           uπ <- app(u, π)
-          ft <- field.ty(v̅ :+ u).whnf
+          ft <- field.ty.subst(v̅ :+ u).whnf
           _ <- (uπ ∷ ft |- e̅ ∷ _C).check
         } yield ()
         case _ => judgementError(j)
@@ -246,7 +246,7 @@ object typing {
             for {
               rf <- app(r, f.name)
               sf <- app(s, f.name)
-              _A <- f.ty(params :+ r).whnf
+              _A <- f.ty.subst(params :+ r).whnf
               _ <- (rf ≡ sf ∷ _A).check
             } yield ()
           }
@@ -265,7 +265,7 @@ object typing {
               data <- Σ getData d
               con <- data(c1)
               _ <- (u̅ ∷ data.paramTys).check
-              _Δ <- con.argTys(u̅).tele
+              _Δ <- con.argTys.subst(u̅).tele
               _ <- (v̅1 ≡ v̅2 ∷ _Δ).check
             } yield ()
             case _ => judgementError(j)
@@ -287,7 +287,7 @@ object typing {
         case Nil ≡ Nil ∷ Nil => Right(())
         case (u :: u̅) ≡ (v :: v̅) ∷ (_A :: _Δ) => for {
           _ <- (u ≡ v ∷ _A.ty).check
-          _Θ <- _Δ(u).tele
+          _Θ <- _Δ.subst(u).tele
           _ <- (u̅ ≡ v̅ ∷ _Θ).check(using Γ + _A)
         } yield ()
       }
@@ -310,14 +310,14 @@ object typing {
         case u ∷ WFunction(_A, _B) |- (ETerm(v1) :: e̅1) ≡ (ETerm(v2) :: e̅2) ∷ _C => for {
           wA <- _A.whnf
           _ <- (v1 ≡ v2 ∷ wA).check
-          wB <- _B(v1).whnf
+          wB <- _B.subst(v1).whnf
           uv <- app(u, v1)
           _ <- (uv ∷ wB |- e̅1 ≡ e̅2 ∷ _C).check
         } yield ()
         case u ∷ WRecord(r, v̅) |- (EProj(π) :: e̅1) ≡ (EProj(π1) :: e̅2) ∷ _C if π == π1 => for {
           record <- Σ getRecord r
           field <- record(π)
-          wA <- field.ty(v̅ :+ u).whnf
+          wA <- field.ty.subst(v̅ :+ u).whnf
           uπ <- app(u, π)
           _ <- (uπ ∷ wA |- e̅1 ≡ e̅2 ∷ _C).check
         } yield ()
@@ -339,7 +339,7 @@ object typing {
     for (c <- cs) {
       c match {
         case CheckedClause(_, q̅, v, _) => e̅ / q̅ match {
-          case Right(Right(σ)) => throwReturn[Result[Term]](Right(v(σ)))
+          case Right(Right(σ)) => throwReturn[Result[Term]](Right(v.subst(σ)))
           case Right(Left(_)) => firstMatch(cs, e̅, d)
           case Left(e) => throwReturn[Result[Term]](Left(e))
         }
@@ -426,7 +426,7 @@ object typing {
         σ : Substitution[Term] = v̅ :+ TRedux(f, q̅.map(_.toElimination))
         _ <- record.fields.allRight { field =>
           for {
-            wA <- field.ty(σ).whnf
+            wA <- field.ty.subst(σ).whnf
             _ <- ((f, q̅ :+ QProj(field.name)) := _Qs(field.name) ∷ wA).check
           } yield ()
         }
@@ -439,7 +439,7 @@ object typing {
       //     _ <- data.cons.allRight { c =>
       //       {
       //         val Δ = c.argTys(v̅)
-      //         val ρ = 
+      //         val ρ = _Γ1.idSubst ⊎  ⊎_Γ2.idSubst
       //         for {
                 
       //         } yield ()

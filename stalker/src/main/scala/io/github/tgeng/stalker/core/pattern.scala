@@ -41,7 +41,7 @@ enum Pattern extends Raisable[Pattern] with Substitutable[Pattern, Pattern] {
     case PRefl => this
     case PCon(con, patterns) => PCon(con, patterns.map(_.substituteImpl))
     case PForcedCon(con, patterns) => PForcedCon(con, patterns.map(_.substituteImpl))
-    case PForced(t) => PForced(t(spec.substitution.map(_.toTerm)))
+    case PForced(t) => PForced(t.subst(spec.substitution.map(_.toTerm)))
     case PAbsurd => this
   }
 }
