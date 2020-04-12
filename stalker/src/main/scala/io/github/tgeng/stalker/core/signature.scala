@@ -119,7 +119,7 @@ object signatureBuilder {
   
   extension recordOps on (self: RecordT[?, ?, ?]) {
     def getSelfType : Type =
-      Whnf.WRecord(self.qn, (self.paramTys.size - 1 to 0).map(i => Term.TWhnf(Whnf.WVar(i, Nil))).toList)
+      Whnf.WRecord(self.qn, (self.paramTys.size - 1 to 0 by -1).map(i => Term.TWhnf(Whnf.WVar(i, Nil))).toList)
   }
   
   extension preConstructorOps on (self: PreConstructor) {

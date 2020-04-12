@@ -439,12 +439,13 @@ object typing {
             data <- Σ getData qn
             _ <- data.cons.allRight { c =>
               {
-                val Δ = c.argTys.subst(v̅)
-                val ρ1 = Substitution.id(_Γ1.size) ⊎ Substitution(c.argTys.size, IndexedSeq(PCon(c.name, (c.argTys.size - 1 to 0).map(i => PVar(i)).toList)))
+                val ρ1 = Substitution.id(_Γ1.size) ⊎ Substitution(c.argTys.size, IndexedSeq(PCon(c.name, (c.argTys.size - 1 to 0 by -1).map(i => PVar(i)).toList)))
                 val ρ2 = ρ1 ⊎ Substitution.id(_Γ2.size)
                 for {
+                  _Δ <- c.argTys.subst(v̅).tele
+                  _Γ2mod <- _Γ2.subst(ρ1.map(_.toTerm)).tele
                   wC <- _C.subst(ρ2.map(_.toTerm)).whnf
-                  _ <- ((f, q̅.map(_.subst(ρ2))) := branches(c.name) ∷ wC).check
+                  _ <- ((f, q̅.map(_.subst(ρ2))) := branches(c.name) ∷ wC).check(using _Γ1 + _Δ + _Γ2mod)
                 } yield ()
               }
             }
