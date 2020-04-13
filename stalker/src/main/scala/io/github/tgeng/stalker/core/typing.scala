@@ -460,8 +460,11 @@ object typing {
         _A.ty match {
           case WId(u, v, _B) => for {
             wB <- _B.whnf
-            UPositive(_Γ1u, ρ, τu) <- ((u =? v) ∷ wB).unify
+            wu <- u.whnf
+            wv <- v.whnf
+            UPositive(_Γ1u, ρ, τu) <- ((wu =? wv) ∷ wB).unify
             τumod = τu ⊎ Substitution.id(_Γ2.size)
+            // The check below should be unnecessary if the case tree generation algorithm is correct
             ρmod = ρ ⊎ Substitution.id(_Γ2.size) if (τumod == τ)
             wC <- _C.subst(ρmod).whnf
             wΓ2 <- _Γ2.subst(ρ).tele
@@ -475,8 +478,10 @@ object typing {
         val (_Γ1, _A, _Γ2) = Γ.splitAt(x)
         _A.ty match {
           case WId(u, v, _B) => for {
+            wu <- u.whnf
+            wv <- v.whnf
             wB <- _B.whnf
-            UNegative <- ((u =? v) ∷ wB).unify
+            UNegative <- ((wu =? wv) ∷ wB).unify
           } yield ()
           case _ => judgementError(j)
         }

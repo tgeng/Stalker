@@ -17,6 +17,6 @@ extension contextOps on (self: Context) {
   def + (ty: Binding[Type]) : Context = ty :: self
   def + (tys: Telescope) : Context = tys.reverse ++ self
 
-  def apply(idx : Int) = self(idx)
+  def apply(idx : Int) = self(idx).map(_.raise(idx + 1))
   def size = self.size
 }

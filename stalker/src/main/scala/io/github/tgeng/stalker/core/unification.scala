@@ -9,20 +9,20 @@ enum USuccess {
 
 import USuccess._
 
-extension unification on (p: =?[Term] ∷ Type) {
-  def unify(using Γ: Context)(using Σ: Signature) : Result[USuccess] = {
-    TODO()
+extension unification on (p: =?[Whnf] ∷ Type) {
+  def unify(using Γ: Context)(using Σ: Signature) : Result[USuccess] = p match {
+    case _ => TODO()
   }
 }
 
 case class =?[X](u: X, v: X)
 
-extension unificationTypingRelation on (uv: =?[Term]) {
+extension unificationTypingRelation on (uv: =?[Whnf]) {
   def ∷ (ty: Type) = new ∷(uv, ty)
 }
 
-extension unificationRelation on (u: Term) {
-  def =? (v: Term) = new =?(u, v)
+extension unificationRelation on (u: Whnf) {
+  def =? (v: Whnf) = new =?(u, v)
 }
 
 // extension uSuccessAssumption on (self: Result[USuccess]) {
