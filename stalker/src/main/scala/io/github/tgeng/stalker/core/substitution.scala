@@ -20,7 +20,7 @@ case class Substitution[T <: Raisable[T]] (sourceContextSize: Int, content : Ind
   }
 }
 
-extension substitutionCompositionOps on [T <: Substitutable[T, T]](s: Substitution[T]) {
+extension substitutionCompositionOps on [T <: Substitutable[T, T] with Raisable[T]](s: Substitution[T]) {
   def ∘ (r: Substitution[T]) : Substitution[T] = Substitution[T](r.sourceContextSize, s.content.map(_.subst(r)))
 }
 
