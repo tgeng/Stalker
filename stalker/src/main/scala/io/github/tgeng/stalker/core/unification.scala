@@ -9,11 +9,32 @@ enum USuccess {
 
 import USuccess._
 
-extension unification on (p: =?[Whnf] ∷ Type) {
+// The structure of the unification algorithm is based on "Unifiers as
+// Equivalences" by Cockx et al. However, as for now only the most basic
+// unification is implemented: it entails K, entails injectivity of type
+// constructor (i.e. does not admit law excluded middle), does not admit
+// function extensionality. A more sophisticated type-driven algorithm can be
+// implemented in future to make Stalker support various useful extensions as a
+// proof assistance. But this naive algorithm should already be sufficient for
+// using Stalker as a general programming language supporting dependent types.
+
+extension termUnification on (p: =?[Whnf] ∷ Type) {
+  def unify(using Γ: Context)(using Σ: Signature) : Result[USuccess] = p match {
+    case (u =? v) ∷ _ if u == v => positive(Γ, TODO(), TODO())
+  }
+}
+
+extension termsUnification on (p: List[=?[Whnf]] ∷ Telescope) {
   def unify(using Γ: Context)(using Σ: Signature) : Result[USuccess] = p match {
     case _ => TODO()
   }
 }
+
+private def positive(context: Context, unifyingSubst: Substitution[Pattern], restoringSubst: Substitution[Pattern]) : Result[USuccess] =
+  Right(UPositive(context, unifyingSubst, restoringSubst))
+
+private val negative : Result[USuccess] = Right(UNegative)
+private def failure(msg: String) : Result[USuccess] = Left(TypingError(s"Unification failure: $msg"))
 
 case class =?[X](u: X, v: X)
 

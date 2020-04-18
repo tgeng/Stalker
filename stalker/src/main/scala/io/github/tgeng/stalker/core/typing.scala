@@ -21,10 +21,13 @@ object typing {
       for {
         wA <- _A.whnf
         lA <- wA.level
-        _Θ = Γ + f.argName ∷ wA
-        rB <- _B.whnf(using _Θ)
-        lB <- rB.level(using _Θ)
-      } yield max(lA, lB)
+        r <- withCtxExtendedBy(f.argName ∷ wA) {
+          for {
+            rB <- _B.whnf
+            lB <- rB.level
+          } yield max(lA, lB)
+        }
+      } yield r
     }
     case WData(qn, u) => for {
       data <- Σ getData qn
@@ -60,11 +63,14 @@ object typing {
         wA1 <- _A1.whnf
         wA2 <- _A2.whnf
         lA <- (wA1 ≡ wA2).level
-        _Θ = Γ + f.argName ∷ wA2
-        wB1 <- _B1.whnf(using _Θ)
-        wB2 <- _B2.whnf(using _Θ)
-        lB <- (wB1 ≡ wB2).level(using _Θ)
-      } yield max(lA, lB)
+        r <- withCtxExtendedBy(f.argName ∷ wA2) {
+          for {
+            wB1 <- _B1.whnf
+            wB2 <- _B2.whnf
+            lB <- (wB1 ≡ wB2).level
+          } yield max(lA, lB)
+        }
+      } yield r
     }
     case WVar(x, e̅1) ≡ WVar(y, e̅2) if (x == y) => (TWhnf(WVar(x, Nil)) ∷ Γ(x).ty |- e̅1 ≡ e̅2).level
     case WId(_A1, u1, v1) ≡ WId(_A2, u2, v2) => {
@@ -439,14 +445,23 @@ object typing {
           case WData(qn, v̅) => for {
             data <- Σ getData qn
             _ <- data.cons.allRight { c =>
-              {
-                val ρ1 = Substitution.id(_Γ1.size) ⊎ Substitution(c.argTys.size, IndexedSeq(PCon(c.name, (c.argTys.size - 1 to 0 by -1).map(i => PVar(i)).toList)))
-                val ρ2 = ρ1 ⊎ Substitution.id(_Γ2.size)
+              withCtx(_Γ1) {
                 for {
                   _Δ <- c.argTys.subst(v̅).tele
-                  _Γ2mod <- _Γ2.subst(ρ1).tele
-                  wC <- _C.subst(ρ2).whnf
-                  _ <- ((f, q̅.map(_.subst(ρ2))) := branches(c.name) ∷ wC).check(using _Γ1 + _Δ + _Γ2mod)
+                  _ <- withCtxExtendedBy(_Δ) {
+                    val cArgSize = c.argTys.size
+                    val ρ1 = _Γ1.idSubst.extendBy(cArgSize) ⊎ PCon(c.name, (0 until cArgSize).map(i => PVar(cArgSize - i - 1)).toList)
+                    for {
+                     _Γ2mod <- _Γ2.subst(ρ1).tele
+                     _ <- withCtxExtendedBy(_Γ2mod) {
+                       val ρ2 = ρ1.extendBy(_Γ2.size) ⊎ _Γ2.idSubst
+                       for {
+                         wC <- _C.subst(ρ2).whnf
+                         _ <- ((f, q̅.map(_.subst(ρ2))) := branches(c.name) ∷ wC).check(using _Γ1 + _Δ + _Γ2mod)
+                       } yield ()
+                     }
+                    } yield ()
+                  }
                 } yield ()
               }
             }
@@ -457,20 +472,29 @@ object typing {
       // CtSplitEq
       case (f, q̅) := CIdCase(x, τ, _Q) ∷ _C => {
         val (_Γ1, _A, _Γ2) = Γ.splitAt(x)
-        _A.ty match {
-          case WId(u, v, _B) => for {
-            wB <- _B.whnf
-            wu <- u.whnf
-            wv <- v.whnf
-            UPositive(_Γ1u, ρ, τu) <- ((wu =? wv) ∷ wB).unify
-            τumod = τu ⊎ Substitution.id(_Γ2.size)
-            // The check below should be unnecessary if the case tree generation algorithm is correct
-            ρmod = ρ ⊎ Substitution.id(_Γ2.size) if (τumod == τ)
-            wC <- _C.subst(ρmod).whnf
-            wΓ2 <- _Γ2.subst(ρ).tele
-            _ <- ((f, q̅.map(_.subst(ρmod))) := _Q ∷ wC).check(using _Γ1 + wΓ2)
-          } yield ()
-          case _ => judgementError(j)
+        withCtx(_Γ1) {
+          _A.ty match {
+            case WId(u, v, _B) => for {
+              wB <- _B.whnf
+              wu <- u.whnf
+              wv <- v.whnf
+              // There is no need to check the restoring substitution
+              UPositive(_Γ1u, ρ, _) <- ((wu =? wv) ∷ wB).unify
+              _ <- withCtx(_Γ1u) {
+                val ρmod = ρ.extendBy(_Γ2.size) ⊎ _Γ2.idSubst
+                for {
+                  wΓ2 <- _Γ2.subst(ρ).tele
+                  _ <- withCtxExtendedBy(wΓ2) {
+                    for {
+                      wC <- _C.subst(ρmod).whnf
+                      _ <- ((f, q̅.map(_.subst(ρmod))) := _Q ∷ wC).check(using _Γ1 + wΓ2)
+                    } yield ()
+                  }
+                } yield ()
+              }
+            } yield ()
+            case _ => judgementError(j)
+          }
         }
       }
       // CtSplitAbsurdEq

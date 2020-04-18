@@ -20,4 +20,9 @@ extension telescopeOps on (self: Telescope) {
     case Nil => Nil
     case ty :: rest => ty.map(_.substituteImpl) :: rest.substituteImpl(using spec.raised)
   }
+  def idSubst(using Γ:Context) : Substitution[Pattern] = Substitution(Γ.size + self.size, (0 until self.size).map(Pattern.PVar(_)))
 }
+
+def withCtx[T](ctx: Context)(action: (given ctx: Context) => T) : T = action(using ctx)
+def withCtxExtendedBy[T](tele: Telescope)(action: (given ctx: Context) => T)(using ctx: Context) : T = action(using ctx + tele)
+def withCtxExtendedBy[T](binding: Binding[Type])(action: (given ctx: Context) => T)(using ctx: Context) : T = action(using ctx + binding)
