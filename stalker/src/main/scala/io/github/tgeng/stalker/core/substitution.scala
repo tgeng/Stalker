@@ -23,7 +23,12 @@ case class Substitution[T <: Raisable[T]] (sourceContextSize: Int, content : Ind
 }
 
 extension substitutionCompositionOps on [T <: Substitutable[T, T] with Raisable[T]](s: Substitution[T]) {
-  def ∘ (r: Substitution[T]) : Substitution[T] = Substitution[T](r.sourceContextSize, s.content.map(_.subst(r)))
+  def ∘ (r: Substitution[T]) : Substitution[T] = {
+    if (s.sourceContextSize != r.content.size) {
+      throw IllegalArgumentException("Mismatched substitutions for composition")
+    }
+    Substitution[T](r.sourceContextSize, s.content.map(_.subst(r)))
+  }
 }
 
 case class RaiseSpec(private val bar:Int, private val amount:Int) {

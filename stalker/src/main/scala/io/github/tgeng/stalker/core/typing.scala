@@ -244,19 +244,19 @@ object typing {
           wB <- _B.whnf
           _ <- (fx ≡ gx ∷ wB).check(using Γ + _F.argName ∷ wA)
         } yield ()
-        // record eta rule
         // TODO: limit this rule to only run if the record is not recursive
-        case r ≡ s ∷ WRecord(qn, params) => for {
-          record <- Σ getRecord qn
-          _ <- record.fields.allRight{ f => 
-            for {
-              rf <- app(r, f.name)
-              sf <- app(s, f.name)
-              _A <- f.ty.subst(params :+ r).whnf
-              _ <- (rf ≡ sf ∷ _A).check
-            } yield ()
-          }
-        } yield ()
+        // record eta rule
+        // case r ≡ s ∷ WRecord(qn, params) => for {
+        //   record <- Σ getRecord qn
+        //   _ <- record.fields.allRight{ f => 
+        //     for {
+        //       rf <- app(r, f.name)
+        //       sf <- app(s, f.name)
+        //       _A <- f.ty.subst(params :+ r).whnf
+        //       _ <- (rf ≡ sf ∷ _A).check
+        //     } yield ()
+        //   }
+        // } yield ()
         case x ≡ y ∷ _A => for {
           wX <- x.whnf
           wY <- y.whnf
@@ -339,6 +339,11 @@ object typing {
       rhs <- firstMatch(definition.clauses, elims, definition)
       r <- rhs.whnf
     } yield r
+  }
+
+  def (tm: Term) simpl(using Γ: Context)(using Σ: Signature) : Term = tm.whnf match {
+    case Right(w: Whnf) => TWhnf(w)
+    case _ => tm
   }
   
   private def firstMatch(cs: scala.collection.Seq[Clause], e̅: List[Elimination], d: Definition)(using Γ: Context)(using Σ: Signature) : Result[Term] = returning[Result[Term]] {
@@ -450,14 +455,14 @@ object typing {
                   _Δ <- c.argTys.subst(v̅).tele
                   _ <- withCtxExtendedBy(_Δ) {
                     val cArgSize = c.argTys.size
-                    val ρ1 = _Γ1.idSubst.extendBy(cArgSize) ⊎ PCon(c.name, (0 until cArgSize).map(i => PVar(cArgSize - i - 1)).toList)
+                    val ρ1 = _Γ1.idSubst ⊎ PCon(c.name, (0 until cArgSize).map(i => PVar(cArgSize - i - 1)).toList)
                     for {
                      _Γ2mod <- _Γ2.subst(ρ1).tele
                      _ <- withCtxExtendedBy(_Γ2mod) {
                        val ρ2 = ρ1.extendBy(_Γ2.size) ⊎ _Γ2.idSubst
                        for {
                          wC <- _C.subst(ρ2).whnf
-                         _ <- ((f, q̅.map(_.subst(ρ2))) := branches(c.name) ∷ wC).check(using _Γ1 + _Δ + _Γ2mod)
+                         _ <- ((f, q̅.map(_.subst(ρ2))) := branches(c.name) ∷ wC).check
                        } yield ()
                      }
                     } yield ()
@@ -476,10 +481,8 @@ object typing {
           _A.ty match {
             case WId(u, v, _B) => for {
               wB <- _B.whnf
-              wu <- u.whnf
-              wv <- v.whnf
               // There is no need to check the restoring substitution
-              UPositive(_Γ1u, ρ, _) <- ((wu =? wv) ∷ wB).unify
+              UPositive(_Γ1u, ρ, _) <- ((u.simpl =? v.simpl) ∷ wB).unify
               _ <- withCtx(_Γ1u) {
                 val ρmod = ρ.extendBy(_Γ2.size) ⊎ _Γ2.idSubst
                 for {
@@ -487,7 +490,7 @@ object typing {
                   _ <- withCtxExtendedBy(wΓ2) {
                     for {
                       wC <- _C.subst(ρmod).whnf
-                      _ <- ((f, q̅.map(_.subst(ρmod))) := _Q ∷ wC).check(using _Γ1 + wΓ2)
+                      _ <- ((f, q̅.map(_.subst(ρmod))) := _Q ∷ wC).check
                     } yield ()
                   }
                 } yield ()
@@ -505,7 +508,7 @@ object typing {
             wu <- u.whnf
             wv <- v.whnf
             wB <- _B.whnf
-            UNegative <- ((wu =? wv) ∷ wB).unify
+            UNegative <- ((u.simpl =? v.simpl) ∷ wB).unify
           } yield ()
           case _ => judgementError(j)
         }
@@ -522,20 +525,6 @@ object typing {
     case TRedux(fn, elims) => Right(TRedux(fn, elims :+ e))
     case TWhnf(WVar(idx, elims)) => Right(TWhnf(WVar(idx, elims :+ e)))
     case _ => typingError(s"Cannot apply $e to $x.")
-  }
-  
-  extension dataTypingOps on (self: Data) {
-    def apply(name: String) : Result[Constructor] = self.cons.find(_.name == name) match {
-      case Some(c) => Right(c)
-      case None => typingError(s"Cannot find constructor '$name' for data ${self.qn}.")
-    }
-  }
-  
-  extension recordTypingOps on (self: Record) {
-    def apply(name: String) : Result[Field] = self.fields.find(_.name == name) match {
-      case Some(f) => Right(f)
-      case None => typingError(s"Cannot find field '$name' for record ${self.qn}.")
-    }
   }
 }
 

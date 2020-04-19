@@ -19,5 +19,8 @@ extension contextOps on (self: Context) {
 
   def apply(idx : Int) = self(idx).map(_.raise(idx + 1))
   def size = self.size
-  def idSubst : Substitution[Pattern] = Substitution(self.size, (0 until self.size).map(Pattern.PVar(_)))
+  def idSubst(using Γ:Context) : Substitution[Pattern] = {
+    val startingIndex = Γ.size - self.size
+    Substitution(Γ.size, (0 until self.size).map(i => Pattern.PVar(i + startingIndex)))
+  }
 }

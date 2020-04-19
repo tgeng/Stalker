@@ -67,6 +67,20 @@ extension signatureTOps on [C[_], T](Σ: SignatureT[C, T]) {
   }
 }
 
+extension dataTypingOps on (self: Data) {
+  def apply(name: String) : Result[Constructor] = self.cons.find(_.name == name) match {
+    case Some(c) => Right(c)
+    case None => typingError(s"Cannot find constructor '$name' for data ${self.qn}.")
+  }
+}
+
+extension recordTypingOps on (self: Record) {
+  def apply(name: String) : Result[Field] = self.fields.find(_.name == name) match {
+    case Some(f) => Right(f)
+    case None => typingError(s"Cannot find field '$name' for record ${self.qn}.")
+  }
+}
+
 type Declaration = DeclarationT[Checked, Seq, Type]
 type Data = DataT[Checked, Seq, Type]
 type Record = RecordT[Checked, Seq, Type]
