@@ -34,7 +34,7 @@ import Term._
 import Whnf._
 
 extension termUnification on (p: =?[Term] ∷ Type) {
-  def unify(using Γ: Context)(using Σ: Signature) : Result[USuccess] = p match {
+  def unify(using Γ: Context)(using Σ: Signature) : Result[USuccess] = p.simpl match {
     // delete
     case (u =? v) ∷ _A if u == v => positive(
       Γ, 
@@ -102,16 +102,33 @@ extension termUnification on (p: =?[Term] ∷ Type) {
 
     // stuck
     case (TRedux(_, _) =? _) ∷ _ | 
-         (_ =? TRedux(_, _)) ∷ _ => failure(s"Cannot solve unification problem $p.")
+         (_ =? TRedux(_, _)) ∷ _ |
+         (TWhnf(WFunction(_, _)) =? TWhnf(WFunction(_, _))) ∷ _ => failure(s"Cannot solve unification problem $p.")
 
     // absurd
     case _ => UNegative
+  }
+
+  private def simpl(using Γ: Context)(using Σ: Signature) : =?[Term] ∷ Type = p match {
+    case (u =? v) ∷ _A => (simplTerm(u) =? simplTerm(v)) ∷ _A
   }
 }
 
 extension termsUnification on (p: =?[List[Term]] ∷ Telescope) {
   def unify(using Γ: Context)(using Σ: Signature) : Result[USuccess] = p match {
-    case _ => TODO()
+    case (Nil =? Nil) ∷ Nil => positive(Γ, Γ.idSubst, Γ, Γ.idSubst)
+    case ((u :: u̅) =? (v :: v̅)) ∷ (_A :: _Δ) => for {
+      unifier <- ((u =? v) ∷ _A.ty).unify
+      restUnifier <- unifier match {
+        case UNegative => Right(UNegative)
+        case UPositive(context, unifyingSubst, restoringSubst) => withCtx(context) {
+          for {
+            _Δmod <- _Δ.subst(unifyingSubst).tele
+            t <- ((u̅.map(_.subst(unifyingSubst)) =? v̅.map(_.subst(unifyingSubst))) ∷ _Δmod).unify
+          } yield t
+        }
+      }
+    } yield unifier ∘ restUnifier
   }
 }
 
@@ -119,7 +136,7 @@ private def solution(idx: Int, t: Term, _A: Type)(using Γ: Context)(using Σ: S
   TODO()
 }
 
-private def isCyclic(x: Term, y: Term, _A: Type)(using Γ: Context)(using Σ: Signature) : Boolean = false
+private def isCyclic(x: Term, y: Term, _A: Type)(using Γ: Context)(using Σ: Signature) : Boolean = TODO()
 
 private def idTypes(Δ: Telescope, u̅: List[Term], v̅: List[Term]) : List[Binding[Type]] = (Δ, u̅, v̅) match {
   case (Nil, Nil, Nil) => Nil
@@ -128,6 +145,12 @@ private def idTypes(Δ: Telescope, u̅: List[Term], v̅: List[Term]) : List[Bind
 }
 
 private def idType(_A: Type, u: Term, v: Term) : Binding[Type] = "e" ∷ WId(TWhnf(_A), u, v)
+
+private def simplTerm(tm: Term)(using Γ: Context)(using Σ: Signature) : Term = tm.whnf match {
+  case Right(f@WFunction(a, b)) => TWhnf(WFunction(simplTerm(a), simplTerm(b))(f.argName))
+  case Right(w: Whnf) => TWhnf(w)
+  case _ => tm
+}
 
 private def positive(solutionCtx: Context, unifyingSubstFn: (given ctx: Context) => Substitution[Pattern], sourceCtx: Context, restoringSubstFn: (given ctx: Context) => Substitution[Pattern]) : USuccess = {
   val unifyingSubst = unifyingSubstFn(using solutionCtx)

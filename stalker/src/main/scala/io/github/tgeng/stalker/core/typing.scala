@@ -341,11 +341,6 @@ object typing {
     } yield r
   }
 
-  def (tm: Term) simpl(using Γ: Context)(using Σ: Signature) : Term = tm.whnf match {
-    case Right(w: Whnf) => TWhnf(w)
-    case _ => tm
-  }
-  
   private def firstMatch(cs: scala.collection.Seq[Clause], e̅: List[Elimination], d: Definition)(using Γ: Context)(using Σ: Signature) : Result[Term] = returning[Result[Term]] {
     for (c <- cs) {
       c match {
@@ -482,7 +477,7 @@ object typing {
             case WId(u, v, _B) => for {
               wB <- _B.whnf
               // There is no need to check the restoring substitution
-              UPositive(_Γ1u, ρ, _) <- ((u.simpl =? v.simpl) ∷ wB).unify
+              UPositive(_Γ1u, ρ, _) <- ((u =? v) ∷ wB).unify
               _ <- withCtx(_Γ1u) {
                 val ρmod = ρ.extendBy(_Γ2.size) ⊎ _Γ2.idSubst
                 for {
@@ -508,7 +503,7 @@ object typing {
             wu <- u.whnf
             wv <- v.whnf
             wB <- _B.whnf
-            UNegative <- ((u.simpl =? v.simpl) ∷ wB).unify
+            UNegative <- ((u =? v) ∷ wB).unify
           } yield ()
           case _ => judgementError(j)
         }
