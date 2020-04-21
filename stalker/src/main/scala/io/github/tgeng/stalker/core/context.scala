@@ -3,24 +3,29 @@ package io.github.tgeng.stalker.core
 import scala.language.implicitConversions
 
 /** First element on the right. */
-opaque type Context = IndexedSeq[Binding[Type]]
+opaque type Context = List[Binding[Type]]
+opaque type DeBruijnNumber = Int
 
 object Context {
-  val empty : Context = IndexedSeq.empty
+  val empty : Context = Nil
 }
 
 extension contextOps on (self: Context) {
-  def toTelescope : Telescope = self.reverse.toList
+  def toTelescope : Telescope = self.reverse
 
-  def splitAt(idx: Int) : (Context, Binding[Type], Telescope) = (self.slice(idx + 1, self.size), self(idx), self.slice(0, idx).reverse.toList)
+  def splitAt(idx: Int) : (Context, Binding[Type], Telescope) = (self.slice(idx + 1, self.size), self(idx), self.slice(0, idx).reverse)
 
   def + (ty: Binding[Type]) : Context = ty +: self
-  def + (tys: Telescope) : Context = tys.reverse.toIndexedSeq ++ self
+  def + (tys: Telescope) : Context = tys.reverse ++ self
 
-  def apply(idx : Int) = self(idx).map(_.raise(idx + 1))
+  def apply(idx : Int) : Binding[Type] = self(idx).map(_.raise(idx + 1))
   def size = self.size
-  def idSubst(using Γ:Context) : Substitution[Pattern] = {
-    val startingIndex = Γ.size - self.size
-    Substitution(Γ.size, (0 until self.size).map(i => Pattern.PVar(i + startingIndex)))
-  }
+  // def idSubst(using Γ:Context) : Substitution[Pattern] = {
+  //   val startingIndex = Γ.size - self.size
+  //   Substitution(Γ.size, (0 until self.size).map(i => Pattern.PVar(i + startingIndex)))
+  // }
+}
+
+extension deBruijnIndexOps on (idx: Int) {
+  def deBruijnNumber(using ctx: Context) : DeBruijnNumber = ctx.size - 1 - idx
 }

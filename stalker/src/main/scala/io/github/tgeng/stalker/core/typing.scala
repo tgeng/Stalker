@@ -4,8 +4,9 @@ import scala.util.control.NonLocalReturns._
 import scala.language.implicitConversions
 import scala.math.max
 import io.github.tgeng.common._
-import io.github.tgeng.stalker.common._
 import io.github.tgeng.common.extraSeqOps
+import io.github.tgeng.stalker.common._
+import io.github.tgeng.stalker.core.telescopeOps
 import substitutionConversion.{given _}
 import Term._
 import Whnf._
@@ -107,14 +108,14 @@ object typing {
       case u ∷ WFunction(_A, _B) |- (ETerm(v1) :: e̅1) ≡ (ETerm(v2) :: e̅2) => for {
         wA <- _A.whnf
         _ <- (v1 ≡ v2 ∷ wA).check
-        wB <- _B.subst(v1).whnf
+        wB <- _B.substHead(v1).whnf
         uv <- app(u, v1)
         l <- (uv ∷ wB |- e̅1 ≡ e̅2).level
       } yield l
       case u ∷ WRecord(r, v̅) |- (EProj(π) :: e̅1) ≡ (EProj(π1) :: e̅2) if π == π1 => for {
         record <- Σ getRecord r
         field <- record(π)
-        wA <- field.ty.subst(v̅ :+ u).whnf
+        wA <- field.ty.substHead(v̅ :+ u).whnf
         uπ <- app(u, π)
         l <- (uπ ∷ wA |- e̅1 ≡ e̅2).level
       } yield l
@@ -152,7 +153,7 @@ object typing {
           data <- Σ getData d
           constructor <- data(c)     
           _ <- (u̅ ∷ data.paramTys).check
-          _Δ <- constructor.argTys.subst(v̅).tele
+          _Δ <- constructor.argTys.substHead(v̅).tele
           _ <- (v̅ ∷ _Δ).check
         } yield ()
         case TWhnf(WRefl) ∷ WId(_A, u, v) => for {
@@ -169,7 +170,7 @@ object typing {
       case Nil ∷ Nil => Right(())
       case (x :: u̅) ∷ (_A :: _Δ) => for {
         _ <- (x ∷ _A.ty).check
-        _Θ <- _Δ.subst(x).tele
+        _Θ <- _Δ.substHead(x).tele
         _ <- (u̅ ∷ _Θ).check(using Γ + _A)
       } yield ()
       case _ => judgementError(j)
@@ -195,7 +196,7 @@ object typing {
           wA <- _A.whnf
           _ <- (v ∷ wA).check
           uv <- app(u, v)
-          _Bv = _B.subst(v)
+          _Bv = _B.substHead(v)
           wBv <- _Bv.whnf
           _ <- (uv ∷ wBv).check
           _ <- (uv ∷ wBv |- e̅ ∷ _C).check
@@ -204,7 +205,7 @@ object typing {
           record <- Σ getRecord r
           field <- record(π) 
           uπ <- app(u, π)
-          ft <- field.ty.subst(v̅ :+ u).whnf
+          ft <- field.ty.substHead(v̅ :+ u).whnf
           _ <- (uπ ∷ ft |- e̅ ∷ _C).check
         } yield ()
         case _ => judgementError(j)
@@ -252,7 +253,7 @@ object typing {
         //     for {
         //       rf <- app(r, f.name)
         //       sf <- app(s, f.name)
-        //       _A <- f.ty.subst(params :+ r).whnf
+        //       _A <- f.ty.substHead(params :+ r).whnf
         //       _ <- (rf ≡ sf ∷ _A).check
         //     } yield ()
         //   }
@@ -271,7 +272,7 @@ object typing {
               data <- Σ getData d
               con <- data(c1)
               _ <- (u̅ ∷ data.paramTys).check
-              _Δ <- con.argTys.subst(u̅).tele
+              _Δ <- con.argTys.substHead(u̅).tele
               _ <- (v̅1 ≡ v̅2 ∷ _Δ).check
             } yield ()
             case _ => judgementError(j)
@@ -293,7 +294,7 @@ object typing {
         case Nil ≡ Nil ∷ Nil => Right(())
         case (u :: u̅) ≡ (v :: v̅) ∷ (_A :: _Δ) => for {
           _ <- (u ≡ v ∷ _A.ty).check
-          _Θ <- _Δ.subst(u).tele
+          _Θ <- _Δ.substHead(u).tele
           _ <- (u̅ ≡ v̅ ∷ _Θ).check(using Γ + _A)
         } yield ()
       }
@@ -316,14 +317,14 @@ object typing {
         case u ∷ WFunction(_A, _B) |- (ETerm(v1) :: e̅1) ≡ (ETerm(v2) :: e̅2) ∷ _C => for {
           wA <- _A.whnf
           _ <- (v1 ≡ v2 ∷ wA).check
-          wB <- _B.subst(v1).whnf
+          wB <- _B.substHead(v1).whnf
           uv <- app(u, v1)
           _ <- (uv ∷ wB |- e̅1 ≡ e̅2 ∷ _C).check
         } yield ()
         case u ∷ WRecord(r, v̅) |- (EProj(π) :: e̅1) ≡ (EProj(π1) :: e̅2) ∷ _C if π == π1 => for {
           record <- Σ getRecord r
           field <- record(π)
-          wA <- field.ty.subst(v̅ :+ u).whnf
+          wA <- field.ty.substHead(v̅ :+ u).whnf
           uπ <- app(u, π)
           _ <- (uπ ∷ wA |- e̅1 ≡ e̅2 ∷ _C).check
         } yield ()
@@ -363,8 +364,8 @@ object typing {
   }
   
   def (v: Term) / (p: Pattern)(using Γ: Context)(using Σ: Signature) : MatchResult = p match {
-    case PVar(_) => matched(v)
-    case PRefl | PForced(_) => matched(Nil)
+    case PVar(_) => matched(Substitution.of[Term](v))
+    case PRefl | PForced(_) => matched(Substitution.none)
     case PCon(c1, p̅) => v.whnf match {
       case Right(WCon(c2, v̅)) => if(c1 == c2) {
        v̅.map(ETerm(_)) / p̅.map(QPattern(_))
@@ -382,12 +383,12 @@ object typing {
   
   def (e: Elimination) / (q: CoPattern)(using Γ: Context)(using Σ: Signature) : MatchResult = (e, q) match {
     case (ETerm(t), QPattern(p)) => t / p
-    case (EProj(π1), QProj(π2)) if π1 == π2 => matched(Nil)
+    case (EProj(π1), QProj(π2)) if π1 == π2 => matched(Substitution.none)
     case _ => mismatch(e, q)
   }
   
   def (e̅: List[Elimination]) / (q̅: List[CoPattern])(using Γ: Context)(using Σ: Signature) : MatchResult = (e̅, q̅) match {
-    case (Nil, Nil) => matched(Nil)
+    case (Nil, Nil) => matched(Substitution.none)
     case (e :: e̅, q :: q̅) => for {
       eq <- e / q
       eqs <- eq match {
@@ -430,10 +431,10 @@ object typing {
       // CtCosplit
       case (f, q̅) := CRecord(_Qs) ∷ WRecord(qn, v̅) => for {
         record <- Σ getRecord qn
-        σ : Substitution[Term] = v̅ :+ TRedux(f, q̅.map(_.toElimination))
+        σ = v̅ :+ TRedux(f, q̅.map(_.toElimination))
         _ <- record.fields.allRight { field =>
           for {
-            wA <- field.ty.subst(σ).whnf
+            wA <- field.ty.substHead(σ).whnf
             _ <- ((f, q̅ :+ QProj(field.name)) := _Qs(field.name) ∷ wA).check
           } yield ()
         }
@@ -447,14 +448,14 @@ object typing {
             _ <- data.cons.allRight { c =>
               withCtx(_Γ1) {
                 for {
-                  _Δ <- c.argTys.subst(v̅).tele
+                  _Δ <- c.argTys.substHead(v̅).tele
                   _ <- withCtxExtendedBy(_Δ) {
                     val cArgSize = c.argTys.size
-                    val ρ1 = _Γ1.idSubst ⊎ PCon(c.name, (0 until cArgSize).map(i => PVar(cArgSize - i - 1)).toList)
+                    val ρ1 = Substitution.drop(_Δ.size) ⊎ PCon(c.name, (0 until cArgSize).map(i => PVar(cArgSize - i - 1)).toList)
                     for {
                      _Γ2mod <- _Γ2.subst(ρ1).tele
                      _ <- withCtxExtendedBy(_Γ2mod) {
-                       val ρ2 = ρ1.extendBy(_Γ2.size) ⊎ _Γ2.idSubst
+                       val ρ2 = ρ1.extendBy(_Γ2mod)
                        for {
                          wC <- _C.subst(ρ2).whnf
                          _ <- ((f, q̅.map(_.subst(ρ2))) := branches(c.name) ∷ wC).check
@@ -479,7 +480,7 @@ object typing {
               // There is no need to check the restoring substitution
               UPositive(_Γ1u, ρ, _) <- ((u =? v) ∷ wB).unify
               _ <- withCtx(_Γ1u) {
-                val ρmod = ρ.extendBy(_Γ2.size) ⊎ _Γ2.idSubst
+                val ρmod = ρ.extendBy(_Γ2)
                 for {
                   wΓ2 <- _Γ2.subst(ρ).tele
                   _ <- withCtxExtendedBy(wΓ2) {
@@ -497,7 +498,7 @@ object typing {
       }
       // CtSplitAbsurdEq
       case (f, q̅) := CAbsurdCase(x) ∷ _C => {
-        val (_Γ1, _A, _Γ2) = Γ.splitAt(x)
+        val (_Γ1, _A, _) = Γ.splitAt(x)
         _A.ty match {
           case WId(u, v, _B) => for {
             wu <- u.whnf

@@ -14,13 +14,14 @@ extension bindingOps on [T, R](self: Binding[T]) {
 type Telescope = List[Binding[Type]]
 
 extension telescopeOps on (self: Telescope) {
-  def subst(s: Substitution[Term])(using Γ: Context)(using Σ: Signature) = self.substituteImpl(using SubstituteSpec(0, s)) 
+  def subst(s: Substitution[Term]) : List[Binding[Term]] = self.substituteImpl(using SubstituteSpec(0, s))
+  def substHead(t: Term)(using ctx: Context) : List[Binding[Term]] = self.substituteImpl(using SubstituteSpec(0, Substitution(ctx.size, ctx.size + 1, IndexedSeq(t))))
+  def substHead(ts: Seq[Term])(using ctx: Context) : List[Binding[Term]] = self.substituteImpl(using SubstituteSpec(0, Substitution(ctx.size, ctx.size + ts.size, ts.toIndexedSeq.reverse)))
 
-  def substituteImpl(using spec: SubstituteSpec[Term])(using Γ: Context)(using Σ: Signature) : List[Binding[Term]] = self match {
+  def substituteImpl(using spec: SubstituteSpec[Term]) : List[Binding[Term]] = self match {
     case Nil => Nil
     case ty :: rest => ty.map(_.substituteImpl) :: rest.substituteImpl(using spec.raised)
   }
-  def idSubst(using Γ:Context) : Substitution[Pattern] = Substitution(Γ.size + self.size, (0 until self.size).map(Pattern.PVar(_)))
 }
 
 def withCtx[T](ctx: Context)(action: (given ctx: Context) => T) : T = action(using ctx)

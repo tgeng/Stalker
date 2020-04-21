@@ -38,23 +38,23 @@ extension termUnification on (p: =?[Term] ∷ Type) {
     // delete
     case (u =? v) ∷ _A if u == v => positive(
       Γ, 
-      Γ.idSubst ⊎ PRefl, 
+      Substitution.id ⊎ PRefl, 
       Γ + idType(_A, u, v),
-      Γ.idSubst)
+      Substitution.drop(1))
 
     // cycle
     case (x =? y) ∷ _A if isCyclic(x, y, _A) => UNegative
 
     // solution
-    case (TWhnf(WVar(x, Nil)) =? TWhnf(WVar(y, Nil))) ∷ _A => solution(min(x, y), TWhnf(WVar(max(x, y), Nil)), _A)
-    case (TWhnf(WVar(x, Nil)) =? w) ∷ _A => solution(x, w, _A)
-    case (w =? TWhnf(WVar(y, Nil))) ∷ _A => solution(y, w, _A)
+    case (TWhnf(WVar(x, Nil)) =? TWhnf(WVar(y, Nil))) ∷ _ => solution(min(x, y), TWhnf(WVar(max(x, y), Nil)))
+    case (TWhnf(WVar(x, Nil)) =? w) ∷ _ => solution(x, w)
+    case (w =? TWhnf(WVar(y, Nil))) ∷ _ => solution(y, w)
 
     // injectivity - data constructors
     case (((u@TWhnf(WCon(c1, u̅))) =? (v@TWhnf(WCon(c2, v̅)))) ∷ (_A@WData(qn, params))) if c1 == c2 => for {
       data <- Σ getData(qn)
       con <- data(c1)
-      argTys <- con.argTys.subst(params).tele
+      argTys <- con.argTys.substHead(params).tele
       unifier <- ((u̅ =? v̅) ∷ argTys).unify
     } yield positive(
       Γ + idTypes(argTys, u̅, v̅), 
@@ -62,9 +62,9 @@ extension termUnification on (p: =?[Term] ∷ Type) {
       // after composing with `unifier` it should always reduce to `PRefl`.
       // Therefore, we just save the work and return `PRefl` directly. We do the
       // same below as well.
-      Γ.idSubst ⊎ PRefl,
+      Substitution.drop(argTys.size) ⊎ PRefl,
       Γ + idType(_A, u, v),
-      Γ.idSubst ⊎ argTys.map(_ => PRefl)
+      Substitution.drop(1) ⊎ argTys.map(_ => PRefl)
     ) ∘ unifier
 
     // injectivity - type constructors
@@ -77,27 +77,27 @@ extension termUnification on (p: =?[Term] ∷ Type) {
       unifier <- ((w1 =? w2) ∷ _Γ).unify
     } yield positive(
       Γ + idTypes(_Γ, w1, w2),
-      Γ.idSubst ⊎ PRefl,
+      Substitution.drop(_Γ.size) ⊎ PRefl,
       Γ + idType(_U, u, v),
-      Γ.idSubst ⊎ List(PRefl, PRefl, PRefl)
+      Substitution.drop(1) ⊎ List(PRefl, PRefl, PRefl)
     ) ∘ unifier
     case ((u@TWhnf(WData(qn1, params1))) =? (v@TWhnf(WData(qn2, params2)))) ∷ _U if qn1 == qn2 => for {
       data <- Σ getData qn1 
       unifier <- ((params1 =? params2) ∷ data.paramTys).unify
     } yield positive(
       Γ + idTypes(data.paramTys, params1, params2),
-      Γ.idSubst ⊎ PRefl,
+      Substitution.drop(data.paramTys.size) ⊎ PRefl,
       Γ + idType(_U, u, v),
-      Γ.idSubst ⊎ data.paramTys.map(_ => PRefl)
+      Substitution.drop(1) ⊎ data.paramTys.map(_ => PRefl)
     ) ∘ unifier
     case ((u@TWhnf(WRecord(qn1, params1))) =? (v@TWhnf(WRecord(qn2, params2)))) ∷ _U if qn1 == qn2 => for {
       record <- Σ getRecord qn1 
       unifier <- ((params1 =? params2) ∷ record.paramTys).unify
     } yield positive(
       Γ + idTypes(record.paramTys, params1, params2),
-      Γ.idSubst ⊎ PRefl,
+      Substitution.drop(record.paramTys.size) ⊎ PRefl,
       Γ + idType(_U, u, v),
-      Γ.idSubst ⊎ record.paramTys.map(_ => PRefl)
+      Substitution.drop(1) ⊎ record.paramTys.map(_ => PRefl)
     ) ∘ unifier
 
     // stuck
@@ -116,7 +116,7 @@ extension termUnification on (p: =?[Term] ∷ Type) {
 
 extension termsUnification on (p: =?[List[Term]] ∷ Telescope) {
   def unify(using Γ: Context)(using Σ: Signature) : Result[USuccess] = p match {
-    case (Nil =? Nil) ∷ Nil => positive(Γ, Γ.idSubst, Γ, Γ.idSubst)
+    case (Nil =? Nil) ∷ Nil => positive(Γ, Substitution.id, Γ, Substitution.id)
     case ((u :: u̅) =? (v :: v̅)) ∷ (_A :: _Δ) => for {
       unifier <- ((u =? v) ∷ _A.ty).unify
       restUnifier <- unifier match {
@@ -132,8 +132,13 @@ extension termsUnification on (p: =?[List[Term]] ∷ Telescope) {
   }
 }
 
-private def solution(idx: Int, t: Term, _A: Type)(using Γ: Context)(using Σ: Signature) : Result[USuccess] = {
+private def solution(idx: Int, t: Term)(using Γ: Context) : Result[USuccess] = {
+  val (_Γ, _A, _Δ) = Γ.splitAt(idx)
   TODO()
+}
+
+private def rearrange(idx: Int)(using Γ: Context) : UPositive = {
+  ???
 }
 
 private def isCyclic(x: Term, y: Term, _A: Type)(using Γ: Context)(using Σ: Signature) : Boolean = TODO()

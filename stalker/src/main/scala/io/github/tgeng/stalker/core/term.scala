@@ -8,6 +8,11 @@ enum Term extends Raisable[Term] with Substitutable[Term, Term] {
   case TWhnf(whnf: Whnf)
   case TRedux(fn: QualifiedName, elims: List[Elimination])
 
+  def freeVars : Set[Int] = this match {
+    case TWhnf(whnf) => whnf.freeVars
+    case TRedux(fn, elims) => elims.flatMap(_.freeVars).toSet
+  }
+
   def raiseImpl(using spec: RaiseSpec) : Term = this match {
     case TWhnf(whnf) => TWhnf(whnf.raiseImpl)
     case TRedux(fn, elims) => TRedux(fn, elims.map(_.raiseImpl))
@@ -30,6 +35,18 @@ enum Whnf extends Raisable[Whnf] with Substitutable[Term, Term] {
   case WVar(idx: Int, elims: List[Elimination])
   case WCon(con: String, args: List[Term])
   case WRefl
+
+  def freeVars : Set[Int] = this match {
+    case f@WFunction(argTy, bodyTy) => argTy.freeVars | (bodyTy.freeVars &~ Set(0)).map(_ - 1)
+    case WUniverse(_) => Set.empty
+    case WData(data, params) => params.flatMap(_.freeVars).toSet
+    case WRecord(record, params) => params.flatMap(_.freeVars).toSet
+    case WId(ty: Term, left: Term, right: Term) => ty.freeVars | left.freeVars | right.freeVars
+    case WVar(idx, elims) => elims.flatMap(_.freeVars).toSet
+    case WCon(con, args) => args.flatMap(_.freeVars).toSet
+    case WRefl => Set.empty
+  }
+
 
   def raiseImpl(using spec: RaiseSpec) : Whnf = this match {
     case f@WFunction(argTy, bodyTy) => WFunction(argTy.raiseImpl, bodyTy.raiseImpl(using spec.raised))(f.argName)
@@ -69,6 +86,11 @@ import Whnf._
 enum Elimination extends Raisable[Elimination] with Substitutable[Term, Elimination] {
   case ETerm(t: Term)
   case EProj(p: String)
+  
+  def freeVars : Set[Int] = this match {
+    case ETerm(t) => t.freeVars
+    case EProj(p) => Set.empty
+  }
 
   def raiseImpl(using spec: RaiseSpec): Elimination = this match {
     case ETerm(t) => ETerm(t.raiseImpl)
