@@ -19,13 +19,16 @@ case class Substitution[T <: Raisable[T]] (sourceContextSize: Int, targetContext
   def shiftAmount: Int = sourceContextSize - targetContextSize
   def unionSum(varFn : Int => T)(other: Substitution[T]) : Substitution[T] = {
     assert (other.sourceContextSize == sourceContextSize)
-    Substitution(sourceContextSize, targetContextSize + other.targetContextSize, other.content ++ 
-      ((other.sourceContextSize - (other.targetContextSize - other.content.size)) until other.sourceContextSize).map(varFn) ++ 
-      content) 
+    Substitution(
+      sourceContextSize, 
+      targetContextSize + other.targetContextSize,
+      other.materialize(varFn).content ++ content) 
   }
 
-  // def +(t: T) = Substitution(sourceContextSize, targetContextSize + 1, t +: content)
-  // def ++(ts: Seq[T]) = Substitution(sourceContextSize, targetContextSize + ts.size, content.prependedAll(ts.reverse))
+  def materialize(varFn: Int => T): Substitution[T] = Substitution(
+    sourceContextSize, 
+    targetContextSize, 
+    content ++ ((sourceContextSize - (targetContextSize - content.size)) until sourceContextSize).map(varFn))
 
   def extendBy(varFn : Int => T)(Δ: Telescope) = {
     val size = Δ.size
@@ -34,15 +37,30 @@ case class Substitution[T <: Raisable[T]] (sourceContextSize: Int, targetContext
       targetContextSize + size, 
       content.map(_.raise(size)).prependedAll((0 until size).map(varFn)))
   }
+
+  def drop(count: Int) = Substitution(sourceContextSize, targetContextSize - count, content.drop(count))
+
+  def keep(count: Int) = drop(targetContextSize - count)
+
+  /** Extend the source context with additional bindings. */
+  def weaken(count: Int) = Substitution(sourceContextSize + count, targetContextSize, content.map(_.raise(count)))
+
+  /** Drop unused tail bindings from the  source context. */
+  def strengthen(count: Int) = {
+    assert(targetContextSize - content.size <= sourceContextSize - count)
+    Substitution(sourceContextSize - count, targetContextSize, content.map(_.raise(-count)))
+  }
+}
+
+extension substitutionCompositionOps on [T <: Substitutable[T, T] with Raisable[T]](s: Substitution[T]) {
+  def comp(varFn : Int => T)(r: Substitution[T]) : Substitution[T] = {
+    assert (s.sourceContextSize == r.targetContextSize)
+    Substitution[T](r.sourceContextSize, s.targetContextSize, s.materialize(varFn).content.map(_.subst(r)))
+  }
 }
 
 object Substitution {
-  def drop[T <: Raisable[T]](count: Int)(using Γ: Context) : Substitution[T] = {
-    assert(count < Γ.size)
-    Substitution(Γ.size, Γ.size - count, IndexedSeq.empty)
-  }
-
-  def id[T <: Raisable[T]](using Γ: Context) : Substitution[T] = drop(0)
+  def id[T <: Raisable[T]](using Γ: Context) : Substitution[T] = Substitution(Γ.size, Γ.size, IndexedSeq.empty)
 
   def none[T <: Raisable[T]](using Γ: Context) : Substitution[T] = Substitution(Γ.size, 0, IndexedSeq.empty)
 
@@ -54,6 +72,7 @@ extension patternSubstitutionUnionSum on (s: Substitution[Pattern]) {
   def ⊎(p: Pattern) : Substitution[Pattern] = s ⊎ Substitution(s.sourceContextSize, 1, IndexedSeq(p))
   def ⊎(ps: Seq[Pattern]) : Substitution[Pattern] = s ⊎ Substitution(s.sourceContextSize, 1, ps.toIndexedSeq.reverse)
   def extendBy(Δ: Telescope) = s.extendBy(Pattern.PVar(_))(Δ)
+  def ∘(other: Substitution[Pattern]) : Substitution[Pattern] = s.comp(Pattern.PVar(_))(other)
 }
 
 extension termSubstitutionUnionSum on (s: Substitution[Term]) {
@@ -61,13 +80,7 @@ extension termSubstitutionUnionSum on (s: Substitution[Term]) {
   def ⊎(t: Term) : Substitution[Term] = s ⊎ Substitution(s.sourceContextSize, 1, IndexedSeq(t))
   def ⊎(ts: Seq[Term]) : Substitution[Term] = s ⊎ Substitution(s.sourceContextSize, 1, ts.toIndexedSeq.reverse)
   def extendBy(Δ: Telescope) = s.extendBy(i => Term.TWhnf(Whnf.WVar(i, Nil)))(Δ)
-}
-
-extension substitutionCompositionOps on [T <: Substitutable[T, T] with Raisable[T]](s: Substitution[T]) {
-  def ∘ (r: Substitution[T]) : Substitution[T] = {
-    assert (s.sourceContextSize == r.targetContextSize)
-    Substitution[T](r.sourceContextSize, s.targetContextSize, s.content.map(_.subst(r)))
-  }
+  def ∘(other: Substitution[Term]) : Substitution[Term] = s.comp(i => Term.TWhnf(Whnf.WVar(i, Nil)))(other)
 }
 
 case class RaiseSpec(private val bar:Int, private val amount:Int) {

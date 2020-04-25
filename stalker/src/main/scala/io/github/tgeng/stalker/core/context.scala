@@ -4,10 +4,10 @@ import scala.language.implicitConversions
 
 /** First element on the right. */
 opaque type Context = List[Binding[Type]]
-opaque type DeBruijnNumber = Int
 
 object Context {
   val empty : Context = Nil
+  def from(content : Seq[Binding[Type]]) : Context = content.toList
 }
 
 extension contextOps on (self: Context) {
@@ -24,8 +24,4 @@ extension contextOps on (self: Context) {
   //   val startingIndex = Γ.size - self.size
   //   Substitution(Γ.size, (0 until self.size).map(i => Pattern.PVar(i + startingIndex)))
   // }
-}
-
-extension deBruijnIndexOps on (idx: Int) {
-  def deBruijnNumber(using ctx: Context) : DeBruijnNumber = ctx.size - 1 - idx
 }

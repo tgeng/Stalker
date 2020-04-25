@@ -451,7 +451,7 @@ object typing {
                   _Δ <- c.argTys.substHead(v̅).tele
                   _ <- withCtxExtendedBy(_Δ) {
                     val cArgSize = c.argTys.size
-                    val ρ1 = Substitution.drop(_Δ.size) ⊎ PCon(c.name, (0 until cArgSize).map(i => PVar(cArgSize - i - 1)).toList)
+                    val ρ1 = Substitution.id.drop(_Δ.size) ⊎ PCon(c.name, (0 until cArgSize).map(i => PVar(cArgSize - i - 1)).toList)
                     for {
                      _Γ2mod <- _Γ2.subst(ρ1).tele
                      _ <- withCtxExtendedBy(_Γ2mod) {
