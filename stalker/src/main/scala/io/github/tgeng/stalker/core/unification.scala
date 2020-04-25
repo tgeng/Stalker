@@ -59,7 +59,7 @@ extension termUnification on (p: =?[Term] ∷ Type) {
       Substitution.id.drop(1))
 
     // cycle
-    case (x =? y) ∷ _A if isCyclic(x, y, _A) => UNegative
+    case (x =? y) ∷ _A if isCyclic(x, y) => UNegative
 
     // solution
     case (TWhnf(WVar(x, Nil)) =? TWhnf(WVar(y, Nil))) ∷ _A => solution(min(x, y), TWhnf(WVar(max(x, y), Nil)), _A)
@@ -239,7 +239,24 @@ private def (t: Term) asWhnf : Whnf = t.match {
   case _ => throw IllegalArgumentException()
 }
 
-private def isCyclic(x: Term, y: Term, _A: Type)(using Γ: Context)(using Σ: Signature) : Boolean = TODO()
+private def isCyclic(x: Term, y: Term)(using Γ: Context)(using Σ: Signature) : Boolean = (x, y) match {
+  case (x, TWhnf(WCon(_, ys))) => ys.exists(isAsRigidOrCyclic(x, _))
+  case (x, TWhnf(WData(_, ys))) => ys.exists(isAsRigidOrCyclic(x, _))
+  case (x, TWhnf(WRecord(_, ys))) => ys.exists(isAsRigidOrCyclic(x, _))
+  case (x, TWhnf(WId(ty, u, v))) => isAsRigidOrCyclic(x, ty) || isAsRigidOrCyclic(x, u) || isAsRigidOrCyclic(x, v)
+  case _ => false
+}
+
+private def isAsRigidOrCyclic(x: Term, y: Term)(using Γ: Context)(using Σ: Signature) : Boolean = 
+  x == y || 
+  ((x, y) match {
+    case (TWhnf(WVar(x, xArgs)), TWhnf(WVar(y, yArgs))) =>
+      x == y && 
+      xArgs.size >= yArgs.size &&
+      xArgs.take(yArgs.size).map(simplElim) == yArgs.map(simplElim)
+    case _ => false
+  }) ||
+  isCyclic(x, y)
 
 private def idTypes(Δ: Telescope, u̅: List[Term], v̅: List[Term]) : List[Binding[Type]] = (Δ, u̅, v̅) match {
   case (Nil, Nil, Nil) => Nil
@@ -253,6 +270,11 @@ private def simplTerm(tm: Term)(using Γ: Context)(using Σ: Signature) : Term =
   case Right(f@WFunction(a, b)) => TWhnf(WFunction(simplTerm(a), simplTerm(b))(f.argName))
   case Right(w: Whnf) => TWhnf(w)
   case _ => tm
+}
+
+private def simplElim(el: Elimination)(using Γ: Context)(using Σ: Signature) : Elimination = el match {
+  case Elimination.ETerm(t) => Elimination.ETerm(simplTerm(t))
+  case Elimination.EProj(p) => el
 }
 
 private def positive(solutionCtx: Context, unifyingSubstFn: (given ctx: Context) => Substitution[Pattern], sourceCtx: Context, restoringSubstFn: (given ctx: Context) => Substitution[Pattern]) : USuccess = {
