@@ -162,15 +162,18 @@ private def solution(x: Int, t: Term, A: Type)(using Γ: Context)(using Σ: Sign
 
   val _x = permutationWithIdType(x)
   val (_Θ, _A, xEqT :: _Δ) = _Γ.splitAt(_x)
+  val _Θmod =  _Θ + _A + xEqT
 
   val tσ = t.subst(σ.drop(1)).raise(-(_x + 1))
   for {
-    unifier <- positive(
-      _Θ,
-      Substitution.id ⊎ PForced(tσ) ⊎ PRefl,
-      _Θ + _A + xEqT,
-      Substitution.id.drop(2)
-    ) ↑ _Δ
+    unifier <- withCtx(_Θmod) { 
+      positive(
+        _Θ,
+        Substitution.id ⊎ PForced(tσ) ⊎ PRefl,
+        _Θmod,
+        Substitution.id.drop(2)
+      ) ↑ _Δ
+    }
   } yield shuffler ∘ unifier
 }
 
