@@ -5,8 +5,8 @@ import org.scalatest.matchers._
 import org.scalatest.Matchers
 import io.github.tgeng.stalker.core._
 import io.github.tgeng.stalker.core.typing.checkTerm
-import io.github.tgeng.stalker.core.typing.whnf
 import io.github.tgeng.stalker.core.typing.level
+import io.github.tgeng.stalker.core.reduction.whnf
 import io.github.tgeng.stalker.core.typingRelation
 
 trait TypingMatchers {

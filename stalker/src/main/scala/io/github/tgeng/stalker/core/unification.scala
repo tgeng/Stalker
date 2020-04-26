@@ -8,8 +8,8 @@ import scala.language.implicitConversions
 import io.github.tgeng.common._
 import substitutionConversion.{given _}
 import io.github.tgeng.stalker.core.typing.level
-import io.github.tgeng.stalker.core.typing.whnf
-import io.github.tgeng.stalker.core.typing.tele
+import io.github.tgeng.stalker.core.reduction.whnf
+import io.github.tgeng.stalker.core.reduction.tele
 
 enum USuccess {
   case UPositive(context: Context, unifyingSubst: Substitution[Pattern], restoringSubst: Substitution[Pattern])

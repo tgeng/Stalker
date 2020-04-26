@@ -8,8 +8,8 @@ import io.github.tgeng.common._
 import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.core.typing.level
-import io.github.tgeng.stalker.core.typing.tele
-import io.github.tgeng.stalker.core.typing.whnf
+import io.github.tgeng.stalker.core.reduction.tele
+import io.github.tgeng.stalker.core.reduction.whnf
 import typing.checkElim
 import typing.checkTerm
 
