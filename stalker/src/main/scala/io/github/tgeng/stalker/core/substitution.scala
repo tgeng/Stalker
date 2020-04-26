@@ -15,6 +15,11 @@ trait Substitutable[T <: Raisable[T], R] {
 /** First element on the right. */
 case class Substitution[T <: Raisable[T]] (sourceContextSize: Int, targetContextSize: Int, content : IndexedSeq[T]) {
   assert(targetContextSize >= content.size)
+  def applyIndex(varFn: Int => T)(idx: Int) : T = {
+    assert(idx >= 0 && idx < targetContextSize)
+    if (idx < content.size) content(idx)
+    else varFn(idx)
+  }
   def map[R <: Raisable[R]](fn: T => R) : Substitution[R] = Substitution(sourceContextSize, targetContextSize, content.map(fn))
   def shiftAmount: Int = sourceContextSize - targetContextSize
   def unionSum(varFn : Int => T)(other: Substitution[T]) : Substitution[T] = {
@@ -42,6 +47,11 @@ case class Substitution[T <: Raisable[T]] (sourceContextSize: Int, targetContext
 
   def keep(count: Int) = drop(targetContextSize - count)
 
+  def delete(varFn: Int => T)(idx: Int) : Substitution[T] = {
+    val materialized = materialize(varFn)
+    Substitution(sourceContextSize, targetContextSize - 1, materialized.content.patch(idx, IndexedSeq.empty, 1))
+  }
+
   /** Extend the source context with additional bindings. */
   def weaken(count: Int) = Substitution(sourceContextSize + count, targetContextSize, content.map(_.raise(count)))
 
@@ -67,7 +77,9 @@ object Substitution {
   def of[T <: Raisable[T]](t: T)(using Γ: Context) : Substitution[T] = Substitution(Γ.size, 1, IndexedSeq(t))
 }
 
-extension patternSubstitutionUnionSum on (s: Substitution[Pattern]) {
+extension patternSubstitutionOps on (s: Substitution[Pattern]) {
+  def apply = s.applyIndex(Pattern.PVar(_))
+  def \ = s.delete(Pattern.PVar(_))
   def ⊎(other: Substitution[Pattern]) = s.unionSum(Pattern.PVar(_))(other)
   def ⊎(p: Pattern) : Substitution[Pattern] = s ⊎ Substitution(s.sourceContextSize, 1, IndexedSeq(p))
   def ⊎(ps: Seq[Pattern]) : Substitution[Pattern] = s ⊎ Substitution(s.sourceContextSize, 1, ps.toIndexedSeq.reverse)
@@ -75,7 +87,9 @@ extension patternSubstitutionUnionSum on (s: Substitution[Pattern]) {
   def ∘(other: Substitution[Pattern]) : Substitution[Pattern] = s.comp(Pattern.PVar(_))(other)
 }
 
-extension termSubstitutionUnionSum on (s: Substitution[Term]) {
+extension termSubstitutionOps on (s: Substitution[Term]) {
+  def apply = s.applyIndex(i => Term.TWhnf(Whnf.WVar(i, Nil)))
+  def \ = s.delete(i => Term.TWhnf(Whnf.WVar(i, Nil)))
   def ⊎(other: Substitution[Term]) = s.unionSum(i => Term.TWhnf(Whnf.WVar(i, Nil)))(other)
   def ⊎(t: Term) : Substitution[Term] = s ⊎ Substitution(s.sourceContextSize, 1, IndexedSeq(t))
   def ⊎(ts: Seq[Term]) : Substitution[Term] = s ⊎ Substitution(s.sourceContextSize, 1, ts.toIndexedSeq.reverse)

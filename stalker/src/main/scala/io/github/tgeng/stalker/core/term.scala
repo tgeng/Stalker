@@ -31,6 +31,8 @@ enum Term extends Raisable[Term] with Substitutable[Term, Term] {
     case TWhnf(Whnf.WVar(idx, elims)) => Right(TWhnf(Whnf.WVar(idx, elims :+ e)))
     case _ => typingError(s"Cannot apply $e to $this.")
   }
+
+  def app(e̅: Seq[Elimination]) : Result[Term] = e̅.foldLeft[Result[Term]](Right(this))((acc, e) => acc.flatMap(_.app(e)))
 }
 
 import Term._

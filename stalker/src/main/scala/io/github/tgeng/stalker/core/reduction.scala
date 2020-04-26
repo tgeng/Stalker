@@ -83,8 +83,27 @@ object reduction {
     case _ => typingError(s"stuck when matching ${e̅} with ${q̅}")
   }
 
-  private def evalCaseTree(using Σ: Signature): Result[Term] = {
-    ???
+  import CaseTree._
+  import Elimination._
+  import Term._
+  import Whnf._
+
+  private def evalCaseTree(Q: CaseTree, σ: Substitution[Term], e̅: List[Elimination])(using Σ: Signature): Result[Term] = {
+    given Γ : Context = Context.empty
+    (Q, e̅) match {
+      case (CTerm(t), _) => t.subst(σ).app(e̅)
+      case (CLam(_Q), ETerm(u) :: e̅) => evalCaseTree(_Q, σ ⊎ u, e̅)
+      case (CRecord(fields), EProj(π) :: e̅) => evalCaseTree(fields(π), σ, e̅)
+      case (CDataCase(x, branches), e̅) => for {
+        case WCon(c, u̅) <- σ(x).whnf
+        r <- evalCaseTree(branches(c), σ \ x ⊎ u̅, e̅)
+      } yield r
+      case (CIdCase(x, τ, _Q), e̅) => for {
+        case WRefl <- σ(x).whnf
+        r <- evalCaseTree(_Q, τ ∘ σ, e̅)
+      } yield r
+      case _ => typingError(s"Stuck while evaluating case tree $Q with substitution $σ and eliminations ${e̅}")
+    }
   }
 } 
 
