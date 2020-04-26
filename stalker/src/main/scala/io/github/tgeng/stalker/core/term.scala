@@ -22,6 +22,15 @@ enum Term extends Raisable[Term] with Substitutable[Term, Term] {
     case TWhnf(whnf) => whnf.substituteImpl
     case TRedux(fn, elims) => TRedux(fn, elims.map(_.substituteImpl))
   }
+
+  def app(t: Term): Result[Term] = app(Elimination.ETerm(t))
+  def app(f: String): Result[Term] = app(Elimination.EProj(f))
+  
+  def app(e: Elimination) : Result[Term] = this match {
+    case TRedux(fn, elims) => Right(TRedux(fn, elims :+ e))
+    case TWhnf(Whnf.WVar(idx, elims)) => Right(TWhnf(Whnf.WVar(idx, elims :+ e)))
+    case _ => typingError(s"Cannot apply $e to $this.")
+  }
 }
 
 import Term._

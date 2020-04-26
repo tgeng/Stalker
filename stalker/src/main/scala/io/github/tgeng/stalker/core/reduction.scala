@@ -21,25 +21,25 @@ object reduction {
     case TWhnf(w) => Right(w)
     case TRedux(fn, elims) => for {
       definition <- Σ getDefinition fn
-      rhs <- firstMatch(definition.clauses, elims, definition)
+      rhs <- evalClauses(definition.clauses, elims, definition)
       r <- rhs.whnf
     } yield r
   }
 
-  private def firstMatch(cs: scala.collection.Seq[Clause], e̅: List[Elimination], d: Definition)(using Γ: Context)(using Σ: Signature) : Result[Term] = returning[Result[Term]] {
+  private def evalClauses(cs: scala.collection.Seq[Clause], e̅: List[Elimination], d: Definition)(using Γ: Context)(using Σ: Signature) : Result[Term] = returning[Result[Term]] {
     for (c <- cs) {
       c match {
         case CheckedClause(_, q̅, v, _) => e̅ / q̅ match {
           case Right(Right(σ)) => throwReturn[Result[Term]](Right(v.subst(σ)))
-          case Right(Left(_)) => firstMatch(cs, e̅, d)
-          case Left(e) => throwReturn[Result[Term]](Left(e))
+          case Right(Left(_)) => () // mismatch -> continue
+          case Left(e) => throwReturn[Result[Term]](Left(e)) // stuck
         }
       }
     }
     throwReturn[Result[Term]](typingError(s"No matched clause found with eliminators ${e̅}. Is definition ${d.qn} exhaustive?"))
   }
   
-  def (v: Term) / (p: Pattern)(using Γ: Context)(using Σ: Signature) : MatchResult = p match {
+  private def (v: Term) / (p: Pattern)(using Γ: Context)(using Σ: Signature) : MatchResult = p match {
     case PVar(_) => matched(Substitution.of[Term](v))
     case PRefl | PForced(_) => matched(Substitution.none)
     case PCon(c1, p̅) => v.whnf match {
@@ -57,13 +57,13 @@ object reduction {
     case PAbsurd => throw IllegalStateException("Checked pattern should not contain absurd pattern.")
   }
   
-  def (e: Elimination) / (q: CoPattern)(using Γ: Context)(using Σ: Signature) : MatchResult = (e, q) match {
+  private def (e: Elimination) / (q: CoPattern)(using Γ: Context)(using Σ: Signature) : MatchResult = (e, q) match {
     case (ETerm(t), QPattern(p)) => t / p
     case (EProj(π1), QProj(π2)) if π1 == π2 => matched(Substitution.none)
     case _ => mismatch(e, q)
   }
   
-  def (e̅: List[Elimination]) / (q̅: List[CoPattern])(using Γ: Context)(using Σ: Signature) : MatchResult = (e̅, q̅) match {
+  private def (e̅: List[Elimination]) / (q̅: List[CoPattern])(using Γ: Context)(using Σ: Signature) : MatchResult = (e̅, q̅) match {
     case (Nil, Nil) => matched(Substitution.none)
     case (e :: e̅, q :: q̅) => for {
       eq <- e / q
@@ -82,4 +82,19 @@ object reduction {
     // * mismatched field: this would have resulted an earlier mismatch instead.
     case _ => typingError(s"stuck when matching ${e̅} with ${q̅}")
   }
-}
+
+  private def evalCaseTree(using Σ: Signature): Result[Term] = {
+    ???
+  }
+} 
+
+type MatchResult = Either[TypingError, Either[Mismatch, Substitution[Term]]]
+case class Mismatch(v: Elimination, p: CoPattern)
+
+private def matched(s: Substitution[Term]) : MatchResult = Right(Right(s))
+private def mismatch(e: Elimination, q: CoPattern) : MatchResult = Right(Left(Mismatch(e, q)))
+private def mismatch(t: Term, p: Pattern) : MatchResult = mismatch(ETerm(t), QPattern(p))
+private def (s1e: Either[Mismatch, Substitution[Term]]) ⊎ (s2e: Either[Mismatch, Substitution[Term]]) : Either[Mismatch, Substitution[Term]] = for {
+  s1 <- s1e
+  s2 <- s2e
+} yield s1 ⊎ s2

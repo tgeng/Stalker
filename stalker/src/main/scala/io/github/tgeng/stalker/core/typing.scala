@@ -110,14 +110,14 @@ object typing {
         wA <- _A.whnf
         _ <- (v1 ≡ v2 ∷ wA).check
         wB <- _B.substHead(v1).whnf
-        uv <- app(u, v1)
+        uv <- u.app(v1)
         l <- (uv ∷ wB |- e̅1 ≡ e̅2).level
       } yield l
       case u ∷ WRecord(r, v̅) |- (EProj(π) :: e̅1) ≡ (EProj(π1) :: e̅2) if π == π1 => for {
         record <- Σ getRecord r
         field <- record(π)
         wA <- field.ty.substHead(v̅ :+ u).whnf
-        uπ <- app(u, π)
+        uπ <- u.app(π)
         l <- (uπ ∷ wA |- e̅1 ≡ e̅2).level
       } yield l
       case _ => typingError(s"Cannot infer level of $elim")
@@ -196,7 +196,7 @@ object typing {
         case u ∷ WFunction(_A, _B) |- (ETerm(v) :: e̅) ∷ _C => for {
           wA <- _A.whnf
           _ <- (v ∷ wA).check
-          uv <- app(u, v)
+          uv <- u.app(v)
           _Bv = _B.substHead(v)
           wBv <- _Bv.whnf
           _ <- (uv ∷ wBv).check
@@ -205,7 +205,7 @@ object typing {
         case u ∷ WRecord(r, v̅) |- (EProj(π) :: e̅) ∷ _C => for {
           record <- Σ getRecord r
           field <- record(π) 
-          uπ <- app(u, π)
+          uπ <- u.app(π)
           ft <- field.ty.substHead(v̅ :+ u).whnf
           _ <- (uπ ∷ ft |- e̅ ∷ _C).check
         } yield ()
@@ -240,8 +240,8 @@ object typing {
         } yield ()
         // function eta rule
         case f ≡ g ∷ (_F@WFunction(_A, _B)) => for {
-          fx <- app(f, TWhnf(WVar(0, Nil)))
-          gx <- app(g, TWhnf(WVar(0, Nil)))
+          fx <- f.app(TWhnf(WVar(0, Nil)))
+          gx <- g.app(TWhnf(WVar(0, Nil)))
           wA <- _A.whnf
           wB <- _B.whnf
           _ <- (fx ≡ gx ∷ wB).check(using Γ + _F.argName ∷ wA)
@@ -319,14 +319,14 @@ object typing {
           wA <- _A.whnf
           _ <- (v1 ≡ v2 ∷ wA).check
           wB <- _B.substHead(v1).whnf
-          uv <- app(u, v1)
+          uv <- u.app(v1)
           _ <- (uv ∷ wB |- e̅1 ≡ e̅2 ∷ _C).check
         } yield ()
         case u ∷ WRecord(r, v̅) |- (EProj(π) :: e̅1) ≡ (EProj(π1) :: e̅2) ∷ _C if π == π1 => for {
           record <- Σ getRecord r
           field <- record(π)
           wA <- field.ty.substHead(v̅ :+ u).whnf
-          uπ <- app(u, π)
+          uπ <- u.app(π)
           _ <- (uπ ∷ wA |- e̅1 ≡ e̅2 ∷ _C).check
         } yield ()
         case _ => judgementError(j)
@@ -438,25 +438,12 @@ object typing {
       }
     }
   }
-  
-  // ------- magic splitter -------
-  
-  def app(x: Term, t: Term) = appElim(x, ETerm(t))
-  def app(x: Term, f: String) = appElim(x, EProj(f))
-  
-  def appElim(x: Term, e: Elimination) : Result[Term] = x match {
-    case TRedux(fn, elims) => Right(TRedux(fn, elims :+ e))
-    case TWhnf(WVar(idx, elims)) => Right(TWhnf(WVar(idx, elims :+ e)))
-    case _ => typingError(s"Cannot apply $e to $x.")
-  }
 }
 
 type Result = Either[TypingError, *]
-type MatchResult = Either[TypingError, Either[Mismatch, Substitution[Term]]]
 type Level = Int
 
 case class TypingError(msg: String)
-case class Mismatch(v: Elimination, p: CoPattern)
 
 case class ∷[X, Y](x: X, y: Y)
 
@@ -528,13 +515,6 @@ extension caseTreeDefRelation on (t: (QualifiedName, List[CoPattern])) {
 
 private def judgementError(judgement: ∷[?, ?] | |-[?, ?] | ≡[?] | :=[?, ?]) : Either[TypingError, Nothing] = typingError(s"Invalid judgement $judgement")
 private def typingError(msg: String) : Result[Nothing] = Left(TypingError(msg))
-private def matched(s: Substitution[Term]) : MatchResult = Right(Right(s))
-private def mismatch(e: Elimination, q: CoPattern) : MatchResult = Right(Left(Mismatch(e, q)))
-private def mismatch(t: Term, p: Pattern) : MatchResult = mismatch(ETerm(t), QPattern(p))
-private def (s1e: Either[Mismatch, Substitution[Term]]) ⊎ (s2e: Either[Mismatch, Substitution[Term]]) : Either[Mismatch, Substitution[Term]] = for {
-  s1 <- s1e
-  s2 <- s2e
-} yield s1 ⊎ s2
 
 extension resultFilter on [T](r: Result[T]) {
   def withFilter(p : T => Boolean) : Result[T] = r match {
