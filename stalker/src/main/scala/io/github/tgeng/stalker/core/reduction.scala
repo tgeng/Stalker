@@ -21,7 +21,8 @@ object reduction {
     case TWhnf(w) => Right(w)
     case TRedux(fn, elims) => for {
       definition <- Σ getDefinition fn
-      rhs <- evalClauses(definition.clauses, elims, definition)
+      rhs <- if (Γ.size == 0 && definition.ct != null) evalCaseTree(definition.ct, Substitution.id, elims)
+             else evalClauses(definition.clauses, elims, definition)
       r <- rhs.whnf
     } yield r
   }

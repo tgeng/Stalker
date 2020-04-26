@@ -23,7 +23,7 @@ import Status._
 enum DeclarationT[+S <: Status, +C[_], +T] {
   case DataT(val qn: QualifiedName, paramTys: List[Binding[T]], level: Int, cons: C[ConstructorT[T]])
   case RecordT(val qn: QualifiedName, paramTys: List[Binding[T]], level: Int, fields: C[FieldT[T]])
-  case DefinitionT(val qn: QualifiedName, ty: T, clauses: C[ClauseT[S, T]])
+  case DefinitionT(val qn: QualifiedName, ty: T, clauses: C[ClauseT[S, T]], ct: CaseTree | Null)
 
   def qn: QualifiedName
 }
@@ -124,10 +124,10 @@ object signatureBuilder {
         wParamTys <- paramTys.tele
         wFields <- fields.liftMap(_.normalize(using Γ + wParamTys + "self" ∷ r.getSelfType))
       } yield RecordT(qn, wParamTys, level, wFields)
-      case DefinitionT(qn, ty, clauses) => for {
+      case DefinitionT(qn, ty, clauses, ct) => for {
         wTy <- ty.whnf
         wClauses <- elaborate
-      } yield DefinitionT(qn, wTy, wClauses)
+      } yield DefinitionT(qn, wTy, wClauses, ct)
     }
   }
   
