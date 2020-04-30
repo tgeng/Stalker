@@ -75,9 +75,7 @@ object reduction {
       }
     } yield eq ⊎ eqs
     // This could happen in the following cases
-    // * partial application: we simply make it stuck so we don't need to introduce
-    //   another syntax for storing partial applications. In practice, one can
-    //   compile partial applicable definition into sub functions.
+    // * partial application: one should not reduce a partial application in the first place.
     // * extra arguments: type error indeed
     // * wrong number of args for constructor: type error indeed
     // * mismatched field: this would have resulted an earlier mismatch instead.

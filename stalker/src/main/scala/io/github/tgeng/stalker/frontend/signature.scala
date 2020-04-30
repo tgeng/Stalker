@@ -2,7 +2,6 @@ package io.github.tgeng.stalker.frontend
 
 import scala.collection.mutable.ArrayBuffer
 import io.github.tgeng.stalker.common.QualifiedName
-import io.github.tgeng.stalker.core.signatureBuilder._
 import io.github.tgeng.stalker.core.Status
 
 enum Declaration {
