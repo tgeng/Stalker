@@ -22,6 +22,8 @@ extension telescopeOps on (self: Telescope) {
     case Nil => Nil
     case ty :: rest => ty.map(_.substituteImpl) :: rest.substituteImpl(using spec.raised)
   }
+
+  def vars : Seq[Term] = (self.size - 1 to 0 by -1).map(i => Term.TWhnf(Whnf.WVar(i, Nil)))
 }
 
 def withCtx[T](ctx: Context)(action: (given ctx: Context) => T) : T = action(using ctx)
