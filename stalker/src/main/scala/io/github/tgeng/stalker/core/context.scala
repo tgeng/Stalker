@@ -20,8 +20,6 @@ extension contextOps on (self: Context) {
 
   def apply(idx : Int) : Binding[Type] = self(idx).map(_.raise(idx + 1))
   def size = self.size
-  // def idSubst(using Γ:Context) : Substitution[Pattern] = {
-  //   val startingIndex = Γ.size - self.size
-  //   Substitution(Γ.size, (0 until self.size).map(i => Pattern.PVar(i + startingIndex)))
-  // }
+
+  def toClosedTelescope : List[Binding[Type]] = self.reverse
 }
