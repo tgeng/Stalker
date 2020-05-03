@@ -75,22 +75,33 @@ type Field = FieldT[Type]
 type Clause = ClauseT[Checked, Type]
 
 extension dataTypingOps on (self: Data) {
-  def apply(name: String) : Result[Constructor] = {
-    val cons = self.cons
-    if (cons == null) return typingError(s"Data ${self.qn} is declared but not initialized.")
-    cons.find(_.name == name) match {
+  def apply(name: String) : Result[Constructor] = self.getCons.flatMap {
+    _.find(_.name == name) match {
       case Some(c) => Right(c)
       case None => typingError(s"Cannot find constructor '$name' for data ${self.qn}.")
     }
+  } 
+
+  def getCons : Result[Seq[Constructor]] = {
+    val cons = self.cons
+    if (cons == null) return typingError(s"Record ${self.qn} is declared but not initialized.")
+    Right(cons)
   }
 }
 
 extension recordTypingOps on (self: Record) {
-  def apply(name: String) : Result[Field] = {
+  def apply(name: String) : Result[Field] = self.getFields.flatMap {
+    _.find(_.name == name) match {
+    case Some(f) => Right(f) 
+    case None => typingError(s"Cannot find field '$name' for record ${self.qn}.") 
+    } 
+  }
+
+  def getFields : Result[Seq[Field]] = {
     val fields = self.fields
     if (fields == null) return typingError(s"Record ${self.qn} is declared but not initialized.")
-    fields.find(_.name == name) match {
-      case Some(f) => Right(f) case None => typingError(s"Cannot find field '$name' for record ${self.qn}.") } }
+    Right(fields)
+  }
 }
 
 type PreDeclaration = DeclarationT[Unchecked, Term]

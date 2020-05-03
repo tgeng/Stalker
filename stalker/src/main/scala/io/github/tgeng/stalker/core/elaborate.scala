@@ -33,9 +33,9 @@ extension elaboration on (p: Problem) {
           }
           case _ => typingError("False impossible case.")
         }
-        case _ => (_C, q̅1) match {
+        case _ => _C match {
           // Intro
-          case ((_F@WFunction(_A, _B)), QPattern(p) :: _) => for {
+          case _F@WFunction(_A, _B) => for {
             wA <- _A.whnf 
             r <- withCtxExtendedBy(_F.argName ∷ wA) {
               for {
@@ -46,7 +46,20 @@ extension elaboration on (p: Problem) {
             }
           } yield r
           // CoSplit
-          case (WRecord(qn, v̅), QProj(π) :: _) => ???
+          // The original paper has CoSplitEmpty. But it does not seem to be
+          // necessary if we just use empty user input for that.
+          case WRecord(qn, v̅) => for {
+            record <- Σ getRecord qn
+            fields <- record.getFields
+            fieldCaseTrees <- fields.foldLeft[Result[Map[String, CaseTree]]](Right(Map())){ (acc, field) =>
+              for {
+                m <- acc
+                _Pmod <- _P(field.name, fields.map(_.name).toSet)
+                wA <- field.ty.substHead(v̅ :+ TRedux(f, q̅.map(_.toElimination))).whnf
+                q <- (_Pmod ||| (f, q̅ :+ QProj(field.name)) ∷ wA).elaborate
+              } yield m ++ Map(field.name -> q)
+            }
+          } yield CRecord(fieldCaseTrees)
           // Split
           case _ => {
             ???
@@ -82,12 +95,24 @@ private def (_E: Set[(Term /? Pattern) ∷ Type]) solve(using Γ: Context)(using
   }
 }
 
-private def (_P: UserInput) apply (_A: Type): Result[UserInput] = _P match {
+private def (_P: UserInput) apply(_A: Type): Result[UserInput] = _P match {
   case Nil => Right(Nil)
   case ((_E, QPattern(p) :: q̅) |-> rhs) :: _P => for {
     _Pmod <- _P(_A)
   } yield ((_E.map{ case (w /? p) ∷ _B => (w.raise(1) /? p) ∷ _B } union Set((TWhnf(WVar(0, Nil)) /? p) ∷ _A) , q̅) |-> rhs) :: _Pmod
-  case _ => typingError("Unexpected patterns")
+  case _ => typingError("Unexpected clause")
+}
+
+private def (_P: UserInput) apply(fieldName: String, allFieldNames: Set[String]): Result[UserInput] = _P match {
+  case Nil => Right(Nil)
+  case ((_E, QProj(π) :: q̅) |-> rhs) :: _P => 
+    if (allFieldNames.contains(π)) 
+      for _Pmod <- _P(fieldName, allFieldNames)
+      yield 
+        if (fieldName == π) ((_E, q̅) |-> rhs) :: _Pmod
+        else _Pmod
+    else typingError(s"Unexpected field $π")
+  case _ => typingError("Unexpected clause")
 }
 
 type Problem =  UserInput ||| (QualifiedName, List[CoPattern]) ∷ Type
