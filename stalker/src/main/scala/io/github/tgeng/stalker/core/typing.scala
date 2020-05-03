@@ -333,111 +333,6 @@ object typing {
       }
     }
   }
-
-//   import CaseTree._
-//   import USuccess._
-
-//   def (j: (QualifiedName, List[CoPattern]) := CaseTree ∷ Type) check(using Γ: Context)(using Σ: signatureBuilder.Signature) : Result[Unit] = {
-//     j match {
-//       case (f, q̅) := _Q ∷ _C => (TRedux(f, q̅.map(_.toElimination)) ∷ _C).check match {
-//         case Right(_) => ()
-//         case _ => return judgementError(j)
-//       }
-//     }
-//     j match {
-//       // CtDone
-//       case (f, q̅) := CTerm(v) ∷ _C => (v ∷ _C).check.flatMap{x => 
-//         Σ += (f, CheckedClause(Γ.toTelescope, q̅, v, _C))
-//       }
-//       // CtIntro
-//       case (f, q̅) := CLam(_Q) ∷ (_F@WFunction(_A, _B)) => for {
-//         wA <- _A.whnf
-//         wB <- _B.whnf
-//         _ <- ((f, q̅.map(_.raise(1)) :+ QPattern(PVar(0))) := _Q ∷ wB).check(using Γ + _F.argName ∷ wA)
-//       } yield ()
-//       // CtCosplit
-//       case (f, q̅) := CRecord(_Qs) ∷ WRecord(qn, v̅) => for {
-//         record <- Σ getRecord qn
-//         σ = v̅ :+ TRedux(f, q̅.map(_.toElimination))
-//         _ <- record.fields.allRight { field =>
-//           for {
-//             wA <- field.ty.substHead(σ).whnf
-//             _ <- ((f, q̅ :+ QProj(field.name)) := _Qs(field.name) ∷ wA).check
-//           } yield ()
-//         }
-//       } yield ()
-//       // CtSplitCon
-//       case (f, q̅) := CDataCase(x, branches) ∷ _C => {
-//         val (_Γ1, _A, _Γ2) = Γ.splitAt(x)
-//         _A.ty match {
-//           case WData(qn, v̅) => for {
-//             data <- Σ getData qn
-//             _ <- data.cons.allRight { c =>
-//               withCtx(_Γ1) {
-//                 for {
-//                   _Δ <- c.argTys.substHead(v̅).tele
-//                   _ <- withCtxExtendedBy(_Δ) {
-//                     val cArgSize = c.argTys.size
-//                     val ρ1 = Substitution.id.drop(_Δ.size) ⊎ PCon(c.name, (0 until cArgSize).map(i => PVar(cArgSize - i - 1)).toList)
-//                     for {
-//                      _Γ2mod <- _Γ2.subst(ρ1).tele
-//                      _ <- withCtxExtendedBy(_Γ2mod) {
-//                        val ρ2 = ρ1.extendBy(_Γ2mod)
-//                        for {
-//                          wC <- _C.subst(ρ2).whnf
-//                          _ <- ((f, q̅.map(_.subst(ρ2))) := branches(c.name) ∷ wC).check
-//                        } yield ()
-//                      }
-//                     } yield ()
-//                   }
-//                 } yield ()
-//               }
-//             }
-//           } yield ()
-//           case _ => judgementError(j)
-//         }
-//       }
-//       // CtSplitEq
-//       case (f, q̅) := CIdCase(x, τ, _Q) ∷ _C => {
-//         val (_Γ1, _A, _Γ2) = Γ.splitAt(x)
-//         withCtx(_Γ1) {
-//           _A.ty match {
-//             case WId(u, v, _B) => for {
-//               wB <- _B.whnf
-//               // There is no need to check the restoring substitution
-//               UPositive(_Γ1u, ρ, _) <- ((u =? v) ∷ wB).unify
-//               _ <- withCtx(_Γ1u) {
-//                 val ρmod = ρ.extendBy(_Γ2)
-//                 for {
-//                   wΓ2 <- _Γ2.subst(ρ).tele
-//                   _ <- withCtxExtendedBy(wΓ2) {
-//                     for {
-//                       wC <- _C.subst(ρmod).whnf
-//                       _ <- ((f, q̅.map(_.subst(ρmod))) := _Q ∷ wC).check
-//                     } yield ()
-//                   }
-//                 } yield ()
-//               }
-//             } yield ()
-//             case _ => judgementError(j)
-//           }
-//         }
-//       }
-//       // CtSplitAbsurdEq
-//       case (f, q̅) := CAbsurdCase(x) ∷ _C => {
-//         val (_Γ1, _A, _) = Γ.splitAt(x)
-//         _A.ty match {
-//           case WId(u, v, _B) => for {
-//             wu <- u.whnf
-//             wv <- v.whnf
-//             wB <- _B.whnf
-//             UNegative <- ((u =? v) ∷ wB).unify
-//           } yield ()
-//           case _ => judgementError(j)
-//         }
-//       }
-//     }
-//   }
 }
 
 type Result = Either[TypingError, *]
@@ -450,8 +345,6 @@ case class ∷[X, Y](x: X, y: Y)
 case class ≡[X](a: X, b: X)
 
 case class |-[X, Y](a: X, b: Y)
-
-// case class :=[X, Y](a: X, b: Y)
 
 extension typingRelation on (x: Term) {
   def ∷ (y: Type) = new ∷(x, y)
@@ -508,10 +401,6 @@ extension elimEqRelation on (x: List[Elimination]) {
 extension derivationRelation on [X, Y](x: X) {
   def |- (y: Y) = new |-(x, y)
 }
-
-// extension caseTreeDefRelation on (t: (QualifiedName, List[CoPattern])) {
-//   def := (typing: CaseTree ∷ Type) = new :=(t, typing)
-// }
 
 private def judgementError(judgement: ∷[?, ?] | |-[?, ?] | ≡[?]) : Either[TypingError, Nothing] = typingError(s"Invalid judgement $judgement")
 private def typingError(msg: String) : Result[Nothing] = Left(TypingError(msg))

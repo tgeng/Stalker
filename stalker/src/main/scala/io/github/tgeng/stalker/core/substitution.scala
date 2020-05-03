@@ -75,6 +75,15 @@ object Substitution {
   def none[T <: Raisable[T]](using Γ: Context) : Substitution[T] = Substitution(Γ.size, 0, IndexedSeq.empty)
 
   def of[T <: Raisable[T]](t: T)(using Γ: Context) : Substitution[T] = Substitution(Γ.size, 1, IndexedSeq(t))
+
+  def from[T <: Raisable[T]](m: Map[Int, T])(using Γ: Context) : Substitution[T] = {
+    val content = m.toSeq.sortBy((k, v) => k).zipWithIndex.map{case ((k, v), i) => 
+      if (k != i) throw IllegalStateException()
+      v
+    }.toIndexedSeq
+    Substitution(Γ.size, content.size, content)
+  }
+  
 }
 
 extension patternSubstitutionOps on (s: Substitution[Pattern]) {

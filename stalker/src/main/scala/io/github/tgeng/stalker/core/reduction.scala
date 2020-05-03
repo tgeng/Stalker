@@ -34,7 +34,7 @@ object reduction {
     for (c <- cs) {
       c match {
         case CheckedClause(_, q̅, v, _) => e̅ / q̅ match {
-          case Right(Right(σ)) => throwReturn[Result[Term]](Right(v.subst(σ)))
+          case Right(Right(σ)) => throwReturn[Result[Term]](Right(v.subst(Substitution.from(σ))))
           case Right(Left(_)) => () // mismatch -> continue
           case Left(e) => throwReturn[Result[Term]](Left(e)) // stuck
         }
@@ -43,9 +43,9 @@ object reduction {
     throwReturn[Result[Term]](typingError(s"No matched clause found with eliminators ${e̅}. Is definition ${d.qn} exhaustive?"))
   }
   
-  private def (v: Term) / (p: Pattern)(using Γ: Context)(using Σ: Signature) : MatchResult = p match {
-    case PVar(_) => matched(Substitution.of[Term](v))
-    case PRefl | PForced(_) => matched(Substitution.none)
+  def (v: Term) / (p: Pattern)(using Γ: Context)(using Σ: Signature) : MatchResult = p match {
+    case PVar(k) => matched(Map(k -> v))
+    case PRefl | PForced(_) => matched(Map.empty)
     case PCon(c1, p̅) => v.whnf match {
       case Right(WCon(c2, v̅)) => if(c1 == c2) {
        v̅.map(ETerm(_)) / p̅.map(QPattern(_))
@@ -63,12 +63,12 @@ object reduction {
   
   private def (e: Elimination) / (q: CoPattern)(using Γ: Context)(using Σ: Signature) : MatchResult = (e, q) match {
     case (ETerm(t), QPattern(p)) => t / p
-    case (EProj(π1), QProj(π2)) if π1 == π2 => matched(Substitution.none)
+    case (EProj(π1), QProj(π2)) if π1 == π2 => matched(Map.empty)
     case _ => mismatch(e, q)
   }
   
   private def (e̅: List[Elimination]) / (q̅: List[CoPattern])(using Γ: Context)(using Σ: Signature) : MatchResult = (e̅, q̅) match {
-    case (Nil, Nil) => matched(Substitution.none)
+    case (Nil, Nil) => matched(Map.empty)
     case (e :: e̅, q :: q̅) => for {
       eq <- e / q
       eqs <- eq match {
@@ -76,13 +76,27 @@ object reduction {
         case Left(_) => mismatch(e, q)
         case _ => e̅ / q̅
       }
-    } yield eq ⊎ eqs
+      r <- eq ⊎ eqs
+    } yield r
     // This could happen in the following cases
     // * partial application: one should not reduce a partial application in the first place.
     // * extra arguments: type error indeed
     // * wrong number of args for constructor: type error indeed
     // * mismatched field: this would have resulted an earlier mismatch instead.
     case _ => typingError(s"stuck when matching ${e̅} with ${q̅}")
+  }
+  def matched(s: Map[Int, Term]) : MatchResult = Right(Right(s))
+  private def mismatch(e: Elimination, q: CoPattern) : MatchResult = Right(Left(Mismatch(e, q)))
+  private def mismatch(t: Term, p: Pattern) : MatchResult = mismatch(ETerm(t), QPattern(p))
+  def (s1e: Either[Mismatch, Map[Int, Term]]) ⊎ (s2e: Either[Mismatch, Map[Int, Term]]) : MatchResult = (for {
+    s1 <- s1e
+    s2 <- s2e
+  } yield (s1, s2)) match {
+    case Right(s1, s2) => (s1.keySet intersect s2.keySet) match {
+      case s if s.forall(k => s1(k) == s2(k)) => matched(s1 ++ s2)
+      case _ => typingError("Nonlinear patterns.")
+    }
+    case Left(l) => Right(Left(l))
   }
 
   import CaseTree._
@@ -109,13 +123,5 @@ object reduction {
   }
 } 
 
-type MatchResult = Either[TypingError, Either[Mismatch, Substitution[Term]]]
+type MatchResult = Either[TypingError, Either[Mismatch, Map[Int, Term]]]
 case class Mismatch(v: Elimination, p: CoPattern)
-
-private def matched(s: Substitution[Term]) : MatchResult = Right(Right(s))
-private def mismatch(e: Elimination, q: CoPattern) : MatchResult = Right(Left(Mismatch(e, q)))
-private def mismatch(t: Term, p: Pattern) : MatchResult = mismatch(ETerm(t), QPattern(p))
-private def (s1e: Either[Mismatch, Substitution[Term]]) ⊎ (s2e: Either[Mismatch, Substitution[Term]]) : Either[Mismatch, Substitution[Term]] = for {
-  s1 <- s1e
-  s2 <- s2e
-} yield s1 ⊎ s2
