@@ -2,6 +2,7 @@ package io.github.tgeng.stalker.core
 
 import scala.collection.mutable.ArrayBuffer
 import io.github.tgeng.common._
+import io.github.tgeng.common.extraSetOps
 import io.github.tgeng.stalker.common._
 import reduction._
 import typing.checkTerm
@@ -57,6 +58,9 @@ extension elaboration on (p: Problem) {
         } yield m ++ Map(field.name -> q)
       }
     } yield CRecord(fieldCaseTrees)
+    case ((_E1, q̅1) |-> rhs1) :: _ ||| (f, q̅) ∷ _C => {
+      ???
+    }
     case _ => typingError("Elaboration failed.")
   }
 }
@@ -88,7 +92,7 @@ private def (_P: UserInput) shift(_A: Type): Result[UserInput] = _P match {
   case Nil => Right(Nil)
   case ((_E, QPattern(p) :: q̅) |-> rhs) :: _P => for {
     _Pmod <- _P.shift(_A)
-  } yield ((_E.map{ case (w /? p) ∷ _B => (w.raise(1) /? p) ∷ _B } union Set((TWhnf(WVar(0, Nil)) /? p) ∷ _A) , q̅) |-> rhs) :: _Pmod
+  } yield ((_E.map{ case (w /? p) ∷ _B => (w.raise(1) /? p) ∷ _B } ++ Set((TWhnf(WVar(0, Nil)) /? p) ∷ _A) , q̅) |-> rhs) :: _Pmod
   case _ => typingError("Unexpected clause")
 }
 
@@ -103,6 +107,72 @@ private def (_P: UserInput) filter(fieldName: String, allFieldNames: Set[String]
     else typingError(s"Unexpected field $π")
   case _ => typingError("Unexpected clause")
 }
+
+private def (_P: UserInput) subst(σ: Substitution[Term])(using Σ: Signature): Result[UserInput] = _P match {
+  case Nil => Right(Nil)
+  case ((_E, q̅) |-> rhs) :: _P => for {
+    _E1 : Set[Option[Set[(Term /? Pattern) ∷ Type]]] <- _E.liftMap {
+      case (w /? p) ∷ _A => for {
+        wA <- _A.subst(σ).whnf(using Context.empty)
+        r <- ((w.subst(σ) /? p) ∷ wA).simpl
+      } yield r
+    }
+    _Emod = unionAll(_E1)
+    _Pmod <- _P.subst(σ)
+  } yield _Emod match {
+    case Some(_E) => ((_E, q̅) |-> rhs) :: _Pmod
+    case None => _Pmod
+  }
+}
+
+
+private def (constraint: (Term /? Pattern) ∷ Type) simpl(using Σ: Signature) : Result[Option[Set[(Term /? Pattern) ∷ Type]]] = {
+  given Context = Context.empty
+  constraint match {
+    case (vT /? p) ∷ _A => for {
+      v <- vT.whnf
+      r <- (v, p, _A) match {
+        case (WCon(c, v̅), PCon(c1, p̅), WData(qn, u̅)) => 
+          if (c != c1) Right(None)
+          else for {
+            data <- Σ getData qn
+            con <- data(c)
+            _Δ <- con.argTys.substHead(u̅).tele
+            _E <- ((v̅ /? p̅) ∷ _Δ).simplAll
+          } yield _E
+        case (WCon(c, v̅), PForcedCon(c1, p̅), WData(qn, u̅)) => 
+          if (c != c1) typingError("Mismatched forced constructor")
+          else for {
+            data <- Σ getData qn
+            con <- data(c)
+            _Δ <- con.argTys.substHead(u̅).tele
+            _E <- ((v̅ /? p̅) ∷ _Δ).simplAll
+          } yield _E
+        case (WRefl, PRefl, WId(_, _, _)) => Right(Some(Set.empty[(Term /? Pattern) ∷ Type]))
+        case _ => Right(Some(Set(constraint)))
+      }
+    } yield r
+  }
+}
+
+private def (constraints: (List[Term] /? List[Pattern]) ∷ Telescope) simplAll(using Σ: Signature) : Result[Option[Set[(Term /? Pattern) ∷ Type]]] = {
+  given Context = Context.empty
+  constraints match {
+    case (Nil /? Nil) ∷ Nil => Right(Some(Set.empty))
+    case ((v :: v̅) /? (p :: p̅)) ∷ (_A :: _Δ) => for {
+      _E1 <- ((v /? p) ∷ _A.ty).simpl
+      _Δmod <- _Δ.substHead(v).tele
+      _E2 <- ((v̅ /? p̅) ∷ _Δmod).simplAll
+    } yield _E1 ∪⊥ _E2
+  }
+}
+
+private def [T] (a: Option[Set[T]]) ∪⊥ (b: Option[Set[T]]) = (a, b) match {
+  case (Some(a), Some(b)) => Some(a union b)
+  case _ => None
+}
+
+private def unionAll[T](s: Set[Option[Set[T]]]) = s.fold[Option[Set[T]]](Some(Set.empty))(_ ∪⊥ _)
 
 type Problem =  UserInput ||| (QualifiedName, List[CoPattern]) ∷ Type
 type UserInput = List[(Set[(Term /? Pattern) ∷ Type], List[CoPattern]) |-> UncheckedRhs]
@@ -123,8 +193,16 @@ extension termMatchingOps on (t: Term) {
   def /?(p: Pattern) = new /?(t, p)
 }
 
-extension matchTypingRelation on (m: Term /? Pattern) {
+extension termsMatchingOps on (ts: List[Term]) {
+  def /?(ps: List[Pattern]) = new /?(ts, ps)
+}
+
+extension termMatchTypingRelation on (m: Term /? Pattern) {
   def ∷(_A: Type) = new ∷(m, _A)
+}
+
+extension termsMatchTypingRelation on (m: List[Term] /? List[Pattern]) {
+  def ∷(_Δ: Telescope) = new ∷(m, _Δ)
 }
 
 case class |||[A, B](a: A, b: B)
