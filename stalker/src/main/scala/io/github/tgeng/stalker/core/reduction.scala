@@ -105,7 +105,7 @@ object reduction {
   import Whnf._
 
   private def evalCaseTree(Q: CaseTree, σ: Substitution[Term], e̅: List[Elimination])(using Σ: Signature): Result[Term] = {
-    given Γ : Context = Context.empty
+    given Context = Context.empty
     (Q, e̅) match {
       case (CTerm(t), _) => t.subst(σ).app(e̅)
       case (CLam(_Q), ETerm(u) :: e̅) => evalCaseTree(_Q, σ ⊎ u, e̅)

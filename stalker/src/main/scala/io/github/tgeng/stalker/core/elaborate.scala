@@ -111,13 +111,13 @@ private def (_P: UserInput) filter(fieldName: String, allFieldNames: Set[String]
 private def (_P: UserInput) subst(σ: Substitution[Term])(using Σ: Signature): Result[UserInput] = _P match {
   case Nil => Right(Nil)
   case ((_E, q̅) |-> rhs) :: _P => for {
-    _E1 : Set[Option[Set[(Term /? Pattern) ∷ Type]]] <- _E.liftMap {
+    _Es : Set[Option[Set[(Term /? Pattern) ∷ Type]]] <- _E.liftMap {
       case (w /? p) ∷ _A => for {
         wA <- _A.subst(σ).whnf(using Context.empty)
         r <- ((w.subst(σ) /? p) ∷ wA).simpl
       } yield r
     }
-    _Emod = unionAll(_E1)
+    _Emod = unionAll(_Es)
     _Pmod <- _P.subst(σ)
   } yield _Emod match {
     case Some(_E) => ((_E, q̅) |-> rhs) :: _Pmod

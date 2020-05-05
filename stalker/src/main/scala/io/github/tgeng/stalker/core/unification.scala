@@ -23,9 +23,8 @@ enum USuccess {
   def ↑ (Δ: Telescope)(using Γ: Context)(using Σ: Signature) : Result[USuccess] = this match {
     case (UPositive(_Γ, σ, τ)) => for {
       _Δ <- Δ.subst(σ).tele
-      _ΓΔ = _Γ + _Δ 
     } yield positive(
-      _ΓΔ,
+      _Γ + _Δ,
       σ extendBy _Δ,
       Γ + Δ,
       τ extendBy Δ
@@ -161,7 +160,8 @@ private def solution(x: Int, t: Term, A: Type)(using Γ: Context)(using Σ: Sign
   val shuffler@UPositive(_Γ, σ, τ) = shuffle(Γ + idType(A, TWhnf(WVar(x, Nil)), t), permutation)
 
   val _x = permutationWithIdType(x)
-  val (_Θ, _A, xEqT :: _Δ) = _Γ.splitAt(_x)
+  // There seems to be a bug with Dotty 0.24. The type for _Θ is needed for it to compile.
+  val (_Θ : Context, _A, xEqT :: _Δ) = _Γ.splitAt(_x)
   val _Θmod =  _Θ + _A + xEqT
 
   val tσ = t.subst(σ.drop(1)).raise(-(_x + 1))
@@ -277,7 +277,7 @@ private def simplElim(el: Elimination)(using Γ: Context)(using Σ: Signature) :
   case Elimination.EProj(p) => el
 }
 
-private def positive(solutionCtx: Context, unifyingSubstFn: (given ctx: Context) => Substitution[Pattern], sourceCtx: Context, restoringSubstFn: (given ctx: Context) => Substitution[Pattern]) : USuccess = {
+private def positive(solutionCtx: Context, unifyingSubstFn: (ctx: Context) ?=> Substitution[Pattern], sourceCtx: Context, restoringSubstFn: (ctx: Context) ?=> Substitution[Pattern]) : USuccess = {
   val unifyingSubst = unifyingSubstFn(using solutionCtx)
   val restoringSubst = restoringSubstFn(using sourceCtx)
   assert(unifyingSubst.content.size == sourceCtx.size && 

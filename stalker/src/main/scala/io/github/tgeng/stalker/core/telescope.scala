@@ -26,6 +26,6 @@ extension telescopeOps on (self: Telescope) {
   def vars : Seq[Term] = (self.size - 1 to 0 by -1).map(i => Term.TWhnf(Whnf.WVar(i, Nil)))
 }
 
-def withCtx[T](ctx: Context)(action: (given ctx: Context) => T) : T = action(using ctx)
-def withCtxExtendedBy[T](tele: Telescope)(action: (given ctx: Context) => T)(using ctx: Context) : T = action(using ctx + tele)
-def withCtxExtendedBy[T](binding: Binding[Type])(action: (given ctx: Context) => T)(using ctx: Context) : T = action(using ctx + binding)
+def withCtx[T](ctx: Context)(action: (ctx: Context) ?=> T) : T = action(using ctx)
+def withCtxExtendedBy[T](tele: Telescope)(action: (ctx: Context) ?=> T)(using ctx: Context) : T = action(using ctx + tele)
+def withCtxExtendedBy[T](binding: Binding[Type])(action: (ctx: Context) ?=> T)(using ctx: Context) : T = action(using ctx + binding)
