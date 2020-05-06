@@ -43,7 +43,7 @@ extension elaboration on (p: Problem) {
         for {
           wB <- _B.whnf
           _Pmod <- _P.shift(wA)
-          r <- (_Pmod ||| (f, q̅.map(_.raise(1)) :+ QPattern(PVar(0))) ∷ wB).elaborate
+          r <- (_Pmod ||| (f, q̅.map(_.raise(1)) :+ QPattern(PVar(0))) ∷ wB).split
         } yield CLam(r)
       }
     } yield r
@@ -69,6 +69,28 @@ extension elaboration on (p: Problem) {
       case None => typingError("Missing branch...")
     }
     case _ => typingError("Elaboration failed.")
+  }
+
+  def split(using Γ: Context)(using Σ: Signature)(using clauses: ArrayBuffer[Clause]) : Result[CaseTree] = p match {
+    case ((_E1, q̅1) |-> rhs1) :: _ ||| (f, q̅) ∷ _C => _E1.find {
+      case ((TWhnf(WVar(0, Nil))) /? _) ∷ _ => true
+      case _ => false
+    } match {
+      case Some((_ /? PCon(con, args)) ∷ _A) => ???
+      case Some((_ /? PRefl) ∷ _A) => ???
+      case Some((_ /? PAbsurd) ∷ _A) => rhs1 match {
+        case UImpossible => for {
+          caseOption <- (0, _A).getEmptyCaseSplit
+          r <- caseOption match {
+            case Some(_Q) => Right(_Q)
+            case None => typingError(s"The type inferencer failed to conclude $_A to be empty. Please prove it manually.")
+          }
+        } yield ???
+        case _ => throw IllegalStateException("Absurd pattern should have an impossible rhs")
+      }
+      case _ => p.elaborate
+    }
+    case _ => p.elaborate
   }
 }
 
