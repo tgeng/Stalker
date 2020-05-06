@@ -6,7 +6,6 @@ enum CaseTree extends Raisable[CaseTree] with Substitutable[Term, CaseTree]{
   case CRecord(fields: Map[String, CaseTree])
   case CDataCase(idx: Int, branches: Map[String, CaseTree])
   case CIdCase(idx: Int, restoringSubst: Substitution[Term], body: CaseTree)
-  case CAbsurdCase(idx: Int)
 
   def raiseImpl(using spec: RaiseSpec) : CaseTree = this match {
     case CTerm(tm) => CTerm(tm.raiseImpl)
@@ -14,7 +13,6 @@ enum CaseTree extends Raisable[CaseTree] with Substitutable[Term, CaseTree]{
     case CRecord(fields) => CRecord(fields.transform((k, v) => v.raiseImpl))
     case CDataCase(idx, branches) => CDataCase(spec.trans(idx), branches.transform((k, v) => v.raiseImpl))
     case CIdCase(idx, restoringSubst, body) => CIdCase(spec.trans(idx), restoringSubst.map(_.raiseImpl), body.raiseImpl)
-    case CAbsurdCase(idx) => CAbsurdCase(spec.trans(idx))
   }
 
   def substituteImpl(using spec: SubstituteSpec[Term]) : CaseTree = this match {
@@ -28,10 +26,6 @@ enum CaseTree extends Raisable[CaseTree] with Substitutable[Term, CaseTree]{
     case CIdCase(idx, restoringSubst, body) => spec.trans(idx) match {
       case Right(_) => throw IllegalStateException()
       case Left(idx) => CIdCase(idx, restoringSubst.map(_.substituteImpl), body.substituteImpl)
-    }
-    case CAbsurdCase(idx) => spec.trans(idx) match {
-      case Right(_) => throw IllegalStateException()
-      case Left(idx) => CAbsurdCase(idx)
     }
   }
 }

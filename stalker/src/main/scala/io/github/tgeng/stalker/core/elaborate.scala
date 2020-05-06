@@ -2,6 +2,7 @@ package io.github.tgeng.stalker.core
 
 import scala.collection.mutable.ArrayBuffer
 import io.github.tgeng.common._
+import io.github.tgeng.common.extraIterableOps
 import io.github.tgeng.common.extraSetOps
 import io.github.tgeng.stalker.common._
 import reduction._
@@ -14,6 +15,7 @@ import Whnf._
 import Term._
 import ClauseT._
 import UncheckedRhs._
+import USuccess._
 
 extension elaboration on (p: Problem) {
   def elaborate(using Γ: Context)(using Σ: Signature)(using clauses: ArrayBuffer[Clause]) : Result[CaseTree] = p match {
@@ -58,8 +60,13 @@ extension elaboration on (p: Problem) {
         } yield m ++ Map(field.name -> q)
       }
     } yield CRecord(fieldCaseTrees)
-    case ((_E1, q̅1) |-> rhs1) :: _ ||| (f, q̅) ∷ _C => {
-      ???
+    // Split empty by detecting absurd pattern
+    // TODO(tgeng): split on unit-like types to allow eta rule.
+    case Nil ||| (f, q̅) ∷ _C => Γ.toTelescope.zipWithIndex.findFirstEitherOption {
+      case (Binding(_A), x) => (x, _A).getEmptyCaseSplit
+    }.flatMap {
+      case Some(_Q) => Right(_Q)
+      case None => typingError("Missing branch...")
     }
     case _ => typingError("Elaboration failed.")
   }
@@ -111,7 +118,7 @@ private def (_P: UserInput) filter(fieldName: String, allFieldNames: Set[String]
 private def (_P: UserInput) subst(σ: Substitution[Term])(using Σ: Signature): Result[UserInput] = _P match {
   case Nil => Right(Nil)
   case ((_E, q̅) |-> rhs) :: _P => for {
-    _Es : Set[Option[Set[(Term /? Pattern) ∷ Type]]] <- _E.liftMap {
+    _Es <- _E.liftMap {
       case (w /? p) ∷ _A => for {
         wA <- _A.subst(σ).whnf(using Context.empty)
         r <- ((w.subst(σ) /? p) ∷ wA).simpl
@@ -125,13 +132,30 @@ private def (_P: UserInput) subst(σ: Substitution[Term])(using Σ: Signature): 
   }
 }
 
+private def (candidate: (Int, Type)) getEmptyCaseSplit(using Γ: Context)(using Σ: Signature) : Result[Option[CaseTree]] = candidate match {
+  case (x, WData(qn, _)) => for {
+    data <- Σ getData qn
+    cons <- data.getCons
+  } yield cons.isEmpty match {
+    case true => Some(CDataCase(x, Map.empty))
+    case false => None
+  }
+  case (x, WId(_B, u, v)) => for {
+    wB <- _B.whnf
+    unifier <- ((u =? v) ∷ wB).unify
+  } yield unifier match {
+    case UPositive(_, _, _) => None
+    case UNegative => Some(CDataCase(x, Map.empty))
+  }
+  case _ => Right(None)
+}
 
 private def (constraint: (Term /? Pattern) ∷ Type) simpl(using Σ: Signature) : Result[Option[Set[(Term /? Pattern) ∷ Type]]] = {
   given Context = Context.empty
   constraint match {
-    case (vT /? p) ∷ _A => for {
-      v <- vT.whnf
-      r <- (v, p, _A) match {
+    case (w /? p) ∷ _A => for {
+      w <- w.whnf
+      r <- (w, p, _A) match {
         case (WCon(c, v̅), PCon(c1, p̅), WData(qn, u̅)) => 
           if (c != c1) Right(None)
           else for {

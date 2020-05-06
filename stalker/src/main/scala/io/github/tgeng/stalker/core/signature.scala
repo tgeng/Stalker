@@ -43,7 +43,7 @@ import ClauseT._
 
 enum UncheckedRhs {
   case UTerm(t: Term)
-  case Impossible
+  case UImpossible
 }
 
 import UncheckedRhs._

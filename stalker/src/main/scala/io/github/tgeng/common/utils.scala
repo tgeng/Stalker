@@ -11,6 +11,26 @@ extension extraIterableOps on [L, R1, R2, CC[_], C <: IterableOps[R1, CC, C]] (s
       _ <- f(e)
     } yield ()
   }
+
+  def findFirstEitherOption(f: R1 => Either[L, Option[R2]]) : Either[L, Option[R2]] = {
+    for (e <- self) {
+      f(e) match {
+        case Right(Some(r2))  => return Right(Some(r2))
+        case _ => ()
+      }
+    }
+    Right(None)
+  }
+
+  def findFirstOption(f: R1 => Option[R2]) : Option[R2] = {
+    for (e <- self) {
+      f(e) match {
+        case Some(r2)  => return Some(r2)
+        case _ => ()
+      }
+    }
+    None
+  }
 }
 
 extension extraSeqOps on [L, R1, R2, CC[_], C <: SeqOps[R1, CC, C]] (self: C) {
