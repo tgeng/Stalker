@@ -16,7 +16,8 @@ extension extraIterableOps on [L, R1, R2, CC[_], C <: IterableOps[R1, CC, C]] (s
     for (e <- self) {
       f(e) match {
         case Right(Some(r2))  => return Right(Some(r2))
-        case _ => ()
+        case Right(None) => ()
+        case Left(e) => return Left(e)
       }
     }
     Right(None)

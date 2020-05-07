@@ -43,7 +43,7 @@ extension elaboration on (p: Problem) {
         for {
           wB <- _B.whnf
           _Pmod <- _P.shift(wA)
-          r <- (_Pmod ||| (f, q̅.map(_.raise(1)) :+ QPattern(PVar(0))) ∷ wB).split
+          r <- (_Pmod ||| (f, q̅.map(_.raise(1)) :+ QPattern(PVar(0))) ∷ wB).elaborate
         } yield CLam(r)
       }
     } yield r
@@ -60,6 +60,36 @@ extension elaboration on (p: Problem) {
         } yield m ++ Map(field.name -> q)
       }
     } yield CRecord(fieldCaseTrees)
+    case ((_E1, q̅1) |-> rhs1) :: _ ||| (f, q̅) ∷ _C => {
+      // Sort it so that we start splitting from the left most pattern.
+      _E1.toSeq.sortBy {
+        case ((TWhnf(WVar(x, Nil))) /? _) ∷ _ => -x
+        case _ => 1
+      }.findFirstEitherOption {
+        // SplitCon
+        case ((TWhnf(WVar(x, Nil))) /? (p@PCon(con, args))) ∷ _A => _A match {
+          case WData(qn, params) => Right(Some[CaseTree](???))
+          case _ => typingError(s"Unexpected constructor pattern $p.")
+        }
+        // SplitEq
+        case ((TWhnf(WVar(x, Nil))) /? PRefl) ∷ _A => ???
+        // SplitEmpty
+        case ((TWhnf(WVar(x, Nil))) /? PAbsurd) ∷ _A => rhs1 match {
+          case UImpossible => for {
+            caseOption <- (x, _A).getEmptyCaseSplit
+            r <- caseOption match {
+              case Some(_Q) => Right(Some(_Q))
+              case None => typingError(s"The type inferencer failed to conclude $_A to be empty. Please prove it manually.")
+            }
+          } yield r
+          case _ => typingError("Absurd pattern should have an impossible rhs")
+        }
+        case _ => Right(None)
+      }.flatMap {
+        case Some(p) => Right(p)
+        case None => typingError("Elaboration failed.")
+      }
+    }
     // Split empty by detecting absurd pattern
     // TODO(tgeng): split on unit-like types to allow eta rule.
     case Nil ||| (f, q̅) ∷ _C => Γ.toTelescope.zipWithIndex.findFirstEitherOption {
@@ -68,29 +98,6 @@ extension elaboration on (p: Problem) {
       case Some(_Q) => Right(_Q)
       case None => typingError("Missing branch...")
     }
-    case _ => typingError("Elaboration failed.")
-  }
-
-  def split(using Γ: Context)(using Σ: Signature)(using clauses: ArrayBuffer[Clause]) : Result[CaseTree] = p match {
-    case ((_E1, q̅1) |-> rhs1) :: _ ||| (f, q̅) ∷ _C => _E1.find {
-      case ((TWhnf(WVar(0, Nil))) /? _) ∷ _ => true
-      case _ => false
-    } match {
-      case Some((_ /? PCon(con, args)) ∷ _A) => ???
-      case Some((_ /? PRefl) ∷ _A) => ???
-      case Some((_ /? PAbsurd) ∷ _A) => rhs1 match {
-        case UImpossible => for {
-          caseOption <- (0, _A).getEmptyCaseSplit
-          r <- caseOption match {
-            case Some(_Q) => Right(_Q)
-            case None => typingError(s"The type inferencer failed to conclude $_A to be empty. Please prove it manually.")
-          }
-        } yield ???
-        case _ => throw IllegalStateException("Absurd pattern should have an impossible rhs")
-      }
-      case _ => p.elaborate
-    }
-    case _ => p.elaborate
   }
 }
 
