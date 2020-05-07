@@ -1,8 +1,10 @@
 package io.github.tgeng.stalker.core
 
+import scala.language.implicitConversions
 import scala.collection.mutable.ArrayBuffer
 import io.github.tgeng.common._
 import io.github.tgeng.common.extraIterableOps
+import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.common.extraSetOps
 import io.github.tgeng.stalker.common._
 import reduction._
@@ -16,6 +18,7 @@ import Term._
 import ClauseT._
 import UncheckedRhs._
 import USuccess._
+import substitutionConversion.{given _}
 
 extension elaboration on (p: Problem) {
   def elaborate(using Γ: Context)(using Σ: Signature)(using clauses: ArrayBuffer[Clause]) : Result[CaseTree] = p match {
@@ -60,7 +63,7 @@ extension elaboration on (p: Problem) {
         } yield m ++ Map(field.name -> q)
       }
     } yield CRecord(fieldCaseTrees)
-    case ((_E1, q̅1) |-> rhs1) :: _ ||| (f, q̅) ∷ _C => {
+    case (_P@((_E1, q̅1) |-> rhs1) :: _) ||| (f, q̅) ∷ _C => {
       // Sort it so that we start splitting from the left most pattern.
       _E1.toSeq.sortBy {
         case ((TWhnf(WVar(x, Nil))) /? _) ∷ _ => -x
@@ -68,7 +71,33 @@ extension elaboration on (p: Problem) {
       }.findFirstEitherOption {
         // SplitCon
         case ((TWhnf(WVar(x, Nil))) /? (p@PCon(con, args))) ∷ _A => _A match {
-          case WData(qn, params) => Right(Some[CaseTree](???))
+          case WData(qn, v̅) => for {
+            data <- Σ getData qn
+            (_Γ1 : Context /* required due to dotc bug */, _A1, _Γ2) = Γ.splitAt(x)
+            _ = assert(_A1 == _A.raise(-(_Γ2.size + 1)))
+            cons <- data.getCons
+            r <- withCtx(_Γ1) {
+              cons.liftMap { con =>
+                for {
+                  _Δ <- con.argTys.substHead(v̅).tele
+                  r <- withCtxExtendedBy(_Δ) {
+                    val ρ1 = Substitution.id.drop(_Δ.size) ⊎ PCon(con.name, (0 until con.argTys.size).reverse.map(PVar(_)).toList)
+                    val ρ2 = ρ1.extendBy(_Γ2) 
+                    for {
+                      _P2 <- _P.subst(ρ2)
+                      _Γ2mod <- _Γ2.subst(ρ1).tele
+                      r <- withCtxExtendedBy(_Γ2mod) {
+                        for {
+                          wC <- _C.subst(ρ2).whnf
+                          r <- (_P2 ||| (f, q̅.map(_.subst(ρ2))) ∷ wC).elaborate
+                        } yield ???
+                      }
+                    } yield r
+                  }
+                } yield (con.name, r)
+              }
+            } 
+          } yield Some(CDataCase(x, r.toMap))
           case _ => typingError(s"Unexpected constructor pattern $p.")
         }
         // SplitEq
