@@ -90,7 +90,7 @@ extension elaboration on (p: Problem) {
                         for {
                           wC <- _C.subst(ρ2).whnf
                           r <- (_P2 ||| (f, q̅.map(_.subst(ρ2))) ∷ wC).elaborate
-                        } yield ???
+                        } yield r
                       }
                     } yield r
                   }
@@ -98,10 +98,39 @@ extension elaboration on (p: Problem) {
               }
             } 
           } yield Some(CDataCase(x, r.toMap))
-          case _ => typingError(s"Unexpected constructor pattern $p.")
+          case _ => typingError(s"Unexpected constructor pattern $p for type $_A.")
         }
         // SplitEq
-        case ((TWhnf(WVar(x, Nil))) /? PRefl) ∷ _A => ???
+        case ((TWhnf(WVar(x, Nil))) /? PRefl) ∷ _A => _A match {
+          case WId(_B, u, v) => for {
+            wB <- _B.whnf
+            (_Γ1 : Context /* required due to dotc bug */, _B1, _Γ2) = Γ.splitAt(x)
+            _ = assert(_B1 == _B.raise(-(_Γ2.size + 1)))
+            r <- withCtx(_Γ1) {
+              for {
+                uResult <- ((u =? v) ∷ wB).unify
+                r <- uResult match {
+                  case UPositive(_Γ1mod, ρ, τ) => {
+                    val ρmod = ρ.extendBy(_Γ2)
+                    val τmod = τ.extendBy(_Γ2)
+                    for {
+                      _Pmod <- _P.subst(ρmod)
+                      _Γ2mod <- _Γ2.subst(ρ).tele
+                      r <- withCtxExtendedBy(_Γ2mod) {
+                        for {
+                          wC <- _C.subst(ρmod).whnf
+                          r <- (_Pmod ||| (f, q̅.map(_.subst(ρmod))) ∷ wC).elaborate
+                        } yield CIdCase(x, τmod, r)
+                      }
+                    } yield r
+                  }
+                  case _ => typingError(s"Cannot match $_A with refl because unification of $u and $v failed.")
+                }
+              } yield r
+            }
+          } yield Some(r)
+          case _ => typingError(s"Unexpected refl for type $_A.")
+        }
         // SplitEmpty
         case ((TWhnf(WVar(x, Nil))) /? PAbsurd) ∷ _A => rhs1 match {
           case UImpossible => for {
@@ -202,8 +231,8 @@ private def (candidate: (Int, Type)) getEmptyCaseSplit(using Γ: Context)(using 
     wB <- _B.whnf
     unifier <- ((u =? v) ∷ wB).unify
   } yield unifier match {
-    case UPositive(_, _, _) => None
     case UNegative => Some(CDataCase(x, Map.empty))
+    case _ => None
   }
   case _ => Right(None)
 }
