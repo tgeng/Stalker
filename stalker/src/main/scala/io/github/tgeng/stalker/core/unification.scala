@@ -11,16 +11,17 @@ import io.github.tgeng.stalker.core.typing.level
 import io.github.tgeng.stalker.core.reduction.whnf
 import io.github.tgeng.stalker.core.reduction.tele
 
-enum USuccess {
+enum UResult {
   case UPositive(context: Context, unifyingSubst: Substitution[Pattern], restoringSubst: Substitution[Pattern])
   case UNegative
+  case UInconclusive(ty: Type, u: Term, v: Term)
 
-  def ∘ (other: USuccess) : USuccess = (this, other) match {
+  def ∘ (other: UResult) : UResult = (this, other) match {
     case (UPositive(c1, u1, r1), UPositive(c2, u2, r2)) => UPositive(c2, u1 ∘ u2, r2 ∘ r1)
     case (_, _) => UNegative
   }
 
-  def ↑ (Δ: Telescope)(using Γ: Context)(using Σ: Signature) : Result[USuccess] = this match {
+  def ↑ (Δ: Telescope)(using Γ: Context)(using Σ: Signature) : Result[UResult] = this match {
     case (UPositive(_Γ, σ, τ)) => for {
       _Δ <- Δ.subst(σ).tele
     } yield positive(
@@ -33,7 +34,7 @@ enum USuccess {
   }
 }
 
-import USuccess._
+import UResult._
 
 // The structure of the unification algorithm is based on "Unifiers as
 // Equivalences" by Cockx et al. However, as for now only the most basic
@@ -49,7 +50,7 @@ import Term._
 import Whnf._
 
 extension termUnification on (p: =?[Term] ∷ Type) {
-  def unify(using Γ: Context)(using Σ: Signature) : Result[USuccess] = p.simpl match {
+  def unify(using Γ: Context)(using Σ: Signature) : Result[UResult] = p.simpl match {
     // delete
     case (u =? v) ∷ _A if u == v => positive(
       Γ, 
@@ -118,7 +119,7 @@ extension termUnification on (p: =?[Term] ∷ Type) {
     // stuck
     case (TRedux(_, _) =? _) ∷ _ | 
          (_ =? TRedux(_, _)) ∷ _ |
-         (TWhnf(WFunction(_, _)) =? TWhnf(WFunction(_, _))) ∷ _ => failure(s"Cannot solve unification problem $p.")
+         (TWhnf(WFunction(_, _)) =? TWhnf(WFunction(_, _))) ∷ _ => failure(p)
 
     // absurd
     case _ => UNegative
@@ -127,54 +128,54 @@ extension termUnification on (p: =?[Term] ∷ Type) {
   private def simpl(using Γ: Context)(using Σ: Signature) : =?[Term] ∷ Type = p match {
     case (u =? v) ∷ _A => (simplTerm(u) =? simplTerm(v)) ∷ _A
   }
+
+  private def solution(x: Int, t: Term, A: Type)(using Γ: Context)(using Σ: Signature) : Result[UResult] = {
+    // permutation without the final id type for x = t
+    val permutation = rearrange(x)
+    if (t.freeVars.exists(_ <= x)) {
+      // equality covers the case where x appears free in t
+      return failure(p)
+    }
+  
+    // permutation with the id type x = t placed right after x
+    val permutationWithIdType = x +: permutation.map(i => if (i < x) i else i + 1)
+    val shuffler@UPositive(_Γ, σ, τ) = shuffle(Γ + idType(A, TWhnf(WVar(x, Nil)), t), permutation)
+  
+    val _x = permutationWithIdType(x)
+    // There seems to be a bug with Dotty 0.24. The type for _Θ is needed for it to compile.
+    val (_Θ : Context, _A, xEqT :: _Δ) = _Γ.splitAt(_x)
+    val _Θmod =  _Θ + _A + xEqT
+  
+    val tσ = t.subst(σ.drop(1)).raise(-(_x + 1))
+    for {
+      unifier <- withCtx(_Θmod) { 
+        positive(
+          _Θ,
+          Substitution.id ⊎ PForced(tσ) ⊎ PRefl,
+          _Θmod,
+          Substitution.id.drop(2)
+        ) ↑ _Δ
+      }
+    } yield shuffler ∘ unifier
+  }
 }
 
 extension termsUnification on (p: =?[List[Term]] ∷ Telescope) {
-  def unify(using Γ: Context)(using Σ: Signature) : Result[USuccess] = p match {
+  def unify(using Γ: Context)(using Σ: Signature) : Result[UResult] = p match {
     case (Nil =? Nil) ∷ Nil => positive(Γ, Substitution.id, Γ, Substitution.id)
     case ((u :: u̅) =? (v :: v̅)) ∷ (_A :: _Δ) => for {
       unifier <- ((u =? v) ∷ _A.ty).unify
       restUnifier <- unifier match {
-        case UNegative => Right(UNegative)
         case UPositive(context, unifyingSubst, restoringSubst) => withCtx(context) {
           for {
             _Δmod <- _Δ.subst(unifyingSubst).tele
             t <- ((u̅.map(_.subst(unifyingSubst)) =? v̅.map(_.subst(unifyingSubst))) ∷ _Δmod).unify
           } yield t
         }
+        case r => Right(r)
       }
     } yield unifier ∘ restUnifier
   }
-}
-
-private def solution(x: Int, t: Term, A: Type)(using Γ: Context)(using Σ: Signature) : Result[USuccess] = {
-  // permutation without the final id type for x = t
-  val permutation = rearrange(x)
-  if (t.freeVars.exists(_ <= x)) {
-    // equality covers the case where x appears free in t
-    return typingError(s"Unification failure: Cannot instantiate $A with $t since the latter depends on the former directly or transitively.")
-  }
-
-  // permutation with the id type x = t placed right after x
-  val permutationWithIdType = x +: permutation.map(i => if (i < x) i else i + 1)
-  val shuffler@UPositive(_Γ, σ, τ) = shuffle(Γ + idType(A, TWhnf(WVar(x, Nil)), t), permutation)
-
-  val _x = permutationWithIdType(x)
-  // There seems to be a bug with Dotty 0.24. The type for _Θ is needed for it to compile.
-  val (_Θ : Context, _A, xEqT :: _Δ) = _Γ.splitAt(_x)
-  val _Θmod =  _Θ + _A + xEqT
-
-  val tσ = t.subst(σ.drop(1)).raise(-(_x + 1))
-  for {
-    unifier <- withCtx(_Θmod) { 
-      positive(
-        _Θ,
-        Substitution.id ⊎ PForced(tσ) ⊎ PRefl,
-        _Θmod,
-        Substitution.id.drop(2)
-      ) ↑ _Δ
-    }
-  } yield shuffler ∘ unifier
 }
 
 private def rearrange(x: Int)(using Γ: Context) : Seq[Int] = {
@@ -277,7 +278,7 @@ private def simplElim(el: Elimination)(using Γ: Context)(using Σ: Signature) :
   case Elimination.EProj(p) => el
 }
 
-private def positive(solutionCtx: Context, unifyingSubstFn: (ctx: Context) ?=> Substitution[Pattern], sourceCtx: Context, restoringSubstFn: (ctx: Context) ?=> Substitution[Pattern]) : USuccess = {
+private def positive(solutionCtx: Context, unifyingSubstFn: (ctx: Context) ?=> Substitution[Pattern], sourceCtx: Context, restoringSubstFn: (ctx: Context) ?=> Substitution[Pattern]) : UResult = {
   val unifyingSubst = unifyingSubstFn(using solutionCtx)
   val restoringSubst = restoringSubstFn(using sourceCtx)
   assert(unifyingSubst.content.size == sourceCtx.size && 
@@ -287,9 +288,11 @@ private def positive(solutionCtx: Context, unifyingSubstFn: (ctx: Context) ?=> S
   UPositive(solutionCtx, unifyingSubst, restoringSubst)
 }
 
-private given uSuccessToEither as Conversion[USuccess, Result[USuccess]] = Right(_)
+private given uSuccessToEither as Conversion[UResult, Result[UResult]] = Right(_)
 
-private def failure(msg: String) : Result[USuccess] = Left(TypingError(s"Unification failure: $msg"))
+private def failure(p: =?[Term] ∷ Type) : Result[UResult] = p match {
+  case (u =? v) ∷ _A => Right(UInconclusive(_A, u, v))
+}
 
 case class =?[X](u: X, v: X)
 

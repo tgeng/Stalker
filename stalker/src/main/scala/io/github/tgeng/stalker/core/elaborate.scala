@@ -17,7 +17,7 @@ import Whnf._
 import Term._
 import ClauseT._
 import UncheckedRhs._
-import USuccess._
+import UResult._
 import substitutionConversion.{given _}
 
 extension elaboration on (p: Problem) {
