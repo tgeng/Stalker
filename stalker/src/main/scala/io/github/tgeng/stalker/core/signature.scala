@@ -2,6 +2,7 @@ package io.github.tgeng.stalker.core
 
 import scala.collection.Map
 import scala.collection.Seq
+import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
 import io.github.tgeng.common._
 import io.github.tgeng.common.extraSeqOps
@@ -12,6 +13,8 @@ import io.github.tgeng.stalker.core.reduction.whnf
 import typing.checkElim
 import typing.checkTerm
 import stringBindingOps._
+import userInputBarBarBar._
+import lhsOps._
 
 enum Status {
   case Unchecked()
@@ -112,7 +115,7 @@ class SignatureBuilder(val mContent: HashMap[QualifiedName, DeclarationT[Checked
   given Signature = this
   given Context = Context.empty
 
-  def += (d: PreDeclaration) : Unit = {
+  def += (d: PreDeclaration) : Result[Unit] = {
     d match {
       case d@DataT(qn) => for {
         _Δ <- d.paramTys.tele
@@ -130,11 +133,23 @@ class SignatureBuilder(val mContent: HashMap[QualifiedName, DeclarationT[Checked
           case fields: Seq[PreField] => fields.reduceFields(using Context.empty + _Δ + ("self" ∷ Whnf.WRecord(qn, _Δ.vars.toList)))
         }
       } yield mContent(qn) = RecordT(qn)(_Δ, level, fields)
-      case d@DefinitionT(qn) => ???
+      case d@DefinitionT(qn) => {
+        val clauses = ArrayBuffer[Clause]()
+        for {
+          ty <- d.ty.whnf
+          _ = mContent(qn) = DefinitionT(qn)(ty, clauses, null)
+          _Q <- (d.clauses
+            .map {
+              case UncheckedClause(lhs, rhs) => (Set.empty[(Term /? Pattern) ∷ Type], lhs) |-> rhs
+            }
+            .toList ||| (qn, Nil) ∷ ty).elaborate(using clauses)
+          _ = mContent(qn) = DefinitionT(qn)(ty, clauses, _Q)
+        } yield ()
+      }
     }
   }
 
-  def updateData(qn: QualifiedName, cons: Seq[PreConstructor]) : Unit = {
+  def updateData(qn: QualifiedName, cons: Seq[PreConstructor]) : Result[Unit] = {
     for {
       data <- getData(qn)
       _ = data.cons == null match {
@@ -145,7 +160,7 @@ class SignatureBuilder(val mContent: HashMap[QualifiedName, DeclarationT[Checked
     } yield mContent(qn) = DataT(qn)(data.paramTys, data.level, cons)
   }
 
-  def updateRecord(qn: QualifiedName, fields: Seq[PreField]) : Unit = {
+  def updateRecord(qn: QualifiedName, fields: Seq[PreField]) : Result[Unit] = {
     for {
       record <- getRecord(qn)
       _ = record.fields == null match {
