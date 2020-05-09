@@ -54,9 +54,9 @@ extension termUnification on (p: =?[Term] ∷ Type) {
     // delete
     case (u =? v) ∷ _A if u == v => positive(
       Γ, 
-      Substitution.id ⊎ PRefl, 
+      Substitution.id[Pattern] ⊎ PRefl, 
       Γ + idType(_A, u, v),
-      Substitution.id.drop(1))
+      Substitution.id[Pattern].drop(1))
 
     // cycle
     case (x =? y) ∷ _A if isCyclic(x, y) => UNegative
@@ -78,9 +78,9 @@ extension termUnification on (p: =?[Term] ∷ Type) {
       // after composing with `unifier` it should always reduce to `PRefl`.
       // Therefore, we just save the work and return `PRefl` directly. We do the
       // same below as well.
-      Substitution.id.drop(argTys.size) ⊎ PRefl,
+      Substitution.id[Pattern].drop(argTys.size) ⊎ PRefl,
       Γ + idType(_A, u, v),
-      Substitution.id.drop(1) ⊎ argTys.map(_ => PRefl)
+      Substitution.id[Pattern].drop(1) ⊎ argTys.map(_ => PRefl)
     ) ∘ unifier
 
     // injectivity - type constructors
@@ -93,27 +93,27 @@ extension termUnification on (p: =?[Term] ∷ Type) {
       unifier <- ((w1 =? w2) ∷ _Γ).unify
     } yield positive(
       Γ + idTypes(_Γ, w1, w2),
-      Substitution.id.drop(_Γ.size) ⊎ PRefl,
+      Substitution.id[Pattern].drop(_Γ.size) ⊎ PRefl,
       Γ + idType(_U, u, v),
-      Substitution.id.drop(1) ⊎ List(PRefl, PRefl, PRefl)
+      Substitution.id[Pattern].drop(1) ⊎ List(PRefl, PRefl, PRefl)
     ) ∘ unifier
     case ((u@TWhnf(WData(qn1, params1))) =? (v@TWhnf(WData(qn2, params2)))) ∷ _U if qn1 == qn2 => for {
       data <- Σ getData qn1 
       unifier <- ((params1 =? params2) ∷ data.paramTys).unify
     } yield positive(
       Γ + idTypes(data.paramTys, params1, params2),
-      Substitution.id.drop(data.paramTys.size) ⊎ PRefl,
+      Substitution.id[Pattern].drop(data.paramTys.size) ⊎ PRefl,
       Γ + idType(_U, u, v),
-      Substitution.id.drop(1) ⊎ data.paramTys.map(_ => PRefl)
+      Substitution.id[Pattern].drop(1) ⊎ data.paramTys.map(_ => PRefl)
     ) ∘ unifier
     case ((u@TWhnf(WRecord(qn1, params1))) =? (v@TWhnf(WRecord(qn2, params2)))) ∷ _U if qn1 == qn2 => for {
       record <- Σ getRecord qn1 
       unifier <- ((params1 =? params2) ∷ record.paramTys).unify
     } yield positive(
       Γ + idTypes(record.paramTys, params1, params2),
-      Substitution.id.drop(record.paramTys.size) ⊎ PRefl,
+      Substitution.id[Pattern].drop(record.paramTys.size) ⊎ PRefl,
       Γ + idType(_U, u, v),
-      Substitution.id.drop(1) ⊎ record.paramTys.map(_ => PRefl)
+      Substitution.id[Pattern].drop(1) ⊎ record.paramTys.map(_ => PRefl)
     ) ∘ unifier
 
     // stuck
@@ -151,9 +151,9 @@ extension termUnification on (p: =?[Term] ∷ Type) {
       unifier <- withCtx(_Θmod) { 
         positive(
           _Θ,
-          Substitution.id ⊎ PForced(tσ) ⊎ PRefl,
+          Substitution.id[Pattern] ⊎ PForced(tσ) ⊎ PRefl,
           _Θmod,
-          Substitution.id.drop(2)
+          Substitution.id[Pattern].drop(2)
         ) ↑ _Δ
       }
     } yield shuffler ∘ unifier

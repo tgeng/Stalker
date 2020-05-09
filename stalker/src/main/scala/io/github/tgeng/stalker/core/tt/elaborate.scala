@@ -81,7 +81,7 @@ extension elaboration on (p: Problem) {
                 for {
                   _Δ <- con.argTys.substHead(v̅).tele
                   r <- withCtxExtendedBy(_Δ) {
-                    val ρ1 = Substitution.id.drop(_Δ.size) ⊎ PCon(con.name, (0 until con.argTys.size).reverse.map(PVar(_)).toList)
+                    val ρ1 = Substitution.id[Pattern].drop(_Δ.size) ⊎ PCon(con.name, con.argTys.pvars.toList)
                     val ρ2 = ρ1.extendBy(_Γ2) 
                     for {
                       _P2 <- _P.subst(ρ2)

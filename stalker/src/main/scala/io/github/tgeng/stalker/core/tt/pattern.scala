@@ -6,7 +6,7 @@ import Whnf._
 import Elimination._
 import substitutionConversion.{given _}
 
-enum Pattern extends Raisable[Pattern] with Substitutable[Pattern, Pattern] {
+enum Pattern {
   // A pattern is defined under a context containing all the (linear) free variables.
   // Since pattern construction does not introduce any bindings, 0 always points
   // to the rightmost (aka, first in context) variable. The context is generated
@@ -28,32 +28,36 @@ enum Pattern extends Raisable[Pattern] with Substitutable[Pattern, Pattern] {
     case PForced(t) => t
     case PAbsurd => throw IllegalArgumentException()
   }
+}
 
-  def raiseImpl(using spec: RaiseSpec) : Pattern = this match {
+given Raisable[Pattern] {
+  def (p: Pattern) raiseImpl(using spec: RaiseSpec) : Pattern = p match {
     case PVar(idx) => PVar(spec.trans(idx))
-    case PRefl => this
+    case PRefl => p
     case PCon(con, patterns) => PCon(con, patterns.map(_.raiseImpl))
     case PForcedCon(con, patterns) => PForcedCon(con, patterns.map(_.raiseImpl))
     case PForced(t) => PForced(t.raiseImpl)
-    case PAbsurd => this
+    case PAbsurd => p
   }
+}
 
-  def substituteImpl(using spec: SubstituteSpec[Pattern]) : Pattern = this match {
+given Substitutable[Pattern, Pattern, Pattern] {
+  def (p: Pattern) substituteImpl(using spec: SubstituteSpec[Pattern]) : Pattern = p match {
     case PVar(idx) => spec.trans(idx) match {
       case Right(p) => p
       case Left(idx) => PVar(idx)
     }
-    case PRefl => this
+    case PRefl => p
     case PCon(con, patterns) => PCon(con, patterns.map(_.substituteImpl))
     case PForcedCon(con, patterns) => PForcedCon(con, patterns.map(_.substituteImpl))
     case PForced(t) => PForced(t.substituteImpl(using spec))
-    case PAbsurd => this
+    case PAbsurd => p
   }
 }
 
 import Pattern._
 
-enum CoPattern extends Raisable[CoPattern] with Substitutable[Pattern, CoPattern] {
+enum CoPattern {
   case QPattern(p: Pattern)
   case QProj(p: String)
 
@@ -61,15 +65,19 @@ enum CoPattern extends Raisable[CoPattern] with Substitutable[Pattern, CoPattern
     case QPattern(p) => ETerm(p.toTerm)
     case QProj(p) => EProj(p)
   }
+}
 
-  def raiseImpl(using spec: RaiseSpec) : CoPattern = this match {
+given Raisable[CoPattern] {
+  def (q: CoPattern) raiseImpl(using spec: RaiseSpec) : CoPattern = q match {
     case QPattern(p) => QPattern(p.raiseImpl)
-    case QProj(_) => this
+    case QProj(_) => q
   }
+}
 
-  def substituteImpl(using spec: SubstituteSpec[Pattern]) : CoPattern = this match {
+given Substitutable[CoPattern, Pattern, CoPattern] {
+  def (q: CoPattern) substituteImpl(using spec: SubstituteSpec[Pattern]) : CoPattern = q match {
     case QPattern(p) => QPattern(p.substituteImpl)
-    case QProj(_) => this
+    case QProj(_) => q
   }
 }
 

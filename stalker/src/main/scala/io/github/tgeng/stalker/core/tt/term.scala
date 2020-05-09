@@ -4,23 +4,13 @@ import io.github.tgeng.stalker.common.QualifiedName
 
 type Type = Whnf
 
-enum Term extends Raisable[Term] with Substitutable[Term, Term] {
+enum Term {
   case TWhnf(whnf: Whnf)
   case TRedux(fn: QualifiedName, elims: List[Elimination])
 
   def freeVars : Set[Int] = this match {
     case TWhnf(whnf) => whnf.freeVars
     case TRedux(fn, elims) => elims.flatMap(_.freeVars).toSet
-  }
-
-  def raiseImpl(using spec: RaiseSpec) : Term = this match {
-    case TWhnf(whnf) => TWhnf(whnf.raiseImpl)
-    case TRedux(fn, elims) => TRedux(fn, elims.map(_.raiseImpl))
-  }
-
-  def substituteImpl(using spec: SubstituteSpec[Term]) : Term = this match {
-    case TWhnf(whnf) => whnf.substituteImpl
-    case TRedux(fn, elims) => TRedux(fn, elims.map(_.substituteImpl))
   }
 
   def app(t: Term): Result[Term] = app(Elimination.ETerm(t))
@@ -35,9 +25,23 @@ enum Term extends Raisable[Term] with Substitutable[Term, Term] {
   def app(e̅: Seq[Elimination]) : Result[Term] = e̅.foldLeft[Result[Term]](Right(this))((acc, e) => acc.flatMap(_.app(e)))
 }
 
+given Raisable[Term] {
+  def (t: Term) raiseImpl(using spec: RaiseSpec) : Term = t match {
+    case TWhnf(whnf) => TWhnf(whnf.raiseImpl)
+    case TRedux(fn, elims) => TRedux(fn, elims.map(_.raiseImpl))
+  }
+}
+
+given Substitutable[Term, Term, Term] {
+  def (t: Term) substituteImpl(using spec: SubstituteSpec[Term]) : Term = t match {
+    case TWhnf(whnf) => whnf.substituteImpl
+    case TRedux(fn, elims) => TRedux(fn, elims.map(_.substituteImpl))
+  }
+}
+
 import Term._
 
-enum Whnf extends Raisable[Whnf] with Substitutable[Term, Term] {
+enum Whnf {
   case WFunction(argTy: Term, bodyTy: Term)(val argName: String)
   case WUniverse(level: Int)
   case WData(qn: QualifiedName, params: List[Term])
@@ -57,11 +61,12 @@ enum Whnf extends Raisable[Whnf] with Substitutable[Term, Term] {
     case WCon(con, args) => args.flatMap(_.freeVars).toSet
     case WRefl => Set.empty
   }
+}
 
-
-  def raiseImpl(using spec: RaiseSpec) : Whnf = this match {
+given Raisable[Whnf] {
+  def (w: Whnf) raiseImpl(using spec: RaiseSpec) : Whnf = w match {
     case f@WFunction(argTy, bodyTy) => WFunction(argTy.raiseImpl, bodyTy.raiseImpl(using spec.raised))(f.argName)
-    case WUniverse(_) => this
+    case WUniverse(_) => w
     case WData(data, params) => WData(data, params.map(_.raiseImpl))
     case WRecord(record, params) => WRecord(record, params.map(_.raiseImpl))
     case WId(ty: Term, left: Term, right: Term) => WId(ty.raiseImpl, left.raiseImpl, right.raiseImpl)
@@ -69,12 +74,14 @@ enum Whnf extends Raisable[Whnf] with Substitutable[Term, Term] {
     case WCon(con, args) => WCon(con, args.map(_.raiseImpl))
     case WRefl => WRefl
   }
+}
 
-  def substituteImpl(using spec: SubstituteSpec[Term]) : Term = this match {
+given Substitutable[Whnf, Term, Term] {
+  def (w: Whnf) substituteImpl(using spec: SubstituteSpec[Term]) : Term = w match {
     case f@WFunction(argTy, bodyTy) => TWhnf(WFunction(
       argTy.substituteImpl,
       bodyTy.substituteImpl(using spec.raised))(f.argName))
-    case WUniverse(_) => TWhnf(this)
+    case WUniverse(_) => TWhnf(w)
     case WData(data, params) => TWhnf(WData(data, params.map(_.substituteImpl)))
     case WRecord(record, params) => TWhnf(WRecord(record, params.map(_.substituteImpl)))
     case WId(ty, left, right) => TWhnf(WId(ty.substituteImpl, left.substituteImpl, right.substituteImpl))
@@ -83,18 +90,18 @@ enum Whnf extends Raisable[Whnf] with Substitutable[Term, Term] {
         case (s, Nil) => s
         case (TWhnf(WVar(idx, sElims)), elims) => TWhnf(WVar(idx, sElims ++ elims))
         case (TRedux(fn, sElims), elims) => TRedux(fn, sElims ++ elims)
-        case _ => throw IllegalArgumentException(s"Invalid substitution with $spec into $this")
+        case _ => throw IllegalArgumentException(s"Invalid substitution with $spec into $w")
       }
       case Left(idx) => TWhnf(WVar(idx, elims.map(_.substituteImpl)))
     }
     case WCon(con, args) => TWhnf(WCon(con, args.map(_.substituteImpl)))
-    case WRefl => TWhnf(this)
+    case WRefl => TWhnf(w)
   }
 }
 
 import Whnf._
 
-enum Elimination extends Raisable[Elimination] with Substitutable[Term, Elimination] {
+enum Elimination {
   case ETerm(t: Term)
   case EProj(p: String)
   
@@ -102,14 +109,19 @@ enum Elimination extends Raisable[Elimination] with Substitutable[Term, Eliminat
     case ETerm(t) => t.freeVars
     case EProj(p) => Set.empty
   }
+}
 
-  def raiseImpl(using spec: RaiseSpec): Elimination = this match {
+given Raisable[Elimination] {
+  def (e: Elimination) raiseImpl(using spec: RaiseSpec): Elimination = e match {
     case ETerm(t) => ETerm(t.raiseImpl)
     case EProj(p) => EProj(p)
   }
-  def substituteImpl(using spec: SubstituteSpec[Term]) : Elimination = this match {
+}
+
+given Substitutable[Elimination, Term, Elimination] {
+  def (e: Elimination) substituteImpl(using spec: SubstituteSpec[Term]) : Elimination = e match {
     case ETerm(t) => ETerm(t.substituteImpl)
-    case EProj(p) => this
+    case EProj(p) => e
   }
 }
 

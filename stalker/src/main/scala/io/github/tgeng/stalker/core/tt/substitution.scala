@@ -1,26 +1,26 @@
 package io.github.tgeng.stalker.core.tt
 
 trait Raisable[R] {
-  def raise(amount: Int) : R = raiseImpl(using RaiseSpec(0, amount))
-  def raiseImpl(using spec: RaiseSpec) : R
+  def (r: R) raise(amount: Int) : R = r.raiseImpl(using RaiseSpec(0, amount))
+  def (r: R) raiseImpl(using spec: RaiseSpec) : R
 }
 
-trait Substitutable[T <: Raisable[T], R] {
-  def subst(s: Substitution[T]) : R = substituteImpl(using SubstituteSpec(0, s))
-  def substHead(t: T)(using ctx: Context) : R = substituteImpl(using SubstituteSpec(0, Substitution(ctx.size, ctx.size + 1, IndexedSeq(t))))
-  def substHead(ts: Seq[T])(using ctx: Context) : R = substituteImpl(using SubstituteSpec(0, Substitution(ctx.size, ctx.size + ts.size, ts.toIndexedSeq.reverse)))
-  def substituteImpl(using spec: SubstituteSpec[T]) : R
+trait Substitutable[F, T: Raisable, R] {
+  def (f: F) subst(s: Substitution[T]) : R = f.substituteImpl(using SubstituteSpec(0, s))
+  def (f: F) substHead(tSub: T)(using ctx: Context) : R = f.substituteImpl(using SubstituteSpec(0, Substitution(ctx.size, ctx.size + 1, IndexedSeq(tSub))))
+  def (f: F) substHead(tsSub: Seq[T])(using ctx: Context) : R = f.substituteImpl(using SubstituteSpec(0, Substitution(ctx.size, ctx.size + tsSub.size, tsSub.toIndexedSeq.reverse)))
+  def (f: F) substituteImpl(using spec: SubstituteSpec[T]) : R
 }
 
 /** First element on the right. */
-case class Substitution[T <: Raisable[T]] (sourceContextSize: Int, targetContextSize: Int, content : IndexedSeq[T]) {
+case class Substitution[T : Raisable] (sourceContextSize: Int, targetContextSize: Int, content : IndexedSeq[T]) {
   assert(targetContextSize >= content.size)
   def applyIndex(varFn: Int => T)(idx: Int) : T = {
     assert(idx >= 0 && idx < targetContextSize)
     if (idx < content.size) content(idx)
     else varFn(idx)
   }
-  def map[R <: Raisable[R]](fn: T => R) : Substitution[R] = Substitution(sourceContextSize, targetContextSize, content.map(fn))
+  def map[R : Raisable](fn: T => R) : Substitution[R] = Substitution(sourceContextSize, targetContextSize, content.map(fn))
   def shiftAmount: Int = sourceContextSize - targetContextSize
   def unionSum(varFn : Int => T)(other: Substitution[T]) : Substitution[T] = {
     assert (other.sourceContextSize == sourceContextSize)
@@ -62,7 +62,9 @@ case class Substitution[T <: Raisable[T]] (sourceContextSize: Int, targetContext
   }
 }
 
-extension substitutionCompositionOps on [T <: Substitutable[T, T] with Raisable[T]](s: Substitution[T]) {
+type ComposableSubstitutable[T] = Substitutable[T, T, T]
+
+extension substitutionCompositionOps on [T : ComposableSubstitutable : Raisable](s: Substitution[T]) {
   def comp(varFn : Int => T)(r: Substitution[T]) : Substitution[T] = {
     assert (s.sourceContextSize == r.targetContextSize)
     Substitution[T](r.sourceContextSize, s.targetContextSize, s.materialize(varFn).content.map(_.subst(r)))
@@ -70,13 +72,13 @@ extension substitutionCompositionOps on [T <: Substitutable[T, T] with Raisable[
 }
 
 object Substitution {
-  def id[T <: Raisable[T]](using Γ: Context) : Substitution[T] = Substitution(Γ.size, Γ.size, IndexedSeq.empty)
+  def id[T : Raisable](using Γ: Context) : Substitution[T] = Substitution(Γ.size, Γ.size, IndexedSeq.empty)
 
-  def none[T <: Raisable[T]](using Γ: Context) : Substitution[T] = Substitution(Γ.size, 0, IndexedSeq.empty)
+  def none[T : Raisable](using Γ: Context) : Substitution[T] = Substitution(Γ.size, 0, IndexedSeq.empty)
 
-  def of[T <: Raisable[T]](t: T)(using Γ: Context) : Substitution[T] = Substitution(Γ.size, 1, IndexedSeq(t))
+  def of[T : Raisable](t: T)(using Γ: Context) : Substitution[T] = Substitution(Γ.size, 1, IndexedSeq(t))
 
-  def from[T <: Raisable[T]](m: Map[Int, T])(using Γ: Context) : Substitution[T] = {
+  def from[T : Raisable](m: Map[Int, T])(using Γ: Context) : Substitution[T] = {
     val content = m.toSeq.sortBy((k, v) => k).zipWithIndex.map{case ((k, v), i) => 
       if (k != i) throw IllegalStateException()
       v
@@ -111,7 +113,7 @@ case class RaiseSpec(private val bar:Int, private val amount:Int) {
   def trans(idx: Int) : Int = if(idx >= bar) idx + amount else idx
 }
 
-case class SubstituteSpec[T <: Raisable[T]](private val offset: Int, private val substitution: Substitution[T]) {
+case class SubstituteSpec[T : Raisable](private val offset: Int, private val substitution: Substitution[T]) {
   def raised : SubstituteSpec[T] = SubstituteSpec(offset + 1, substitution.map(t => t.raise(1)))
   def trans(idx: Int) : Either[Int, T] = 
     if (idx >= offset) {
@@ -126,7 +128,7 @@ case class SubstituteSpec[T <: Raisable[T]](private val offset: Int, private val
     else {
         Left(idx)
     }
-  def map[R <: Raisable[R]](fn: T => R) : SubstituteSpec[R] = SubstituteSpec(offset, substitution.map(fn))
+  def map[R : Raisable](fn: T => R) : SubstituteSpec[R] = SubstituteSpec(offset, substitution.map(fn))
 }
 
 object substitutionConversion {

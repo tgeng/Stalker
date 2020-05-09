@@ -13,17 +13,16 @@ extension bindingOps on [T, R](self: Binding[T]) {
 /** First element on the left. */
 type Telescope = List[Binding[Type]]
 
-extension telescopeOps on (self: Telescope) {
-  def subst(s: Substitution[Term]) : List[Binding[Term]] = self.substituteImpl(using SubstituteSpec(0, s))
-  def substHead(t: Term)(using ctx: Context) : List[Binding[Term]] = self.substituteImpl(using SubstituteSpec(0, Substitution(ctx.size, ctx.size + 1, IndexedSeq(t))))
-  def substHead(ts: Seq[Term])(using ctx: Context) : List[Binding[Term]] = self.substituteImpl(using SubstituteSpec(0, Substitution(ctx.size, ctx.size + ts.size, ts.toIndexedSeq.reverse)))
-
-  def substituteImpl(using spec: SubstituteSpec[Term]) : List[Binding[Term]] = self match {
+given Substitutable[Telescope, Term, List[Binding[Term]]] {
+  def (ts: Telescope) substituteImpl(using spec: SubstituteSpec[Term]) : List[Binding[Term]] = ts match {
     case Nil => Nil
     case ty :: rest => ty.map(_.substituteImpl) :: rest.substituteImpl(using spec.raised)
   }
+}
 
+extension telescopeOps on (self: Telescope) {
   def vars : Seq[Term] = (self.size - 1 to 0 by -1).map(i => Term.TWhnf(Whnf.WVar(i, Nil)))
+  def pvars : Seq[Pattern] = (self.size - 1 to 0 by -1).map(Pattern.PVar(_))
 }
 
 def withCtx[T](ctx: Context)(action: (ctx: Context) ?=> T) : T = action(using ctx)
