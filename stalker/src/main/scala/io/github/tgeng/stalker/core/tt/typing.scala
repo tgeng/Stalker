@@ -1,11 +1,11 @@
-package io.github.tgeng.stalker.core
+package io.github.tgeng.stalker.core.tt
 
 import scala.language.implicitConversions
 import scala.math.max
 import io.github.tgeng.common._
 import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.stalker.common._
-import io.github.tgeng.stalker.core.telescopeOps
+import io.github.tgeng.stalker.core.tt.telescopeOps
 import substitutionConversion.{given _}
 import Term._
 import Whnf._

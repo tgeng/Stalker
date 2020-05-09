@@ -3,11 +3,11 @@ package io.github.tgeng.stalker.testing
 import scala.language.implicitConversions
 import org.scalatest.matchers._
 import org.scalatest.Matchers
-import io.github.tgeng.stalker.core._
-import io.github.tgeng.stalker.core.typing.checkTerm
-import io.github.tgeng.stalker.core.typing.level
-import io.github.tgeng.stalker.core.reduction.whnf
-import io.github.tgeng.stalker.core.typingRelation
+import io.github.tgeng.stalker.core.tt._
+import io.github.tgeng.stalker.core.tt.typing.checkTerm
+import io.github.tgeng.stalker.core.tt.typing.level
+import io.github.tgeng.stalker.core.tt.reduction.whnf
+import io.github.tgeng.stalker.core.tt.typingRelation
 
 trait TypingMatchers {
   def haveType(_A: Term)(using Γ: Context)(using Σ: Signature) = Matcher { (x: Term) =>

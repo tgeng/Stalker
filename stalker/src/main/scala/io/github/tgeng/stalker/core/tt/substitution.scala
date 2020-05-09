@@ -1,4 +1,4 @@
-package io.github.tgeng.stalker.core
+package io.github.tgeng.stalker.core.tt
 
 trait Raisable[R] {
   def raise(amount: Int) : R = raiseImpl(using RaiseSpec(0, amount))

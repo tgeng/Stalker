@@ -1,4 +1,4 @@
-package io.github.tgeng.stalker.core
+package io.github.tgeng.stalker.core.tt
 
 import scala.language.implicitConversions
 import Term._

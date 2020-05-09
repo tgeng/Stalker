@@ -1,4 +1,4 @@
-package io.github.tgeng.stalker.core
+package io.github.tgeng.stalker.core.tt
 
 import scala.collection.Map
 import scala.collection.Seq
@@ -7,9 +7,9 @@ import scala.collection.mutable.HashMap
 import io.github.tgeng.common._
 import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.stalker.common.QualifiedName
-import io.github.tgeng.stalker.core.typing.level
-import io.github.tgeng.stalker.core.reduction.tele
-import io.github.tgeng.stalker.core.reduction.whnf
+import io.github.tgeng.stalker.core.tt.typing.level
+import io.github.tgeng.stalker.core.tt.reduction.tele
+import io.github.tgeng.stalker.core.tt.reduction.whnf
 import typing.checkElim
 import typing.checkTerm
 import stringBindingOps._

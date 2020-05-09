@@ -1,7 +1,7 @@
-package io.github.tgeng.stalker.frontend
+package io.github.tgeng.stalker.core.fe
 
 import io.github.tgeng.common.extraSeqOps
-import io.github.tgeng.stalker.core.{Binding => DbBinding, Term => DbTerm}
+import io.github.tgeng.stalker.core.tt.{Binding => DbBinding, Term => DbTerm}
 
 case class Binding(name: String, ty: Term)
 

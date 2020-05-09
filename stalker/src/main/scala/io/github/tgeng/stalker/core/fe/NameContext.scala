@@ -1,4 +1,4 @@
-package io.github.tgeng.stalker.frontend
+package io.github.tgeng.stalker.core.fe
 
 import scala.collection._
 

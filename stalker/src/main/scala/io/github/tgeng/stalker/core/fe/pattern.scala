@@ -1,7 +1,7 @@
-package io.github.tgeng.stalker.frontend
+package io.github.tgeng.stalker.core.fe
 
 import io.github.tgeng.common.extraSeqOps
-import io.github.tgeng.stalker.core.{Binding => DbBinding, Term => DbTerm, Pattern => DbPattern, CoPattern => DbCoPattern}
+import io.github.tgeng.stalker.core.tt.{Binding => DbBinding, Term => DbTerm, Pattern => DbPattern, CoPattern => DbCoPattern}
 
 enum Pattern {
   case PVar(name: String)

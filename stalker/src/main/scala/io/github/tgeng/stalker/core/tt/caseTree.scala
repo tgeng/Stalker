@@ -1,4 +1,4 @@
-package io.github.tgeng.stalker.core
+package io.github.tgeng.stalker.core.tt
 
 enum CaseTree extends Raisable[CaseTree] with Substitutable[Term, CaseTree]{
   case CTerm(tm: Term)

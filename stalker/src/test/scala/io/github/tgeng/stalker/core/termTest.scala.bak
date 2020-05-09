@@ -1,11 +1,11 @@
-package io.github.tgeng.stalker.core
+package io.github.tgeng.stalker.core.tt
 
 import scala.language.implicitConversions
 import io.github.tgeng.stalker.testing.UnitSpec
 
-import io.github.tgeng.stalker.core._
-import io.github.tgeng.stalker.core.Term._
-import io.github.tgeng.stalker.core.Whnf._
+import io.github.tgeng.stalker.core.tt._
+import io.github.tgeng.stalker.core.tt.Term._
+import io.github.tgeng.stalker.core.tt.Whnf._
 
 class TermSpec extends UnitSpec {
   "empty Σ and Γ" - {

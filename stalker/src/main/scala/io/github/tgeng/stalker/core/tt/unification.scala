@@ -1,4 +1,4 @@
-package io.github.tgeng.stalker.core
+package io.github.tgeng.stalker.core.tt
 
 import scala.collection.immutable.ArraySeq
 import scala.collection.mutable.HashSet
@@ -7,9 +7,9 @@ import scala.math.{min, max}
 import scala.language.implicitConversions
 import io.github.tgeng.common._
 import substitutionConversion.{given _}
-import io.github.tgeng.stalker.core.typing.level
-import io.github.tgeng.stalker.core.reduction.whnf
-import io.github.tgeng.stalker.core.reduction.tele
+import io.github.tgeng.stalker.core.tt.typing.level
+import io.github.tgeng.stalker.core.tt.reduction.whnf
+import io.github.tgeng.stalker.core.tt.reduction.tele
 
 enum UResult {
   case UPositive(context: Context, unifyingSubst: Substitution[Pattern], restoringSubst: Substitution[Pattern])

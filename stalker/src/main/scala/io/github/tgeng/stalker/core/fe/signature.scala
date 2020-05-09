@@ -1,8 +1,8 @@
-package io.github.tgeng.stalker.frontend
+package io.github.tgeng.stalker.core.fe
 
 import scala.collection.mutable.ArrayBuffer
 import io.github.tgeng.stalker.common.QualifiedName
-import io.github.tgeng.stalker.core.Status
+import io.github.tgeng.stalker.core.tt.Status
 
 enum Declaration {
   case Data(qn: QualifiedName, paramTys: Telescope, level: Int, cons: ArrayBuffer[Constructor])

@@ -1,7 +1,7 @@
-package io.github.tgeng.stalker.core
+package io.github.tgeng.stalker.core.tt
 
 import scala.util.control.NonLocalReturns._
-import io.github.tgeng.stalker.core.typing.level
+import io.github.tgeng.stalker.core.tt.typing.level
 import Term._
 import Whnf._
 import Elimination._
