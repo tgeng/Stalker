@@ -10,7 +10,7 @@ import Pattern._
 import CoPattern._
 
 object reduction {
-  def (tms: List[Binding[Term]]).tele(using Γ: Context)(using Σ: Signature) : Result[Telescope] = tms match {
+  def (tms: List[Binding[Term]]) tele(using Γ: Context)(using Σ: Signature) : Result[Telescope] = tms match {
     case Nil => Right(Nil)
     case tm :: rest => for {
       wTm <- tm.ty.whnf
