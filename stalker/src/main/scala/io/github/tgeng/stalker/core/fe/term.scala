@@ -17,12 +17,8 @@ enum Term {
   case TVar(name: String, elims: List[Elimination])
   case TCon(con: String, args: List[Term])
   case TRefl
-}
 
-import Term._
-
-extension termOps on (self: Term) {
-  def toDbTerm(using ctx: NameContext) : Result[DbTerm] = self match {
+  def toDbTerm(using ctx: NameContext) : Result[DbTerm] = this match {
     case TRedux(fn, elims) => elims.liftMap(_.toDbElimination).map(DbTerm.TRedux(fn, _))
     case TFunction(argName, argTy, bodyTy) => for {
       dbArgTy <- argTy.toDbTerm
@@ -50,12 +46,8 @@ extension termOps on (self: Term) {
 enum Elimination {
   case ETerm(t: Term)
   case EProj(p: String)
-}
 
-import Elimination._
-
-extension eliminationOps on (self: Elimination) {
-  def toDbElimination(using ctx: NameContext) : Result[DbElimination] = self match {
+  def toDbElimination(using ctx: NameContext) : Result[DbElimination] = this match {
     case ETerm(t) => t.toDbTerm.map(DbElimination.ETerm(_))
     case EProj(p) => Right(DbElimination.EProj(p))
   }

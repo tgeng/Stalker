@@ -4,12 +4,10 @@ import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.stalker.core.common.error._
 import io.github.tgeng.stalker.core.tt.{Binding => DbBinding, Term => DbTerm}
 
-case class Binding(name: String, ty: Term)
-
-extension bindingOps on (self: Binding) {
+case class Binding(name: String, ty: Term) {
   def toDbBinding(using ctx: NameContext) : Result[DbBinding[DbTerm]] = for {
-    dbTerm <- self.ty.toDbTerm
-  } yield DbBinding(dbTerm)(self.name)
+    dbTerm <- ty.toDbTerm
+  } yield DbBinding(dbTerm)(name)
 }
 
 type Telescope = List[Binding]

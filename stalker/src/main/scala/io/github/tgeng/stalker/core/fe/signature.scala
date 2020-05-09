@@ -2,8 +2,10 @@ package io.github.tgeng.stalker.core.fe
 
 import scala.collection.Seq
 import io.github.tgeng.stalker.common.QualifiedName
+import io.github.tgeng.stalker.core.common.error._
 import io.github.tgeng.stalker.core.tt.Status
 import io.github.tgeng.stalker.core.tt.SignatureBuilder
+import io.github.tgeng.stalker.core.tt.{Signature => DbSignature}
 
 
 enum Declaration {
@@ -30,5 +32,4 @@ enum UncheckedRhs {
 class Signature {
   private val sb = SignatureBuilder()
 
-  
 }
