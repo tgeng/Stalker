@@ -6,10 +6,12 @@ import scala.collection.mutable.ArrayBuffer
 import scala.math.{min, max}
 import scala.language.implicitConversions
 import io.github.tgeng.common._
+import io.github.tgeng.stalker.core.common.error._
+import io.github.tgeng.stalker.common.QualifiedName
+import typing.level
+import reduction.whnf
+import reduction.tele
 import substitutionConversion.{given _}
-import io.github.tgeng.stalker.core.tt.typing.level
-import io.github.tgeng.stalker.core.tt.reduction.whnf
-import io.github.tgeng.stalker.core.tt.reduction.tele
 
 enum UResult {
   case UPositive(context: Context, unifyingSubst: Substitution[Pattern], restoringSubst: Substitution[Pattern])

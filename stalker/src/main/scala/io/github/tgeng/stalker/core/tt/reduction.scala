@@ -1,6 +1,7 @@
 package io.github.tgeng.stalker.core.tt
 
 import scala.util.control.NonLocalReturns._
+import io.github.tgeng.stalker.core.common.error._
 import io.github.tgeng.stalker.core.tt.typing.level
 import Term._
 import Whnf._
@@ -123,5 +124,5 @@ object reduction {
   }
 } 
 
-type MatchResult = Either[TypingError, Either[Mismatch, Map[Int, Term]]]
+type MatchResult = Result[Either[Mismatch, Map[Int, Term]]]
 case class Mismatch(v: Elimination, p: CoPattern)

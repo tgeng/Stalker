@@ -2,6 +2,7 @@ package io.github.tgeng.stalker.core.fe
 
 import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.stalker.common.QualifiedName
+import io.github.tgeng.stalker.core.common.error._
 import io.github.tgeng.stalker.core.tt.{Term => DbTerm, Elimination => DbElimination, Whnf}
 import DbTerm.TWhnf
 import Whnf._

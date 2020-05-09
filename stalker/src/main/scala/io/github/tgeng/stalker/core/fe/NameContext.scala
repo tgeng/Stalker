@@ -1,6 +1,8 @@
 package io.github.tgeng.stalker.core.fe
 
-import scala.collection._
+import scala.collection.mutable
+import io.github.tgeng.stalker.core.common.error._
+import io.github.tgeng.stalker.common.QualifiedName
 
 class NameContext {
   val indices = mutable.Map[String, mutable.ArrayBuffer[Int]]()
@@ -9,7 +11,7 @@ class NameContext {
   def get(name: String) : Result[Int] = 
     indices.get(name).flatMap(_.lastOption).map(size - _) match {
       case Some(i) => Right(i)
-      case _ => Left(NoNameError(name, this))
+      case _ => noNameError(name)
     }
 
   def withName[T](name: String)(action: => T) : T = {
@@ -37,6 +39,3 @@ class NameContext {
       s"$name: ${indices.map(size - _).mkString(" ")}"
     }.mkString("\n")
 }
-
-class NoNameError(name: String, ctx: NameContext)
-type Result = Either[NoNameError, *]

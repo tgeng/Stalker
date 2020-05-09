@@ -1,6 +1,7 @@
 package io.github.tgeng.stalker.core.tt
 
 import scala.language.implicitConversions
+import io.github.tgeng.stalker.core.common.error._
 import Term._
 import Whnf._
 import Elimination._

@@ -6,10 +6,11 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
 import io.github.tgeng.common._
 import io.github.tgeng.common.extraSeqOps
+import io.github.tgeng.stalker.core.common.error._
 import io.github.tgeng.stalker.common.QualifiedName
-import io.github.tgeng.stalker.core.tt.typing.level
-import io.github.tgeng.stalker.core.tt.reduction.tele
-import io.github.tgeng.stalker.core.tt.reduction.whnf
+import reduction.tele
+import reduction.whnf
+import typing.level
 import typing.checkElim
 import typing.checkTerm
 import stringBindingOps._
@@ -114,6 +115,8 @@ type PreField = FieldT[Term]
 class SignatureBuilder(val mContent: HashMap[QualifiedName, DeclarationT[Checked, Type]]) extends Signature(mContent) {
   given Signature = this
   given Context = Context.empty
+
+  def this() = this(HashMap.empty)
 
   def += (d: PreDeclaration) : Result[Unit] = {
     d match {

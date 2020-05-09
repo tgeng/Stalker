@@ -7,6 +7,7 @@ import io.github.tgeng.common.extraIterableOps
 import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.common.extraSetOps
 import io.github.tgeng.stalker.common._
+import io.github.tgeng.stalker.core.common.error._
 import reduction._
 import typing.checkTerm
 import typing.checkTermsEq

@@ -5,6 +5,7 @@ import scala.math.max
 import io.github.tgeng.common._
 import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.stalker.common._
+import io.github.tgeng.stalker.core.common.error._
 import io.github.tgeng.stalker.core.tt.telescopeOps
 import substitutionConversion.{given _}
 import Term._
@@ -335,10 +336,7 @@ object typing {
   }
 }
 
-type Result = Either[TypingError, *]
 type Level = Int
-
-case class TypingError(msg: String)
 
 case class ∷[X, Y](x: X, y: Y)
 
@@ -402,8 +400,7 @@ extension derivationRelation on [X, Y](x: X) {
   def |- (y: Y) = new |-(x, y)
 }
 
-private def judgementError(judgement: ∷[?, ?] | |-[?, ?] | ≡[?]) : Either[TypingError, Nothing] = typingError(s"Invalid judgement $judgement")
-private def typingError(msg: String) : Result[Nothing] = Left(TypingError(msg))
+private def judgementError(judgement: ∷[?, ?] | |-[?, ?] | ≡[?]) : Result[Nothing] = typingError(s"Invalid judgement $judgement")
 
 extension resultFilter on [T](r: Result[T]) {
   def withFilter(p : T => Boolean) : Result[T] = r match {

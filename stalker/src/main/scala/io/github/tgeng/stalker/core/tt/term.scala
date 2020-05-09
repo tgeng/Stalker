@@ -1,6 +1,7 @@
 package io.github.tgeng.stalker.core.tt
 
 import io.github.tgeng.stalker.common.QualifiedName
+import io.github.tgeng.stalker.core.common.error._
 
 type Type = Whnf
 
