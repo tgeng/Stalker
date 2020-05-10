@@ -6,12 +6,12 @@ import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.core.common.error._
 import io.github.tgeng.stalker.core.tt.Status
 import io.github.tgeng.stalker.core.tt.SignatureBuilder
-import io.github.tgeng.stalker.core.tt.{Signature => DbSignature}
+import io.github.tgeng.stalker.core.tt.{Signature => TtSignature}
 import io.github.tgeng.stalker.core.tt.DeclarationT._
 import io.github.tgeng.stalker.core.tt.ConstructorT
 import io.github.tgeng.stalker.core.tt.ClauseT
 import io.github.tgeng.stalker.core.tt.FieldT
-import io.github.tgeng.stalker.core.tt.{UncheckedRhs => DbUncheckedRhs}
+import io.github.tgeng.stalker.core.tt.{UncheckedRhs => TtUncheckedRhs}
 import telescopeOps._
 
 enum Declaration {
@@ -73,8 +73,8 @@ class Signature {
         case UncheckedClause(lhs, rhs) => for {
           lhs <- lhs.liftMap(_.tt)
           rhs <- rhs match {
-            case UTerm(t) => t.tt.map(DbUncheckedRhs.UTerm(_))
-            case UImpossible => Right(DbUncheckedRhs.UImpossible)
+            case UTerm(t) => t.tt.map(TtUncheckedRhs.UTerm(_))
+            case UImpossible => Right(TtUncheckedRhs.UImpossible)
           }
         } yield ClauseT.UncheckedClause(lhs, rhs)
       }

@@ -3,8 +3,8 @@ package io.github.tgeng.stalker.core.fe
 import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.core.common.error._
-import io.github.tgeng.stalker.core.tt.{Term => DbTerm, Elimination => DbElimination, Whnf}
-import DbTerm.TWhnf
+import io.github.tgeng.stalker.core.tt.{Term => TtTerm, Elimination => TtElimination, Whnf}
+import TtTerm.TWhnf
 import Whnf._
 
 enum Term {
@@ -18,8 +18,8 @@ enum Term {
   case TCon(con: String, args: List[Term])
   case TRefl
 
-  def tt(using ctx: NameContext) : Result[DbTerm] = this match {
-    case TRedux(fn, elims) => elims.liftMap(_.tt).map(DbTerm.TRedux(fn, _))
+  def tt(using ctx: NameContext) : Result[TtTerm] = this match {
+    case TRedux(fn, elims) => elims.liftMap(_.tt).map(TtTerm.TRedux(fn, _))
     case TFunction(argName, argTy, bodyTy) => for {
       dbArgTy <- argTy.tt
       dbBodyTy <- ctx.withName(argName) {
@@ -47,8 +47,8 @@ enum Elimination {
   case ETerm(t: Term)
   case EProj(p: String)
 
-  def tt(using ctx: NameContext) : Result[DbElimination] = this match {
-    case ETerm(t) => t.tt.map(DbElimination.ETerm(_))
-    case EProj(p) => Right(DbElimination.EProj(p))
+  def tt(using ctx: NameContext) : Result[TtElimination] = this match {
+    case ETerm(t) => t.tt.map(TtElimination.ETerm(_))
+    case EProj(p) => Right(TtElimination.EProj(p))
   }
 }
