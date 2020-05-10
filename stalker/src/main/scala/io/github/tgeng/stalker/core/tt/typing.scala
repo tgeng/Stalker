@@ -20,11 +20,11 @@ import reduction.whnf
 object typing {
   def (tm: Type)level(using Γ: Context)(using Σ: Signature) : Result[Level] = tm match {
     case WUniverse(l) => Right(l + 1)
-    case f@WFunction(_A, _B) => {
+    case WFunction(_A, _B) => {
       for {
-        wA <- _A.whnf
+        wA <- _A.ty.whnf
         lA <- wA.level
-        r <- withCtxExtendedBy(f.argName ∷ wA) {
+        r <- withCtxExtendedBy(_A.name ∷ wA) {
           for {
             rB <- _B.whnf
             lB <- rB.level
@@ -61,12 +61,12 @@ object typing {
   
   def (eq: ≡[Type])level(using Γ: Context)(using Σ: Signature) : Result[Level] = eq match {
     case _A ≡ _B if _A == _B => _A.level
-    case (f@WFunction(_A1, _B1)) ≡ WFunction(_A2, _B2) => {
+    case WFunction(_A1, _B1) ≡ WFunction(_A2, _B2) => {
       for {
-        wA1 <- _A1.whnf
-        wA2 <- _A2.whnf
+        wA1 <- _A1.ty.whnf
+        wA2 <- _A2.ty.whnf
         lA <- (wA1 ≡ wA2).level
-        r <- withCtxExtendedBy(f.argName ∷ wA2) {
+        r <- withCtxExtendedBy(_A1.name ∷ wA2) {
           for {
             wB1 <- _B1.whnf
             wB2 <- _B2.whnf
@@ -108,7 +108,7 @@ object typing {
     elim match {
       case u ∷ _A |- Nil ≡ Nil => _A.level
       case u ∷ WFunction(_A, _B) |- (ETerm(v1) :: e̅1) ≡ (ETerm(v2) :: e̅2) => for {
-        wA <- _A.whnf
+        wA <- _A.ty.whnf
         _ <- (v1 ≡ v2 ∷ wA).check
         wB <- _B.substHead(v1).whnf
         uv <- u.app(v1)
@@ -195,7 +195,7 @@ object typing {
           _ <- (_A ≡ _B).level
         } yield ()
         case u ∷ WFunction(_A, _B) |- (ETerm(v) :: e̅) ∷ _C => for {
-          wA <- _A.whnf
+          wA <- _A.ty.whnf
           _ <- (v ∷ wA).check
           uv <- u.app(v)
           _Bv = _B.substHead(v)
@@ -240,12 +240,12 @@ object typing {
           _ <- (TRedux(f1, Nil) ∷ fn.ty |- e̅1 ≡ e̅2 ∷ _B).check
         } yield ()
         // function eta rule
-        case f ≡ g ∷ (_F@WFunction(_A, _B)) => for {
+        case f ≡ g ∷ WFunction(_A, _B) => for {
           fx <- f.app(TWhnf(WVar(0, Nil)))
           gx <- g.app(TWhnf(WVar(0, Nil)))
-          wA <- _A.whnf
+          wA <- _A.ty.whnf
           wB <- _B.whnf
-          _ <- (fx ≡ gx ∷ wB).check(using Γ + _F.argName ∷ wA)
+          _ <- (fx ≡ gx ∷ wB).check(using Γ + _A.name ∷ wA)
         } yield ()
         // TODO: limit this rule to only run if the record is not recursive
         // record eta rule
@@ -317,7 +317,7 @@ object typing {
       j match {
         case u ∷ _A |- Nil ≡ Nil ∷ _C => (_A ≡ _C).level.map(l => ())
         case u ∷ WFunction(_A, _B) |- (ETerm(v1) :: e̅1) ≡ (ETerm(v2) :: e̅2) ∷ _C => for {
-          wA <- _A.whnf
+          wA <- _A.ty.whnf
           _ <- (v1 ≡ v2 ∷ wA).check
           wB <- _B.substHead(v1).whnf
           uv <- u.app(v1)

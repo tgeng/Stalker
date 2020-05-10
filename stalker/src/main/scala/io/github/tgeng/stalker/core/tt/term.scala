@@ -5,6 +5,16 @@ import io.github.tgeng.stalker.core.common.error._
 
 type Type = Whnf
 
+case class Binding[+T](ty: T)(val name: String)
+
+extension stringBindingOps on [T](self: String) {
+  def ∷ (t: T) = Binding(t)(self)
+}
+
+extension bindingOps on [T, R](self: Binding[T]) {
+  def map(f: T => R) = Binding[R](f(self.ty))(self.name)
+}
+
 enum Term {
   case TWhnf(whnf: Whnf)
   case TRedux(fn: QualifiedName, elims: List[Elimination])
@@ -43,7 +53,7 @@ given Substitutable[Term, Term, Term] {
 import Term._
 
 enum Whnf {
-  case WFunction(argTy: Term, bodyTy: Term)(val argName: String)
+  case WFunction(arg: Binding[Term], bodyTy: Term)
   case WUniverse(level: Int)
   case WData(qn: QualifiedName, params: List[Term])
   case WRecord(qn: QualifiedName, params: List[Term])
@@ -53,7 +63,7 @@ enum Whnf {
   case WRefl
 
   def freeVars : Set[Int] = this match {
-    case f@WFunction(argTy, bodyTy) => argTy.freeVars | (bodyTy.freeVars &~ Set(0)).map(_ - 1)
+    case WFunction(arg, bodyTy) => arg.ty.freeVars | (bodyTy.freeVars &~ Set(0)).map(_ - 1)
     case WUniverse(_) => Set.empty
     case WData(data, params) => params.flatMap(_.freeVars).toSet
     case WRecord(record, params) => params.flatMap(_.freeVars).toSet
@@ -66,7 +76,7 @@ enum Whnf {
 
 given Raisable[Whnf] {
   def (w: Whnf) raiseImpl(using spec: RaiseSpec) : Whnf = w match {
-    case f@WFunction(argTy, bodyTy) => WFunction(argTy.raiseImpl, bodyTy.raiseImpl(using spec.raised))(f.argName)
+    case WFunction(arg, bodyTy) => WFunction(arg.map(_.raiseImpl), bodyTy.raiseImpl(using spec.raised))
     case WUniverse(_) => w
     case WData(data, params) => WData(data, params.map(_.raiseImpl))
     case WRecord(record, params) => WRecord(record, params.map(_.raiseImpl))
@@ -79,9 +89,9 @@ given Raisable[Whnf] {
 
 given Substitutable[Whnf, Term, Term] {
   def (w: Whnf) substituteImpl(using spec: SubstituteSpec[Term]) : Term = w match {
-    case f@WFunction(argTy, bodyTy) => TWhnf(WFunction(
-      argTy.substituteImpl,
-      bodyTy.substituteImpl(using spec.raised))(f.argName))
+    case WFunction(arg, bodyTy) => TWhnf(WFunction(
+      arg.map(_.substituteImpl),
+      bodyTy.substituteImpl(using spec.raised)))
     case WUniverse(_) => TWhnf(w)
     case WData(data, params) => TWhnf(WData(data, params.map(_.substituteImpl)))
     case WRecord(record, params) => TWhnf(WRecord(record, params.map(_.substituteImpl)))

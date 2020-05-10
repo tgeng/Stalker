@@ -3,9 +3,15 @@ package io.github.tgeng.stalker.core.fe
 import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.core.common.error._
-import io.github.tgeng.stalker.core.tt.{Term => TtTerm, Elimination => TtElimination, Whnf}
+import io.github.tgeng.stalker.core.tt.{Term => TtTerm, Elimination => TtElimination, Whnf, stringBindingOps, Binding => TtBinding}
 import TtTerm.TWhnf
 import Whnf._
+
+case class Binding(name: String, ty: Term) {
+  def tt(using ctx: NameContext) : Result[TtBinding[TtTerm]] = for {
+    dbTerm <- ty.tt
+  } yield TtBinding(dbTerm)(name)
+}
 
 enum Term {
   case TRedux(fn: QualifiedName, elims: List[Elimination])
@@ -25,7 +31,7 @@ enum Term {
       dbBodyTy <- ctx.withName(argName) {
         bodyTy.tt
       }
-    } yield TWhnf(WFunction(dbArgTy, dbBodyTy)(argName))
+    } yield TWhnf(WFunction(argName ∷ dbArgTy, dbBodyTy))
     case TUniverse(l) => Right(TWhnf(WUniverse(l)))
     case TData(qn, params) => params.liftMap(_.tt).map(p => TWhnf(WData(qn, p)))
     case TRecord(qn, params) => params.liftMap(_.tt).map(p => TWhnf(WRecord(qn, p)))

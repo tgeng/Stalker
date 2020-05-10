@@ -41,9 +41,9 @@ extension elaboration on (p: Problem) {
       case Left(_) => throw AssertionError()
     }
     // Intro
-    case _P ||| (f, q̅) ∷ (_F@WFunction(_A, _B)) => for {
-      wA <- _A.whnf 
-      r <- withCtxExtendedBy(_F.argName ∷ wA) {
+    case _P ||| (f, q̅) ∷ (WFunction(_A, _B)) => for {
+      wA <- _A.ty.whnf 
+      r <- withCtxExtendedBy(_A.name ∷ wA) {
         for {
           wB <- _B.whnf
           _Pmod <- _P.shift(wA)

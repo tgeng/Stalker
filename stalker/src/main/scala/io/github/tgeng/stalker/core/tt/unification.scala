@@ -270,7 +270,7 @@ private def idTypes(Δ: Telescope, u̅: List[Term], v̅: List[Term]) : List[Bind
 private def idType(_A: Type, u: Term, v: Term) : Binding[Type] = "e" ∷ WId(TWhnf(_A), u, v)
 
 private def simplTerm(tm: Term)(using Γ: Context)(using Σ: Signature) : Term = tm.whnf match {
-  case Right(f@WFunction(a, b)) => TWhnf(WFunction(simplTerm(a), simplTerm(b))(f.argName))
+  case Right(WFunction(a, b)) => TWhnf(WFunction(a.map(simplTerm), simplTerm(b)))
   case Right(w: Whnf) => TWhnf(w)
   case _ => tm
 }

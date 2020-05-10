@@ -1,15 +1,5 @@
 package io.github.tgeng.stalker.core.tt
 
-case class Binding[+T](ty: T)(val name: String)
-
-extension stringBindingOps on [T](self: String) {
-  def ∷ (t: T) = Binding(t)(self)
-}
-
-extension bindingOps on [T, R](self: Binding[T]) {
-  def map(f: T => R) = Binding[R](f(self.ty))(self.name)
-}
-
 /** First element on the left. */
 type Telescope = List[Binding[Type]]
 
