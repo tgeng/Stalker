@@ -2,9 +2,6 @@ val dottyVersion = "0.24.0-RC1"
 
 lazy val root = project
   .in(file("."))
-  .dependsOn(
-    ProjectRef(file("../dotty-parser-combinators"), "root")
-  )
   .settings(
     name := "stalker",
     version := "0.1.0",
@@ -12,6 +9,7 @@ lazy val root = project
     scalaVersion := dottyVersion,
 
     libraryDependencies ++= Seq(
+      "io.github.tgeng" %% "dotty-parser-combinators" % "0.1.1"
       // "org.scalactic" %% "scalactic" % "3.1.1",
       // "org.scalatest" %% "scalatest" % "3.1.1" % "test",
       // ("org.scalatestplus" %% "scalacheck-1-14" % "3.1.1.1" % "test")
