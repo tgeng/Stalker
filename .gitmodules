@@ -1,0 +1,3 @@
+[submodule "dotty-parser-combinators"]
+	path = dotty-parser-combinators
+	url = git@github.com:tgeng/dotty-parser-combinators.git

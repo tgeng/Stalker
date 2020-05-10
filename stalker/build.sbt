@@ -2,8 +2,11 @@ val dottyVersion = "0.24.0-RC1"
 
 lazy val root = project
   .in(file("."))
+  .dependsOn(
+    ProjectRef(file("../dotty-parser-combinators"), "root")
+  )
   .settings(
-    name := "dotty-simple",
+    name := "stalker",
     version := "0.1.0",
 
     scalaVersion := dottyVersion,
@@ -21,3 +24,4 @@ lazy val root = project
     scalacOptions += "-Ykind-projector",
     scalacOptions += "-Ycheck-init"
   )
+
