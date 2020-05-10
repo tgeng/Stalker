@@ -44,36 +44,36 @@ class Signature {
 
   def += (d: Declaration) : Result[Unit] = d match {
     case DataDecl(qn, paramTys, level) => for {
-      paramTys <- paramTys.toDbTelescope
+      paramTys <- paramTys.tt
       r <- sb += DataT(qn)(paramTys, level, null)
     } yield r
     case DataDef(qn, cons) => for {
       cons <- cons.liftMap {
         case Constructor(name, argTys) => for {
-          argTys <- argTys.toDbTelescope
+          argTys <- argTys.tt
         } yield ConstructorT(name, argTys)
       }
       r <- sb.updateData(qn, cons)
     } yield r
     case RecordDecl(qn, paramTys, level) => for {
-      paramTys <- paramTys.toDbTelescope
+      paramTys <- paramTys.tt
       r <- sb += RecordT(qn)(paramTys, level, null)
     } yield r
     case RecordDef(qn, fields) => for {
       fields <- fields.liftMap {
         case Field(name, ty) => for {
-          ty <- ty.toDbTerm
+          ty <- ty.tt
         } yield FieldT(name, ty)
       }
       r <- sb.updateRecord(qn, fields)
     } yield r
     case Definition(qn, ty, clauses) => for {
-      ty <- ty.toDbTerm
+      ty <- ty.tt
       clauses <- clauses.liftMap {
         case UncheckedClause(lhs, rhs) => for {
-          lhs <- lhs.liftMap(_.toDbCoPattern)
+          lhs <- lhs.liftMap(_.tt)
           rhs <- rhs match {
-            case UTerm(t) => t.toDbTerm.map(DbUncheckedRhs.UTerm(_))
+            case UTerm(t) => t.tt.map(DbUncheckedRhs.UTerm(_))
             case UImpossible => Right(DbUncheckedRhs.UImpossible)
           }
         } yield ClauseT.UncheckedClause(lhs, rhs)

@@ -12,12 +12,12 @@ enum Pattern {
   case PForced(t: Term)
   case PAbsurd
 
-  def toDbPattern(using ctx: NameContext) : Result[DbPattern] = this match {
+  def tt(using ctx: NameContext) : Result[DbPattern] = this match {
     case PVar(name) => ctx.get(name).map(DbPattern.PVar(_)) 
     case PRefl => Right(DbPattern.PRefl)
-    case PCon(con, patterns) => patterns.liftMap(_.toDbPattern).map(DbPattern.PCon(con, _))
-    case PForcedCon(con, patterns) => patterns.liftMap(_.toDbPattern).map(DbPattern.PForcedCon(con, _))
-    case PForced(t) => t.toDbTerm.map(DbPattern.PForced(_))
+    case PCon(con, patterns) => patterns.liftMap(_.tt).map(DbPattern.PCon(con, _))
+    case PForcedCon(con, patterns) => patterns.liftMap(_.tt).map(DbPattern.PForcedCon(con, _))
+    case PForced(t) => t.tt.map(DbPattern.PForced(_))
     case PAbsurd => Right(DbPattern.PAbsurd)
   }
 }
@@ -26,8 +26,8 @@ enum CoPattern {
   case QPattern(p: Pattern)
   case QProj(p: String)
 
-  def toDbCoPattern(using ctx: NameContext) : Result[DbCoPattern] = this match {
-    case QPattern(p) => p.toDbPattern.map(DbCoPattern.QPattern(_))
+  def tt(using ctx: NameContext) : Result[DbCoPattern] = this match {
+    case QPattern(p) => p.tt.map(DbCoPattern.QPattern(_))
     case QProj(p) => Right(DbCoPattern.QProj(p))
   }
 }

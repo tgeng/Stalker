@@ -18,27 +18,27 @@ enum Term {
   case TCon(con: String, args: List[Term])
   case TRefl
 
-  def toDbTerm(using ctx: NameContext) : Result[DbTerm] = this match {
-    case TRedux(fn, elims) => elims.liftMap(_.toDbElimination).map(DbTerm.TRedux(fn, _))
+  def tt(using ctx: NameContext) : Result[DbTerm] = this match {
+    case TRedux(fn, elims) => elims.liftMap(_.tt).map(DbTerm.TRedux(fn, _))
     case TFunction(argName, argTy, bodyTy) => for {
-      dbArgTy <- argTy.toDbTerm
+      dbArgTy <- argTy.tt
       dbBodyTy <- ctx.withName(argName) {
-        bodyTy.toDbTerm
+        bodyTy.tt
       }
     } yield TWhnf(WFunction(dbArgTy, dbBodyTy)(argName))
     case TUniverse(l) => Right(TWhnf(WUniverse(l)))
-    case TData(qn, params) => params.liftMap(_.toDbTerm).map(p => TWhnf(WData(qn, p)))
-    case TRecord(qn, params) => params.liftMap(_.toDbTerm).map(p => TWhnf(WRecord(qn, p)))
+    case TData(qn, params) => params.liftMap(_.tt).map(p => TWhnf(WData(qn, p)))
+    case TRecord(qn, params) => params.liftMap(_.tt).map(p => TWhnf(WRecord(qn, p)))
     case TId(ty, left, right) => for {
-      dbTy <- ty.toDbTerm
-      dbLeft <- left.toDbTerm
-      dbRight <- right.toDbTerm
+      dbTy <- ty.tt
+      dbLeft <- left.tt
+      dbRight <- right.tt
     } yield TWhnf(WId(dbTy, dbLeft, dbRight))
     case TVar(name, elims) => for {
-      wElims <- elims.liftMap(_.toDbElimination)
+      wElims <- elims.liftMap(_.tt)
       idx <- ctx.get(name)
     } yield TWhnf(WVar(idx, wElims))
-    case TCon(con, args) => args.liftMap(_.toDbTerm).map(ts => TWhnf(WCon(con, ts)))
+    case TCon(con, args) => args.liftMap(_.tt).map(ts => TWhnf(WCon(con, ts)))
     case TRefl => Right(TWhnf(WRefl))
   }
 }
@@ -47,8 +47,8 @@ enum Elimination {
   case ETerm(t: Term)
   case EProj(p: String)
 
-  def toDbElimination(using ctx: NameContext) : Result[DbElimination] = this match {
-    case ETerm(t) => t.toDbTerm.map(DbElimination.ETerm(_))
+  def tt(using ctx: NameContext) : Result[DbElimination] = this match {
+    case ETerm(t) => t.tt.map(DbElimination.ETerm(_))
     case EProj(p) => Right(DbElimination.EProj(p))
   }
 }
