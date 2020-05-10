@@ -1,5 +1,6 @@
 package io.github.tgeng.stalker.core.tt
 
+import scala.collection.mutable.ArrayBuffer
 import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.core.common.error._
 

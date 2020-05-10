@@ -1,5 +1,7 @@
 package io.github.tgeng.stalker.core.tt
 
+import io.github.tgeng.common.extraIntOps
+
 trait Raisable[R] {
   def (r: R) raise(amount: Int) : R = r.raiseImpl(using RaiseSpec(0, amount))
   def (r: R) raiseImpl(using spec: RaiseSpec) : R
@@ -89,13 +91,13 @@ object Substitution {
 }
 
 extension patternSubstitutionOps on (s: Substitution[Pattern]) {
-  def apply = s.applyIndex(Pattern.PVar(_))
-  def \ = s.delete(Pattern.PVar(_))
-  def ⊎(other: Substitution[Pattern]) = s.unionSum(Pattern.PVar(_))(other)
+  def apply = s.applyIndex(i => Pattern.PVar(i)("_" + i.sub))
+  def \ = s.delete(i => Pattern.PVar(i)("_" + i.sub))
+  def ⊎(other: Substitution[Pattern]) = s.unionSum(i => Pattern.PVar(i)("_" + i.sub))(other)
   def ⊎(p: Pattern) : Substitution[Pattern] = s ⊎ Substitution(s.sourceContextSize, 1, IndexedSeq(p))
   def ⊎(ps: Seq[Pattern]) : Substitution[Pattern] = s ⊎ Substitution(s.sourceContextSize, 1, ps.toIndexedSeq.reverse)
-  def extendBy(Δ: Telescope) = s.extendBy(Pattern.PVar(_))(Δ)
-  def ∘(other: Substitution[Pattern]) : Substitution[Pattern] = s.comp(Pattern.PVar(_))(other)
+  def extendBy(Δ: Telescope) = s.extendBy(i => Pattern.PVar(i)("_" + i.sub))(Δ)
+  def ∘(other: Substitution[Pattern]) : Substitution[Pattern] = s.comp(i => Pattern.PVar(i)("_" + i.sub))(other)
 }
 
 extension termSubstitutionOps on (s: Substitution[Term]) {

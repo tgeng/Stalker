@@ -47,7 +47,7 @@ extension elaboration on (p: Problem) {
         for {
           wB <- _B.whnf
           _Pmod <- _P.shift(wA)
-          r <- (_Pmod ||| (f, q̅.map(_.raise(1)) :+ QPattern(PVar(0))) ∷ wB).elaborate
+          r <- (_Pmod ||| (f, q̅.map(_.raise(1)) :+ QPattern(PVar(0)(_A.name))) ∷ wB).elaborate
         } yield CLam(r)
       }
     } yield r

@@ -225,9 +225,9 @@ private def shuffle(Γ: Context, permutation: Seq[Int]) : UPositive = {
   val ΓmodArray = new Array[(Binding[Type], Int)](permutation.length)
   for(case ((to, binding), from) <- permutation.zip(Γ.toTelescope).zipWithIndex) {
     ΓmodArray(to) = (binding, from)
-    σArray(from) = Pattern.PVar(to)
+    σArray(from) = Pattern.PVar(to)(binding.name)
     assert(τArray(to).asInstanceOf[Any] != null)
-    τArray(to) = Pattern.PVar(from)
+    τArray(to) = Pattern.PVar(from)(binding.name)
   }
   val σ = Substitution(size, size, σArray.toIndexedSeq)
   val τ = Substitution(size, size, τArray.toIndexedSeq)

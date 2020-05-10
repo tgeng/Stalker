@@ -1,5 +1,7 @@
 package io.github.tgeng.stalker.core.tt
 
+import io.github.tgeng.common.extraIntOps
+
 /** First element on the left. */
 type Telescope = List[Binding[Type]]
 
@@ -12,7 +14,7 @@ given Substitutable[Telescope, Term, List[Binding[Term]]] {
 
 extension telescopeOps on (self: Telescope) {
   def vars : Seq[Term] = (self.size - 1 to 0 by -1).map(i => Term.TWhnf(Whnf.WVar(i, Nil)))
-  def pvars : Seq[Pattern] = (self.size - 1 to 0 by -1).map(Pattern.PVar(_))
+  def pvars : Seq[Pattern] = (self.size - 1 to 0 by -1).map(i => Pattern.PVar(i)("_" + i.sub))
 }
 
 def withCtx[T](ctx: Context)(action: (ctx: Context) ?=> T) : T = action(using ctx)

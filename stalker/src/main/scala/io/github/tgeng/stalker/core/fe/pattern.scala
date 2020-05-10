@@ -13,7 +13,7 @@ enum Pattern {
   case PAbsurd
 
   def tt(using ctx: NameContext) : Result[TtPattern] = this match {
-    case PVar(name) => ctx.get(name).map(TtPattern.PVar(_)) 
+    case PVar(name) => ctx.get(name).map(TtPattern.PVar(_)(name)) 
     case PRefl => Right(TtPattern.PRefl)
     case PCon(con, patterns) => patterns.liftMap(_.tt).map(TtPattern.PCon(con, _))
     case PForcedCon(con, patterns) => patterns.liftMap(_.tt).map(TtPattern.PForcedCon(con, _))

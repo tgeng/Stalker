@@ -14,7 +14,7 @@ enum Pattern {
   // from the pattern, with the left most PVar bound to the leftmost (last in context)
   // binding in the context. Therefore, the left most PVar index is the biggest,
   // e.g. context.size - 1.
-  case PVar(idx: Int)
+  case PVar(idx: Int)(val name: String)
   case PRefl
   case PCon(con: String, patterns: List[Pattern])
   case PForcedCon(con: String, patterns: List[Pattern])
@@ -33,7 +33,7 @@ enum Pattern {
 
 given Raisable[Pattern] {
   def (p: Pattern) raiseImpl(using spec: RaiseSpec) : Pattern = p match {
-    case PVar(idx) => PVar(spec.trans(idx))
+    case p@PVar(idx) => PVar(spec.trans(idx))(p.name)
     case PRefl => p
     case PCon(con, patterns) => PCon(con, patterns.map(_.raiseImpl))
     case PForcedCon(con, patterns) => PForcedCon(con, patterns.map(_.raiseImpl))
@@ -44,9 +44,9 @@ given Raisable[Pattern] {
 
 given Substitutable[Pattern, Pattern, Pattern] {
   def (p: Pattern) substituteImpl(using spec: SubstituteSpec[Pattern]) : Pattern = p match {
-    case PVar(idx) => spec.trans(idx) match {
+    case p@PVar(idx) => spec.trans(idx) match {
       case Right(p) => p
-      case Left(idx) => PVar(idx)
+      case Left(idx) => PVar(idx)(p.name)
     }
     case PRefl => p
     case PCon(con, patterns) => PCon(con, patterns.map(_.substituteImpl))
