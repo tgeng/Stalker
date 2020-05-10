@@ -39,3 +39,7 @@ class NameContext {
       s"$name: ${indices.map(size - _).mkString(" ")}"
     }.mkString("\n")
 }
+
+object NameContext {
+  def empty = NameContext()
+}
