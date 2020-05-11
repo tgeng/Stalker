@@ -26,7 +26,7 @@ class NameContext {
 
   def withTelescope[T](telescope: Telescope)(action: => T) : T = withNames(telescope.map(_.name))(action)
 
-  def withNames[T](names: List[String])(action: => T) : T = names match {
+  def withNames[T](names: Seq[String])(action: => T) : T = names.toList match {
     case Nil => action
     case name :: rest => withName(name) {
       withNames(rest)(action)

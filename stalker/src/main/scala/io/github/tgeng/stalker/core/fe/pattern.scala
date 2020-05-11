@@ -20,6 +20,15 @@ enum Pattern {
     case PForced(t) => t.tt.map(TtPattern.PForced(_))
     case PAbsurd => Right(TtPattern.PAbsurd)
   }
+
+  def freeVars: Seq[String] = this match {
+    case PVar(name) => Seq(name)
+    case PRefl => Seq.empty
+    case PCon(_, patterns) => patterns.flatMap(_.freeVars)
+    case PForcedCon(_, patterns) => patterns.flatMap(_.freeVars)
+    case PForced(_) => Seq.empty
+    case PAbsurd => Seq.empty
+  }
 }
 
 enum CoPattern {
@@ -29,5 +38,10 @@ enum CoPattern {
   def tt(using ctx: NameContext) : Result[TtCoPattern] = this match {
     case QPattern(p) => p.tt.map(TtCoPattern.QPattern(_))
     case QProj(p) => Right(TtCoPattern.QProj(p))
+  }
+
+  def freeVars: Seq[String] = this match {
+    case QPattern(p) => p.freeVars
+    case QProj(_) => Seq.empty
   }
 }

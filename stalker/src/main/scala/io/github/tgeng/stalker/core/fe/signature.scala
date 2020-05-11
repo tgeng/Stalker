@@ -70,13 +70,16 @@ class Signature {
     case Definition(qn, ty, clauses) => for {
       ty <- ty.tt
       clauses <- clauses.liftMap {
-        case UncheckedClause(lhs, rhs) => for {
-          lhs <- lhs.liftMap(_.tt)
-          rhs <- rhs match {
-            case UTerm(t) => t.tt.map(TtUncheckedRhs.UTerm(_))
-            case UImpossible => Right(TtUncheckedRhs.UImpossible)
+        case UncheckedClause(lhs, rhs) => 
+          NameContext.empty.withNames(lhs.flatMap(_.freeVars).distinct) {
+            for {
+              lhs <- lhs.liftMap(_.tt)
+              rhs <- rhs match {
+                case UTerm(t) => t.tt.map(TtUncheckedRhs.UTerm(_))
+                case UImpossible => Right(TtUncheckedRhs.UImpossible)
+              }
+            } yield ClauseT.UncheckedClause(lhs, rhs)
           }
-        } yield ClauseT.UncheckedClause(lhs, rhs)
       }
       r <- sb += DefinitionT(qn)(ty, clauses, null)
     } yield r
