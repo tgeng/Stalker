@@ -59,14 +59,16 @@ class Signature {
       paramTys <- paramTys.tt
       r <- sb += RecordT(qn)(paramTys, level, null)
     } yield r
-    case RecordDef(qn, fields) => for {
-      fields <- fields.liftMap {
-        case Field(name, ty) => for {
-          ty <- ty.tt
-        } yield FieldT(name, ty)
-      }
-      r <- sb.updateRecord(qn, fields)
-    } yield r
+    case RecordDef(qn, fields) => NameContext.empty.withName(".self") {
+      for {
+        fields <- fields.liftMap {
+          case Field(name, ty) => for {
+            ty <- ty.tt
+          } yield FieldT(name, ty)
+        }
+        r <- sb.updateRecord(qn, fields)
+      } yield r
+    }
     case Definition(qn, ty, clauses) => for {
       ty <- ty.tt
       clauses <- clauses.liftMap {
