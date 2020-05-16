@@ -7,6 +7,5 @@ import io.github.tgeng.stalker.core.tt.{Binding => TtBinding, Term => TtTerm}
 type Telescope = List[Binding]
 
 extension telescopeOps on (self: Telescope) {
-  def tt(using ctx: NameContext) : Result[List[TtBinding[TtTerm]]] =
-    self.liftMap(_.tt)
+  def tt(using ctx: NameContext) : List[TtBinding[TtTerm]] = self.map(_.tt)
 }

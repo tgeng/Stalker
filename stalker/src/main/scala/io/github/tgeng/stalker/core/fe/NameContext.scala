@@ -8,11 +8,7 @@ class NameContext {
   val indices = mutable.Map[String, mutable.ArrayBuffer[Int]]()
   var size : Int = 0
 
-  def get(name: String) : Result[Int] = 
-    indices.get(name).flatMap(_.lastOption).map(size - _) match {
-      case Some(i) => Right(i)
-      case _ => noNameError(name)
-    }
+  def apply(name: String) = indices(name).last
 
   def withName[T](name: String)(action: => T) : T = {
     size += 1

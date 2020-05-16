@@ -8,9 +8,7 @@ import TtTerm.TWhnf
 import Whnf._
 
 case class Binding(name: String, ty: Term) {
-  def tt(using ctx: NameContext) : Result[TtBinding[TtTerm]] = for {
-    dbTerm <- ty.tt
-  } yield TtBinding(dbTerm)(name)
+  def tt(using ctx: NameContext) : TtBinding[TtTerm] = TtBinding(ty.tt)(name)
 }
 
 enum Term {
@@ -24,28 +22,20 @@ enum Term {
   case TCon(con: String, args: List[Term])
   case TRefl
 
-  def tt(using ctx: NameContext) : Result[TtTerm] = this match {
-    case TRedux(fn, elims) => elims.liftMap(_.tt).map(TtTerm.TRedux(fn, _))
-    case TFunction(arg, bodyTy) => for {
-      dbArgTy <- arg.ty.tt
-      dbBodyTy <- ctx.withName(arg.name) {
+  def tt(using ctx: NameContext) : TtTerm = this match {
+    case TRedux(fn, elims) => TtTerm.TRedux(fn, elims.map(_.tt))
+    case TFunction(arg, bodyTy) => TWhnf(WFunction(
+      arg.name ∷ arg.ty.tt, 
+      ctx.withName(arg.name) {
         bodyTy.tt
-      }
-    } yield TWhnf(WFunction(arg.name ∷ dbArgTy, dbBodyTy))
-    case TUniverse(l) => Right(TWhnf(WUniverse(l)))
-    case TData(qn, params) => params.liftMap(_.tt).map(p => TWhnf(WData(qn, p)))
-    case TRecord(qn, params) => params.liftMap(_.tt).map(p => TWhnf(WRecord(qn, p)))
-    case TId(ty, left, right) => for {
-      dbTy <- ty.tt
-      dbLeft <- left.tt
-      dbRight <- right.tt
-    } yield TWhnf(WId(dbTy, dbLeft, dbRight))
-    case TVar(name, elims) => for {
-      wElims <- elims.liftMap(_.tt)
-      idx <- ctx.get(name)
-    } yield TWhnf(WVar(idx, wElims))
-    case TCon(con, args) => args.liftMap(_.tt).map(ts => TWhnf(WCon(con, ts)))
-    case TRefl => Right(TWhnf(WRefl))
+      }))
+    case TUniverse(l) => TWhnf(WUniverse(l))
+    case TData(qn, params) => TWhnf(WData(qn, params.map(_.tt)))
+    case TRecord(qn, params) => TWhnf(WRecord(qn, params.map(_.tt)))
+    case TId(ty, left, right) => TWhnf(WId(ty.tt, left.tt, right.tt))
+    case TVar(name, elims) => TWhnf(WVar(ctx(name), elims.map(_.tt)))
+    case TCon(con, args) => TWhnf(WCon(con, args.map(_.tt)))
+    case TRefl => TWhnf(WRefl)
   }
 }
 
@@ -75,9 +65,9 @@ enum Elimination {
   case ETerm(t: Term)
   case EProj(p: String)
 
-  def tt(using ctx: NameContext) : Result[TtElimination] = this match {
-    case ETerm(t) => t.tt.map(TtElimination.ETerm(_))
-    case EProj(p) => Right(TtElimination.EProj(p))
+  def tt(using ctx: NameContext) : TtElimination = this match {
+    case ETerm(t) => TtElimination.ETerm(t.tt)
+    case EProj(p) => TtElimination.EProj(p)
   }
 }
 

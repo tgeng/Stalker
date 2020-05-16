@@ -43,47 +43,27 @@ class Signature {
   given NameContext = NameContext.empty
 
   def += (d: Declaration) : Result[Unit] = d match {
-    case DataDecl(qn, paramTys, level) => for {
-      paramTys <- paramTys.tt
-      r <- sb += DataT(qn)(paramTys, level, null)
-    } yield r
-    case DataDef(qn, cons) => for {
-      cons <- cons.liftMap {
-        case Constructor(name, argTys) => for {
-          argTys <- argTys.tt
-        } yield ConstructorT(name, argTys)
-      }
-      r <- sb.updateData(qn, cons)
-    } yield r
-    case RecordDecl(qn, paramTys, level) => for {
-      paramTys <- paramTys.tt
-      r <- sb += RecordT(qn)(paramTys, level, null)
-    } yield r
+    case DataDecl(qn, paramTys, level) => sb += DataT(qn)(paramTys.tt, level, null)
+    case DataDef(qn, cons) => sb.updateData(qn, cons.map {
+      case Constructor(name, argTys) => ConstructorT(name, argTys.tt)
+    })
+    case RecordDecl(qn, paramTys, level) => sb += RecordT(qn)(paramTys.tt, level, null)
     case RecordDef(qn, fields) => NameContext.empty.withName(".self") {
-      for {
-        fields <- fields.liftMap {
-          case Field(name, ty) => for {
-            ty <- ty.tt
-          } yield FieldT(name, ty)
-        }
-        r <- sb.updateRecord(qn, fields)
-      } yield r
+      sb.updateRecord(qn, fields.map{
+        case Field(name, ty) => FieldT(name, ty.tt)
+      })
     }
-    case Definition(qn, ty, clauses) => for {
-      ty <- ty.tt
-      clauses <- clauses.liftMap {
-        case UncheckedClause(lhs, rhs) => 
-          NameContext.empty.withNames(lhs.flatMap(_.freeVars).distinct) {
-            for {
-              lhs <- lhs.liftMap(_.tt)
-              rhs <- rhs match {
-                case UTerm(t) => t.tt.map(TtUncheckedRhs.UTerm(_))
-                case UImpossible => Right(TtUncheckedRhs.UImpossible)
-              }
-            } yield ClauseT.UncheckedClause(lhs, rhs)
+    case Definition(qn, ty, clauses) => 
+      sb += DefinitionT(qn)(
+        ty.tt, 
+        clauses.map {
+          case UncheckedClause(lhs, rhs) => NameContext.empty.withNames(lhs.flatMap(_.freeVars).distinct) {
+            ClauseT.UncheckedClause(lhs.map(_.tt), rhs match {
+              case UTerm(t) => TtUncheckedRhs.UTerm(t.tt)
+              case UImpossible => TtUncheckedRhs.UImpossible
+            })
           }
-      }
-      r <- sb += DefinitionT(qn)(ty, clauses, null)
-    } yield r
+        }, 
+        null)
   }
 }
