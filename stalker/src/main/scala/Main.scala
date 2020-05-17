@@ -38,16 +38,14 @@ object Main {
       ),
       ")",
       "=",
-      display(
       "{",
         exhibit(
           "statement 1",
           "statement 2",
           "statement 3",
         ),
-        "}",
-      ),
-    ).print(sb, 40)
+      "}",
+    ).print(sb, 20)
     println(sb.toString)
   }
 }

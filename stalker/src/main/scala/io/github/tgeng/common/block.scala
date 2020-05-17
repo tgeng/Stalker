@@ -51,7 +51,8 @@ object PrintContext {
 }
 
 object Block {
-  def chopDown(blocks: Block*) = Nested(blocks, ChopDown, Aligned, Whitespace)
+  def chopDown(blocks: Block*) = Nested(blocks, ChopDown, FixedIncrement(2), Whitespace)
+  def chopDownAligned(blocks: Block*) = Nested(blocks, ChopDown, Aligned, Whitespace)
   def wrap(blocks: Block*) = Nested(blocks, Wrap, FixedIncrement(2), Whitespace)
   def flow(blocks: Block*) = Nested(blocks, Wrap, FixedIncrement(0), Whitespace)
   def noWrap(blocks: Block*) = Nested(blocks, NoWrap, Aligned, Concat)
@@ -110,7 +111,7 @@ enum Block {
             }
             case ChopDown | AlwaysNewline => {
               for (child <- children) {
-                if (!first) ctx.newline
+                if (!first || indentPolicy.isInstanceOf[FixedIncrement]) ctx.newline
                 child.print
                 first = false
               }
