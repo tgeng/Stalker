@@ -71,79 +71,77 @@ object PrintContext {
 }
 
 object Block {
-  def flow(blocks: Block*) = Nested(blocks, Wrap, FixedIncrement(0), Whitespace)
-  def wrap(blocks: Block*) = Nested(blocks, Wrap, FixedIncrement(2), Whitespace)
-  def chopDown(blocks: Block*) = Nested(blocks, ChopDown, FixedIncrement(2), Whitespace)
-  def chopDownAligned(blocks: Block*) = Nested(blocks, ChopDown, Aligned, Whitespace)
-  def concat(blocks: Block*) = Nested(blocks, NoWrap, Aligned, Concat)
-  def oneLine(blocks: Block*) = Nested(blocks, NoWrap, Aligned, Whitespace)
-  def multiLine(blocks: Block*) = Nested(blocks, AlwaysNewline, FixedIncrement(0), Concat)
-  def exhibit(blocks: Block*) = Nested(blocks, AlwaysNewline, FixedIncrement(2), Concat)
-
-  given Conversion[String, Block] = Atom(_)
+  def flow(blocks: (Block | String)*) = Block(blocks, Wrap, FixedIncrement(0), Whitespace)
+  def wrap(blocks: (Block | String)*) = Block(blocks, Wrap, FixedIncrement(2), Whitespace)
+  def chopDown(blocks: (Block | String)*) = Block(blocks, ChopDown, FixedIncrement(2), Whitespace)
+  def chopDownAligned(blocks: (Block | String)*) = Block(blocks, ChopDown, Aligned, Whitespace)
+  def concat(blocks: (Block | String)*) = Block(blocks, NoWrap, Aligned, Concat)
+  def oneLine(blocks: (Block | String)*) = Block(blocks, NoWrap, Aligned, Whitespace)
+  def multiLine(blocks: (Block | String)*) = Block(blocks, AlwaysNewline, FixedIncrement(0), Concat)
+  def exhibit(blocks: (Block | String)*) = Block(blocks, AlwaysNewline, FixedIncrement(2), Concat)
 }
 
-enum Block {
-  case Atom(s: String)
-  case Nested(
-    children: Seq[Block],
+case class Block(
+    children: Seq[Block | String],
     wrapPolicy: WrapPolicy,
-    indentIncrement: IndentPolicy,
+    indentPolicy: IndentPolicy,
     delimitPolicy: DelimitPolicy,
-  )
+  ) {
 
   def print(sb: StringBuilder, widthLimit: Int = 100) : Unit = print(using PrintContext.from(sb, widthLimit))
 
-  def print(using ctx: PrintContext) : Unit = this match {
-    case Atom(s) => ctx.append(s)
-    case Nested(children, wrapPolicy, indentPolicy, delimitPolicy) => {
-      ctx.withIndent(indentPolicy) {
-        val canFit = !width(ctx.widthLeft).isEmpty
-        var first = true
-        if ((canFit || wrapPolicy == NoWrap) && wrapPolicy != AlwaysNewline) {
-          for (child <- children) {
-            if (!first) {
-              delimitPolicy match {
-                case Whitespace => ctx.delimitWithSpace
-                case Concat => ()
-              }
+  def print(using ctx: PrintContext) : Unit = {
+    ctx.withIndent(indentPolicy) {
+      val canFit = !width(ctx.widthLeft).isEmpty
+      var first = true
+      if ((canFit || wrapPolicy == NoWrap) && wrapPolicy != AlwaysNewline) {
+        for (child <- children) {
+          if (!first) {
+            delimitPolicy match {
+              case Whitespace => ctx.delimitWithSpace
+              case Concat => ()
             }
-            child.print
-            first = false
           }
-        } else {
-          wrapPolicy match {
-            case Wrap => {
-              for (child <- children) {
-                if (child.width(ctx.widthLeft).isEmpty) {
-                  ctx.delimitWithNewline
-                } else {
-                  delimitPolicy match {
-                    case Whitespace => ctx.delimitWithSpace
-                    case Concat => ()
-                  }
+          child.printBlockOrString
+          first = false
+        }
+      } else {
+        wrapPolicy match {
+          case Wrap => {
+            for (child <- children) {
+              if (child.width(ctx.widthLeft).isEmpty) {
+                ctx.delimitWithNewline
+              } else {
+                delimitPolicy match {
+                  case Whitespace => ctx.delimitWithSpace
+                  case Concat => ()
                 }
-                child.print
               }
+              child.printBlockOrString
             }
-            case ChopDown | AlwaysNewline => {
-              for (child <- children) {
-                if (!first || indentPolicy.isInstanceOf[FixedIncrement]) ctx.delimitWithNewline
-                first = false
-                child.print
-              }
-              if (indentPolicy.isInstanceOf[FixedIncrement]) ctx.delimitWithNewline
-            }
-            case NoWrap => throw IllegalStateException()
           }
+          case ChopDown | AlwaysNewline => {
+            for (child <- children) {
+              if (!first || indentPolicy.isInstanceOf[FixedIncrement]) ctx.delimitWithNewline
+              first = false
+              child.printBlockOrString
+            }
+            if (indentPolicy.isInstanceOf[FixedIncrement]) ctx.delimitWithNewline
+          }
+          case NoWrap => throw IllegalStateException()
         }
       }
     }
   }
 
-  private def width(widthLeft: Int)(using ctx: PrintContext) : Option[Int] = this match {
-    case Atom(s) => if (s.size <= widthLeft) Some(s.size) else None
-    case Nested(children, wrapPolicy, indentPolicy, delimitPolicy) => {
+  private def (b: Block | String) printBlockOrString(using ctx: PrintContext) = b match {
+    case b: Block => b.print
+    case s: String => ctx.append(s)
+  }
+
+  private def (b: Block | String) width(widthLeft: Int)(using ctx: PrintContext) : Option[Int] = b match {
+    case s: String => if (s.size <= widthLeft) Some(s.size) else None
+    case Block(children, wrapPolicy, indentPolicy, delimitPolicy) => {
       wrapPolicy match {
         case AlwaysNewline => return None
         case _ => ()
