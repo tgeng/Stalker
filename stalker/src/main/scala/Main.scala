@@ -26,13 +26,13 @@ object Main {
      */
 
     val sb = StringBuilder()
-    sb.append("  ")
+    sb.append("    ")
 
     flow(
       "def",
       "foo", 
       "(", 
-      chopDown(
+      wrap(
         "a: Int",
         "b: Int",
       ),

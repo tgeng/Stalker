@@ -5,7 +5,7 @@ import WrapPolicy._
 import DelimitPolicy._
 
 class PrintContext(
-  private val sb: StringBuilder,
+  val sb: StringBuilder,
   private var width: Int,
   private val widthLimit: Int,
   private var indent: Int,
@@ -13,6 +13,12 @@ class PrintContext(
   def widthLeft = widthLimit - width
 
   def append(s: String) = {
+    if (width < indent) {
+      for(_ <- width until indent) { 
+        sb.append(' ') 
+      }
+      width = indent
+    }
     sb.append(s)
     width += s.size
   }
@@ -23,17 +29,31 @@ class PrintContext(
       case FixedIncrement(n) => indent + n
       case Aligned => width
     }
-    for(i <- width until indent) { sb.append(' ') }
-    width = indent
     action
     indent = currentIndent
   }
 
-  def newline = {
-    sb.append('\n')
-    for(i <- 0 until indent) { sb.append(' ') }
-    width = indent
+  def delimitWithNewline = {
+    sb.lastOption match {
+      case Some(c) if !c.isWhitespace => {
+        sb.append('\n')
+        width = 0
+      }
+      case _ => ()
+    }
   }
+
+  def delimitWithSpace = {
+    sb.lastOption match {
+      case Some(c) if !c.isWhitespace => {
+        sb.append(' ')
+        width += 1
+      }
+      case _ => ()
+    }
+  }
+
+  def newlineSaving = scala.math.min(indent - width, 0)
 }
 
 object PrintContext {
@@ -76,45 +96,42 @@ enum Block {
   def print(using ctx: PrintContext) : Unit = this match {
     case Atom(s) => ctx.append(s)
     case Nested(children, wrapPolicy, indentPolicy, delimitPolicy) => {
-      val canFit = width(ctx.widthLeft) >= 0
-      var first = true
-      if ((canFit || wrapPolicy == NoWrap) && wrapPolicy != AlwaysNewline) {
-        for (child <- children) {
-          if (!first) {
-            delimitPolicy match {
-              case Whitespace => ctx.append(" ")
-              case Concat => ()
+      ctx.withIndent(indentPolicy) {
+        val canFit = !width(ctx.widthLeft).isEmpty
+        var first = true
+        if ((canFit || wrapPolicy == NoWrap) && wrapPolicy != AlwaysNewline) {
+          for (child <- children) {
+            if (!first) {
+              delimitPolicy match {
+                case Whitespace => ctx.delimitWithSpace
+                case Concat => ()
+              }
             }
+            child.print
+            first = false
           }
-          child.print
-          first = false
-        }
-      } else {
-        ctx.withIndent(indentPolicy) {
+        } else {
           wrapPolicy match {
             case Wrap => {
               for (child <- children) {
-                if (first && child.width(ctx.widthLeft) < 0 ) {
-                  ctx.newline
-                }
-                first = false
-                child.print
-                if (child.width(ctx.widthLeft) < 0 ) {
-                  ctx.newline
+                if (child.width(ctx.widthLeft).isEmpty) {
+                  ctx.delimitWithNewline
                 } else {
                   delimitPolicy match {
-                    case Whitespace => ctx.append(" ")
+                    case Whitespace => ctx.delimitWithSpace
                     case Concat => ()
                   }
                 }
+                child.print
               }
             }
             case ChopDown | AlwaysNewline => {
               for (child <- children) {
-                if (!first || indentPolicy.isInstanceOf[FixedIncrement]) ctx.newline
-                child.print
+                if (!first || indentPolicy.isInstanceOf[FixedIncrement]) ctx.delimitWithNewline
                 first = false
+                child.print
               }
+              if (indentPolicy.isInstanceOf[FixedIncrement]) ctx.delimitWithNewline
             }
             case NoWrap => throw IllegalStateException()
           }
@@ -123,16 +140,20 @@ enum Block {
     }
   }
 
-  private def width(widthLeft: Int) : Int = this match {
-    case Atom(s) => if (s.size <= widthLeft) s.size else -1
-    case Nested(children, _, _, delimitPolicy) => {
+  private def width(widthLeft: Int)(using ctx: PrintContext) : Option[Int] = this match {
+    case Atom(s) => if (s.size <= widthLeft) Some(s.size) else None
+    case Nested(children, wrapPolicy, indentPolicy, delimitPolicy) => {
+      wrapPolicy match {
+        case AlwaysNewline => return None
+        case _ => ()
+      }
       var width = 0
       var widthLeft2 = widthLeft
       for (child <- children) {
-        var childWidth = child.width(widthLeft2)
-        if (childWidth < 0) {
-          return -1
-        } 
+        var childWidth = child.width(widthLeft2) match {
+          case Some(w) => w
+          case None => return None
+        }
         delimitPolicy match {
           case Whitespace => childWidth += 1
           case Concat => ()
@@ -141,8 +162,8 @@ enum Block {
         widthLeft2 -= childWidth
       }
       delimitPolicy match {
-        case Whitespace => width - 1
-        case Concat => width
+        case Whitespace => Some(width - 1)
+        case Concat => Some(width)
       }
     }
   }
