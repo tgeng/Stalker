@@ -4,6 +4,7 @@ import io.github.tgeng.stalker.core.fe._
 import io.github.tgeng.stalker.common.QualifiedName._
 import io.github.tgeng.parse._
 import io.github.tgeng.parse.string.{given _, _}
+import io.github.tgeng.common.Block._
 
 object Main {
 
@@ -16,8 +17,37 @@ object Main {
 
     val termP = whitespaces >> term << whitespaces
 
-    println(termP.parse("""
-     (f : (n : Nat) -> String -> Vector n String) -> (n : Nat) -> (A : Type zero) -> Vector n A
-    """))
+    // println(termP.parse("""
+    //  (f : (n : Nat) -> String -> Vector n String) -> (n : Nat) -> (A : Type zero) -> Vector n A
+    // """))
+    /*
+      (f : A -> B -> C) ->
+      D
+     */
+
+    val sb = StringBuilder()
+    sb.append("  ")
+
+    flow(
+      "def",
+      "foo", 
+      "(", 
+      chopDown(
+        "a: Int",
+        "b: Int",
+      ),
+      ")",
+      "=",
+      display(
+      "{",
+        exhibit(
+          "statement 1",
+          "statement 2",
+          "statement 3",
+        ),
+        "}",
+      ),
+    ).print(sb, 40)
+    println(sb.toString)
   }
 }

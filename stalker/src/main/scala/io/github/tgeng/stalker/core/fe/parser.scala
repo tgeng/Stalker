@@ -33,7 +33,7 @@ object parser {
   }
 
   private def atom(using opt: ParsingOptions)(using ns: Namespace)(using ln: LocalNames) : Parser[Result[Term]] = P {
-    '('.! >> termImpl(using opt.withAppDelimiter(whitespace*)) << ')' | ref
+    '('.! >> termImpl(using opt.copy(appDelimiter = whitespace*)) << ')' | ref
   }
 
   private def proj = '.'.! >> name
@@ -81,8 +81,6 @@ object parser {
   def term(using ns: Namespace) = P { termImpl(using ParsingOptions())(using Set())(using ns) }
 }
 
-private class ParsingOptions(val appDelimiter: Parser[?] = space*) {
-  def withAppDelimiter(d: Parser[?]) = ParsingOptions(d)
-}
+private case class ParsingOptions(val appDelimiter: Parser[?] = space*)
 
 private type LocalNames = Set[String]
