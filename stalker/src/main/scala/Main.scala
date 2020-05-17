@@ -5,6 +5,7 @@ import io.github.tgeng.stalker.common.QualifiedName._
 import io.github.tgeng.parse._
 import io.github.tgeng.parse.string.{given _, _}
 import io.github.tgeng.common.Block._
+import scala.languageFeature.existentials
 
 object Main {
 
@@ -32,9 +33,11 @@ object Main {
       "def",
       "foo", 
       "(", 
-      wrap(
-        "a: Int",
-        "b: Int",
+      chopDown(
+        concat(oneLine("a", ":", "Int"), ","),
+        concat(oneLine("b", ":", "Int"), ","),
+        concat(oneLine("c", ":", "Int"), ","),
+        oneLine("d", ":", "Int"),
       ),
       ")",
       "=",
@@ -44,7 +47,7 @@ object Main {
           "statement 2",
           "statement 3",
         ),
-      "}",
+      multiLine("}"),
     ).print(sb, 20)
     println(sb.toString)
   }

@@ -27,7 +27,7 @@ class PrintContext(
     val currentIndent = indent
     indent = indentPolicy match {
       case FixedIncrement(n) => indent + n
-      case Aligned => width
+      case Aligned => scala.math.max(width, indent)
     }
     action
     indent = currentIndent
@@ -71,13 +71,14 @@ object PrintContext {
 }
 
 object Block {
+  def flow(blocks: Block*) = Nested(blocks, Wrap, FixedIncrement(0), Whitespace)
+  def wrap(blocks: Block*) = Nested(blocks, Wrap, FixedIncrement(2), Whitespace)
   def chopDown(blocks: Block*) = Nested(blocks, ChopDown, FixedIncrement(2), Whitespace)
   def chopDownAligned(blocks: Block*) = Nested(blocks, ChopDown, Aligned, Whitespace)
-  def wrap(blocks: Block*) = Nested(blocks, Wrap, FixedIncrement(2), Whitespace)
-  def flow(blocks: Block*) = Nested(blocks, Wrap, FixedIncrement(0), Whitespace)
-  def noWrap(blocks: Block*) = Nested(blocks, NoWrap, Aligned, Concat)
+  def concat(blocks: Block*) = Nested(blocks, NoWrap, Aligned, Concat)
+  def oneLine(blocks: Block*) = Nested(blocks, NoWrap, Aligned, Whitespace)
+  def multiLine(blocks: Block*) = Nested(blocks, AlwaysNewline, FixedIncrement(0), Concat)
   def exhibit(blocks: Block*) = Nested(blocks, AlwaysNewline, FixedIncrement(2), Concat)
-  def display(blocks: Block*) = Nested(blocks, AlwaysNewline, FixedIncrement(0), Concat)
 
   given Conversion[String, Block] = Atom(_)
 }
