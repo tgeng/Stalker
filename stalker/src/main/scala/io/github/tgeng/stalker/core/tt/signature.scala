@@ -25,8 +25,8 @@ enum Status {
 import Status._
 
 enum DeclarationT[+S <: Status, +T] {
-  case DataT(val qn: QualifiedName)(val paramTys: List[Binding[T]], val level: Int, val cons: Seq[ConstructorT[T]] | Null)
-  case RecordT(val qn: QualifiedName)(val paramTys: List[Binding[T]], val level: Int, val fields: Seq[FieldT[T]] | Null)
+  case DataT(val qn: QualifiedName)(val paramTys: List[Binding[T]], val level: Level, val cons: Seq[ConstructorT[T]] | Null)
+  case RecordT(val qn: QualifiedName)(val paramTys: List[Binding[T]], val level: Level, val fields: Seq[FieldT[T]] | Null)
   case DefinitionT(val qn: QualifiedName)(val ty: T, val clauses: Seq[ClauseT[S, T]], val ct: CaseTree | Null)
 
   def qn: QualifiedName

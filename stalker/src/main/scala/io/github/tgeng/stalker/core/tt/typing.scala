@@ -11,6 +11,7 @@ import substitutionConversion.{given _}
 import Term._
 import Whnf._
 import Elimination._
+import Level._
 import ClauseT._
 import Pattern._
 import CoPattern._
@@ -19,7 +20,8 @@ import reduction.whnf
 
 object typing {
   def (tm: Type)level(using Γ: Context)(using Σ: Signature) : Result[Level] = tm match {
-    case WUniverse(l) => Right(l + 1)
+    case WUniverse(l) => Right(lsuc(l))
+    case WLevelType => Right(lconst(0))
     case WFunction(_A, _B) => {
       for {
         wA <- _A.ty.whnf
@@ -28,7 +30,7 @@ object typing {
           for {
             rB <- _B.whnf
             lB <- rB.level
-          } yield max(lA, lB)
+          } yield lmax(lA, lB)
         }
       } yield r
     }
@@ -52,13 +54,13 @@ object typing {
   }
   
   def (Δ: Telescope)level(using Γ: Context)(using Σ: Signature) : Result[Level] = Δ match {
-    case Nil => Right(0)
+    case Nil => Right(lconst(0))
     case _A :: _Δ => for {
       lA <- _A.ty.level
       lΔ <- _Δ.level(using Γ + _A)
-    } yield max(lA, lΔ)
+    } yield lmax(lA, lΔ)
   }
-  
+
   def (eq: ≡[Type])level(using Γ: Context)(using Σ: Signature) : Result[Level] = eq match {
     case _A ≡ _B if _A == _B => _A.level
     case WFunction(_A1, _B1) ≡ WFunction(_A2, _B2) => {
@@ -71,7 +73,7 @@ object typing {
             wB1 <- _B1.whnf
             wB2 <- _B2.whnf
             lB <- (wB1 ≡ wB2).level
-          } yield max(lA, lB)
+          } yield lmax(lA, lB)
         }
       } yield r
     }
@@ -162,6 +164,8 @@ object typing {
           wA <- _A.whnf
           _ <- (u ≡ v ∷ wA).check
         } yield ()
+        // Level
+        case TWhnf(WLevel(l)) ∷ WLevelType => Right(())
         case _ => judgementError(j)
       }
     }
@@ -335,8 +339,6 @@ object typing {
     }
   }
 }
-
-type Level = Int
 
 case class ∷[X, Y](x: X, y: Y)
 

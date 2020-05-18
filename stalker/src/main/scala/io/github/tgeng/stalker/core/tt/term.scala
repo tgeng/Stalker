@@ -55,7 +55,9 @@ import Term._
 
 enum Whnf {
   case WFunction(arg: Binding[Term], bodyTy: Term)
-  case WUniverse(level: Int)
+  case WUniverse(level: Level)
+  case WLevel(level: Level)
+  case WLevelType
   case WData(qn: QualifiedName, params: List[Term])
   case WRecord(qn: QualifiedName, params: List[Term])
   case WId(ty: Term, left: Term, right: Term)
@@ -65,7 +67,9 @@ enum Whnf {
 
   def freeVars : Set[Int] = this match {
     case WFunction(arg, bodyTy) => arg.ty.freeVars | (bodyTy.freeVars &~ Set(0)).map(_ - 1)
-    case WUniverse(_) => Set.empty
+    case WUniverse(l) => l.freeVars
+    case WLevel(l) => l.freeVars
+    case WLevelType => Set.empty
     case WData(data, params) => params.flatMap(_.freeVars).toSet
     case WRecord(record, params) => params.flatMap(_.freeVars).toSet
     case WId(ty: Term, left: Term, right: Term) => ty.freeVars | left.freeVars | right.freeVars
@@ -79,6 +83,8 @@ given Raisable[Whnf] {
   def (w: Whnf) raiseImpl(using spec: RaiseSpec) : Whnf = w match {
     case WFunction(arg, bodyTy) => WFunction(arg.map(_.raiseImpl), bodyTy.raiseImpl(using spec.raised))
     case WUniverse(_) => w
+    case WLevel(l) => WLevel(l.raiseImpl)
+    case WLevelType => WLevelType
     case WData(data, params) => WData(data, params.map(_.raiseImpl))
     case WRecord(record, params) => WRecord(record, params.map(_.raiseImpl))
     case WId(ty: Term, left: Term, right: Term) => WId(ty.raiseImpl, left.raiseImpl, right.raiseImpl)
@@ -93,7 +99,9 @@ given Substitutable[Whnf, Term, Term] {
     case WFunction(arg, bodyTy) => TWhnf(WFunction(
       arg.map(_.substituteImpl),
       bodyTy.substituteImpl(using spec.raised)))
-    case WUniverse(_) => TWhnf(w)
+    case WUniverse(l) => TWhnf(WUniverse(l.substituteImpl))
+    case WLevel(l) => TWhnf(WLevel(l.substituteImpl))
+    case WLevelType => TWhnf(WLevelType)
     case WData(data, params) => TWhnf(WData(data, params.map(_.substituteImpl)))
     case WRecord(record, params) => TWhnf(WRecord(record, params.map(_.substituteImpl)))
     case WId(ty, left, right) => TWhnf(WId(ty.substituteImpl, left.substituteImpl, right.substituteImpl))
@@ -138,3 +146,57 @@ given Substitutable[Elimination, Term, Elimination] {
 }
 
 import Elimination._
+
+enum Level {
+  case LMax(l1: Level, l2: Level)
+  case LSuc(l: Level)
+  case LConst(n: Int)
+  case LVar(idx: Int)
+
+  def freeVars : Set[Int] = this match {
+    case LMax(l1, l2) => l1.freeVars union l2.freeVars
+    case LSuc(l) => l.freeVars
+    case LConst(n) => Set.empty
+    case LVar(idx) => Set(idx)
+  }
+}
+
+import Level._
+
+object Level {
+  def lmax(l1: Level, l2: Level) : Level = (l1, l2) match {
+    case (LConst(n1), LConst(n2)) => LConst(scala.math.max(n1, n2))
+    case _ => LMax(l1, l2)
+  }
+
+  def lsuc(l: Level) : Level = l match {
+    case LConst(n) => LConst(n + 1)
+    case _ => LSuc(l)
+  }
+
+  def lconst(n: Int) : Level = LConst(n)
+
+  def lvar(idx: Int) : Level = LVar(idx)
+}
+
+given Raisable[Level] {
+  def (l: Level) raiseImpl(using spec: RaiseSpec): Level = l match {
+    case LMax(l1, l2) => LMax(l1.raiseImpl, l2.raiseImpl)
+    case LSuc(l) => LSuc(l.raiseImpl)
+    case LConst(n) => l
+    case LVar(idx) => LVar(spec.trans(idx))
+  }
+}
+
+given Substitutable[Level, Term, Level] {
+  def (l: Level) substituteImpl(using spec: SubstituteSpec[Term]) = l match {
+    case LMax(l1, l2) => lmax(l1.substituteImpl, l2.substituteImpl)
+    case LSuc(l) => lsuc(l.substituteImpl)
+    case LConst(n) => l
+    case LVar(idx) => spec.trans(idx) match {
+      case Right(TWhnf(WLevel(l))) => l
+      case Right(_) => throw IllegalStateException("Cannot substitute term in to a level.")
+      case Left(idx) => lvar(idx)
+    }
+  }
+}
