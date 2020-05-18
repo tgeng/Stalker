@@ -112,11 +112,23 @@ type PreDeclaration = DeclarationT[Unchecked, Term]
 type PreConstructor = ConstructorT[Term]
 type PreField = FieldT[Term]
 
+object SignatureBuilder {
+  def create : SignatureBuilder = {
+    val sb = SignatureBuilder(HashMap.empty)
+    import builtins._
+    import scala.language.postfixOps
+    assert(sb += levelType isRight)
+    assert(sb += universeType isRight)
+    assert(sb += lsucFn isRight)
+    assert(sb += lmaxFn isRight)
+    assert(sb += idType isRight)
+    sb
+  }
+}
+
 class SignatureBuilder(val mContent: HashMap[QualifiedName, DeclarationT[Checked, Type]]) extends Signature(mContent) {
   given Signature = this
   given Context = Context.empty
-
-  def this() = this(HashMap.empty)
 
   def += (d: PreDeclaration) : Result[Unit] = {
     d match {
