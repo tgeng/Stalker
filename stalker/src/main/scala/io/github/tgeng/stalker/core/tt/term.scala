@@ -63,7 +63,6 @@ enum Whnf {
   case WId(ty: Term, left: Term, right: Term)
   case WVar(idx: Int, elims: List[Elimination])
   case WCon(con: String, args: List[Term])
-  case WRefl
 
   def freeVars : Set[Int] = this match {
     case WFunction(arg, bodyTy) => arg.ty.freeVars | (bodyTy.freeVars &~ Set(0)).map(_ - 1)
@@ -75,8 +74,11 @@ enum Whnf {
     case WId(ty: Term, left: Term, right: Term) => ty.freeVars | left.freeVars | right.freeVars
     case WVar(idx, elims) => elims.flatMap(_.freeVars).toSet
     case WCon(con, args) => args.flatMap(_.freeVars).toSet
-    case WRefl => Set.empty
   }
+}
+
+object Whnf {
+  val WRefl : Whnf = WCon("Refl", Nil)
 }
 
 given Raisable[Whnf] {
@@ -90,7 +92,6 @@ given Raisable[Whnf] {
     case WId(ty: Term, left: Term, right: Term) => WId(ty.raiseImpl, left.raiseImpl, right.raiseImpl)
     case WVar(idx, elims) => WVar(spec.trans(idx), elims.map(_.raiseImpl))
     case WCon(con, args) => WCon(con, args.map(_.raiseImpl))
-    case WRefl => WRefl
   }
 }
 
@@ -115,7 +116,6 @@ given Substitutable[Whnf, Term, Term] {
       case Left(idx) => TWhnf(WVar(idx, elims.map(_.substituteImpl)))
     }
     case WCon(con, args) => TWhnf(WCon(con, args.map(_.substituteImpl)))
-    case WRefl => TWhnf(w)
   }
 }
 

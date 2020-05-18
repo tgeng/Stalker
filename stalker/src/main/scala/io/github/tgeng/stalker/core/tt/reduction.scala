@@ -46,7 +46,7 @@ object reduction {
   
   def (v: Term) / (p: Pattern)(using Γ: Context)(using Σ: Signature) : MatchResult = p match {
     case PVar(k) => matched(Map(k -> v))
-    case PRefl | PForced(_) => matched(Map.empty)
+    case PForced(_) => matched(Map.empty)
     case PCon(c1, p̅) => v.whnf match {
       case Right(WCon(c2, v̅)) => if(c1 == c2) {
        v̅.map(ETerm(_)) / p̅.map(QPattern(_))

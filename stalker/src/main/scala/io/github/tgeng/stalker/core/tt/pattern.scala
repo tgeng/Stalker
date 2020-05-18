@@ -15,7 +15,6 @@ enum Pattern {
   // binding in the context. Therefore, the left most PVar index is the biggest,
   // e.g. context.size - 1.
   case PVar(idx: Int)(val name: String)
-  case PRefl
   case PCon(con: String, patterns: List[Pattern])
   case PForcedCon(con: String, patterns: List[Pattern])
   case PForced(t: Term)
@@ -23,7 +22,6 @@ enum Pattern {
 
   def toTerm: Term = this match {
     case PVar(idx) => TWhnf(WVar(idx, Nil))
-    case PRefl => TWhnf(WRefl)
     case PCon(con, patterns) => TWhnf(WCon(con, patterns.map(_.toTerm)))
     case PForcedCon(con, patterns) => TWhnf(WCon(con, patterns.map(_.toTerm)))
     case PForced(t) => t
@@ -31,10 +29,13 @@ enum Pattern {
   }
 }
 
+object Pattern {
+  val PRefl : Pattern = PCon("Refl", Nil)
+}
+
 given Raisable[Pattern] {
   def (p: Pattern) raiseImpl(using spec: RaiseSpec) : Pattern = p match {
     case p@PVar(idx) => PVar(spec.trans(idx))(p.name)
-    case PRefl => p
     case PCon(con, patterns) => PCon(con, patterns.map(_.raiseImpl))
     case PForcedCon(con, patterns) => PForcedCon(con, patterns.map(_.raiseImpl))
     case PForced(t) => PForced(t.raiseImpl)
@@ -48,7 +49,6 @@ given Substitutable[Pattern, Pattern, Pattern] {
       case Right(p) => p
       case Left(idx) => PVar(idx)(p.name)
     }
-    case PRefl => p
     case PCon(con, patterns) => PCon(con, patterns.map(_.substituteImpl))
     case PForcedCon(con, patterns) => PForcedCon(con, patterns.map(_.substituteImpl))
     case PForced(t) => PForced(t.substituteImpl(using spec))
