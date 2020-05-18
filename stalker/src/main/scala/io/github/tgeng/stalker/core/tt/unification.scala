@@ -86,7 +86,7 @@ extension termUnification on (p: =?[Term] ∷ Type) {
     ) ∘ unifier
 
     // injectivity - type constructors
-    case ((u@TWhnf(WId(_A, a1, a2))) =? (v@TWhnf(WId(_B, b1, b2)))) ∷ _U => for {
+    case ((u@TWhnf(WId(_, _A, a1, a2))) =? (v@TWhnf(WId(_, _B, b1, b2)))) ∷ _U => for {
       wA <- _A.whnf
       lA <- wA.level
       w1 = List(_A, a1, a2)
@@ -246,7 +246,7 @@ private def isCyclic(x: Term, y: Term)(using Γ: Context)(using Σ: Signature) :
   case (x, TWhnf(WCon(_, ys))) => ys.exists(isAsRigidOrCyclic(x, _))
   case (x, TWhnf(WData(_, ys))) => ys.exists(isAsRigidOrCyclic(x, _))
   case (x, TWhnf(WRecord(_, ys))) => ys.exists(isAsRigidOrCyclic(x, _))
-  case (x, TWhnf(WId(ty, u, v))) => isAsRigidOrCyclic(x, ty) || isAsRigidOrCyclic(x, u) || isAsRigidOrCyclic(x, v)
+  case (x, TWhnf(WId(_, ty, u, v))) => isAsRigidOrCyclic(x, ty) || isAsRigidOrCyclic(x, u) || isAsRigidOrCyclic(x, v)
   case _ => false
 }
 
@@ -263,11 +263,17 @@ private def isAsRigidOrCyclic(x: Term, y: Term)(using Γ: Context)(using Σ: Sig
 
 private def idTypes(Δ: Telescope, u̅: List[Term], v̅: List[Term]) : List[Binding[Type]] = (Δ, u̅, v̅) match {
   case (Nil, Nil, Nil) => Nil
-  case (_A :: Δ, u :: u̅, v :: v̅) => s"e${_A.name}" ∷ WId(TWhnf(_A.ty), u, v) :: idTypes(Δ, u̅, v̅)
+  case (_A :: Δ, u :: u̅, v :: v̅) => 
+    s"e${_A.name}" ∷ WId(
+      // Level does not matter here since the generated Id type is only used inside the unification
+      // algorithm. The output of the unification algorithm never includes these generated Id types.
+      Level.lconst(0), TWhnf(_A.ty), u, v) :: idTypes(Δ, u̅, v̅)
   case _ => throw IllegalArgumentException()
 }
 
-private def idType(_A: Type, u: Term, v: Term) : Binding[Type] = "e" ∷ WId(TWhnf(_A), u, v)
+private def idType(_A: Type, u: Term, v: Term) : Binding[Type] = 
+  // For the same reason above, the level of ID type does not matter.
+  "e" ∷ WId(Level.lconst(0), TWhnf(_A), u, v)
 
 private def simplTerm(tm: Term)(using Γ: Context)(using Σ: Signature) : Term = tm.whnf match {
   case Right(WFunction(a, b)) => TWhnf(WFunction(a.map(simplTerm), simplTerm(b)))

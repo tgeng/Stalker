@@ -103,7 +103,7 @@ extension elaboration on (p: Problem) {
         }
         // SplitEq
         case ((TWhnf(WVar(x, Nil))) /? PRefl) ∷ _A => _A match {
-          case WId(_B, u, v) => for {
+          case WId(_, _B, u, v) => for {
             wB <- _B.whnf
             (_Γ1 : Context /* required due to dotc bug */, _B1, _Γ2) = Γ.splitAt(x)
             _ = assert(_B1 == _B.raise(-(_Γ2.size + 1)))
@@ -228,7 +228,7 @@ private def (candidate: (Int, Type)) getEmptyCaseSplit(using Γ: Context)(using 
     case true => Some(CDataCase(x, Map.empty))
     case false => None
   }
-  case (x, WId(_B, u, v)) => for {
+  case (x, WId(_, _B, u, v)) => for {
     wB <- _B.whnf
     unifier <- ((u =? v) ∷ wB).unify
   } yield unifier match {
@@ -260,7 +260,7 @@ private def (constraint: (Term /? Pattern) ∷ Type) simpl(using Σ: Signature) 
             _Δ <- con.argTys.substHead(u̅).tele
             _E <- ((v̅ /? p̅) ∷ _Δ).simplAll
           } yield _E
-        case (WRefl, PRefl, WId(_, _, _)) => Right(Some(Set.empty[(Term /? Pattern) ∷ Type]))
+        case (WRefl, PRefl, WId(_, _, _, _)) => Right(Some(Set.empty[(Term /? Pattern) ∷ Type]))
         case _ => Right(Some(Set(constraint)))
       }
     } yield r

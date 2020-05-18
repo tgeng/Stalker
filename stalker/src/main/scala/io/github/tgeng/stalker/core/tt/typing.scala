@@ -42,10 +42,12 @@ object typing {
       record <- Σ getRecord qn
       _ <- (u ∷ record.paramTys).check
     } yield record.level
-    case WId(_A, x, y) => {
+    case WId(l, _A, x, y) => {
       for {
         wA <- _A.whnf
         lA <- wA.level
+        _ <- if (l == lA) Right(())
+             else typingError(s"Expect $_A is to be at level $l but it's at level $lA")
         _ <- (x ∷ wA).check
         _ <- (y ∷ wA).check
       } yield lA
@@ -78,7 +80,7 @@ object typing {
       } yield r
     }
     case WVar(x, e̅1) ≡ WVar(y, e̅2) if (x == y) => (TWhnf(WVar(x, Nil)) ∷ Γ(x).ty |- e̅1 ≡ e̅2).level
-    case WId(_A1, u1, v1) ≡ WId(_A2, u2, v2) => {
+    case WId(_, _A1, u1, v1) ≡ WId(_, _A2, u2, v2) => {
       for {
         wA1 <- _A1.whnf
         wA2 <- _A2.whnf
@@ -160,7 +162,7 @@ object typing {
           _Δ <- constructor.argTys.substHead(v̅).tele
           _ <- (v̅ ∷ _Δ).check
         } yield ()
-        case TWhnf(WRefl) ∷ WId(_A, u, v) => for {
+        case TWhnf(WRefl) ∷ WId(_, _A, u, v) => for {
           wA <- _A.whnf
           _ <- (u ≡ v ∷ wA).check
         } yield ()

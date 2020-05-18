@@ -60,18 +60,18 @@ enum Whnf {
   case WLevelType
   case WData(qn: QualifiedName, params: List[Term])
   case WRecord(qn: QualifiedName, params: List[Term])
-  case WId(ty: Term, left: Term, right: Term)
+  case WId(level: Level, ty: Term, left: Term, right: Term)
   case WVar(idx: Int, elims: List[Elimination])
   case WCon(con: String, args: List[Term])
 
   def freeVars : Set[Int] = this match {
-    case WFunction(arg, bodyTy) => arg.ty.freeVars | (bodyTy.freeVars &~ Set(0)).map(_ - 1)
+    case WFunction(arg, bodyTy) => arg.ty.freeVars union (bodyTy.freeVars &~ Set(0)).map(_ - 1)
     case WUniverse(l) => l.freeVars
     case WLevel(l) => l.freeVars
     case WLevelType => Set.empty
     case WData(data, params) => params.flatMap(_.freeVars).toSet
     case WRecord(record, params) => params.flatMap(_.freeVars).toSet
-    case WId(ty: Term, left: Term, right: Term) => ty.freeVars | left.freeVars | right.freeVars
+    case WId(level, ty, left, right) => level.freeVars union ty.freeVars union left.freeVars union right.freeVars
     case WVar(idx, elims) => elims.flatMap(_.freeVars).toSet
     case WCon(con, args) => args.flatMap(_.freeVars).toSet
   }
@@ -89,7 +89,7 @@ given Raisable[Whnf] {
     case WLevelType => WLevelType
     case WData(data, params) => WData(data, params.map(_.raiseImpl))
     case WRecord(record, params) => WRecord(record, params.map(_.raiseImpl))
-    case WId(ty: Term, left: Term, right: Term) => WId(ty.raiseImpl, left.raiseImpl, right.raiseImpl)
+    case WId(level, ty, left, right) => WId(level.raiseImpl, ty.raiseImpl, left.raiseImpl, right.raiseImpl)
     case WVar(idx, elims) => WVar(spec.trans(idx), elims.map(_.raiseImpl))
     case WCon(con, args) => WCon(con, args.map(_.raiseImpl))
   }
@@ -105,7 +105,7 @@ given Substitutable[Whnf, Term, Term] {
     case WLevelType => TWhnf(WLevelType)
     case WData(data, params) => TWhnf(WData(data, params.map(_.substituteImpl)))
     case WRecord(record, params) => TWhnf(WRecord(record, params.map(_.substituteImpl)))
-    case WId(ty, left, right) => TWhnf(WId(ty.substituteImpl, left.substituteImpl, right.substituteImpl))
+    case WId(level, ty, left, right) => TWhnf(WId(level.substituteImpl, ty.substituteImpl, left.substituteImpl, right.substituteImpl))
     case WVar(idx, elims) => spec.trans(idx) match {
       case Right(t) => (t, elims.map(_.substituteImpl)) match {
         case (s, Nil) => s

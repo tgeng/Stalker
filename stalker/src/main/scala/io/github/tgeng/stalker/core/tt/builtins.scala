@@ -55,7 +55,7 @@ object builtins {
     TWhnf(WFunction("l" ∷ TWhnf(WLevelType), TWhnf(WFunction("A" ∷ TWhnf(WUniverse(lvar(0))), TWhnf(WFunction("x" ∷ TWhnf(WVar(0, Nil)), TWhnf(WFunction("y" ∷ TWhnf(WVar(1, Nil)), TWhnf(WUniverse(lvar(3))))))))))),
     Seq(UncheckedClause(
       List(QPattern(PVar(3)("l")), QPattern(PVar(2)("A")), QPattern(PVar(1)("x")), QPattern(PVar(0)("y"))),
-      UTerm(TWhnf(WId(TWhnf(WVar(2, Nil)), TWhnf(WVar(1, Nil)), TWhnf(WVar(2, Nil))))),
+      UTerm(TWhnf(WId(lvar(3), TWhnf(WVar(2, Nil)), TWhnf(WVar(1, Nil)), TWhnf(WVar(2, Nil))))),
     )),
     null
   )
