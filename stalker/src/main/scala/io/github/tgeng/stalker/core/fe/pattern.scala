@@ -6,7 +6,6 @@ import io.github.tgeng.stalker.core.tt.{Binding => TtBinding, Term => TtTerm, Pa
 
 enum Pattern {
   case PVar(name: String)
-  case PRefl
   case PCon(con: String, patterns: List[Pattern])
   case PForcedCon(con: String, patterns: List[Pattern])
   case PForced(t: Term)
@@ -14,7 +13,6 @@ enum Pattern {
 
   def tt(using ctx: NameContext) : TtPattern = this match {
     case PVar(name) => TtPattern.PVar(ctx(name))(name)
-    case PRefl => TtPattern.PRefl
     case PCon(con, patterns) => TtPattern.PCon(con, patterns.map(_.tt))
     case PForcedCon(con, patterns) => TtPattern.PForcedCon(con, patterns.map(_.tt))
     case PForced(t) => TtPattern.PForced(t.tt)
@@ -23,7 +21,6 @@ enum Pattern {
 
   def freeVars: Seq[String] = this match {
     case PVar(name) => Seq(name)
-    case PRefl => Seq.empty
     case PCon(_, patterns) => patterns.flatMap(_.freeVars)
     case PForcedCon(_, patterns) => patterns.flatMap(_.freeVars)
     case PForced(_) => Seq.empty

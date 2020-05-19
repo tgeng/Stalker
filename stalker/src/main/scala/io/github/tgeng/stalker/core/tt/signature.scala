@@ -24,9 +24,9 @@ enum Status {
 
 import Status._
 
-enum DeclarationT[+S <: Status, +T] {
-  case DataT(val qn: QualifiedName)(val paramTys: List[Binding[T]], val level: Level, val cons: Seq[ConstructorT[T]] | Null)
-  case RecordT(val qn: QualifiedName)(val paramTys: List[Binding[T]], val level: Level, val fields: Seq[FieldT[T]] | Null)
+enum DeclarationT[+S <: Status, +T, +L] {
+  case DataT(val qn: QualifiedName)(val paramTys: List[Binding[T]], val level: L, val cons: Seq[ConstructorT[T]] | Null)
+  case RecordT(val qn: QualifiedName)(val paramTys: List[Binding[T]], val level: L, val fields: Seq[FieldT[T]] | Null)
   case DefinitionT(val qn: QualifiedName)(val ty: T, val clauses: Seq[ClauseT[S, T]], val ct: CaseTree | Null)
 
   def qn: QualifiedName
@@ -52,31 +52,31 @@ enum UncheckedRhs {
 
 import UncheckedRhs._
 
-class Signature(val content: Map[QualifiedName, DeclarationT[Checked, Type]]) {
-  def getData(qn: QualifiedName) : Result[DataT[Checked, Type]] = content get qn match {
-    case Some(d : DataT[Checked, Type]) => Right(d.asInstanceOf[DataT[Checked, Type]])
+type Declaration = DeclarationT[Checked, Type, Level]
+type Data = DataT[Checked, Type, Level]
+type Record = RecordT[Checked, Type, Level]
+type Definition = DefinitionT[Checked, Type, Level]
+type Constructor = ConstructorT[Type]
+type Field = FieldT[Type]
+type Clause = ClauseT[Checked, Type]
+
+class Signature(val content: Map[QualifiedName, Declaration]) {
+  def getData(qn: QualifiedName) : Result[Data] = content get qn match {
+    case Some(d : Data) => Right(d.asInstanceOf[Data])
     case _ => typingError(s"No data schema found for $qn")
   }
 
-  def getRecord(qn: QualifiedName) : Result[RecordT[Checked, Type]] = content get qn match {
-    case Some(r : RecordT[Checked, Type]) => Right(r.asInstanceOf[RecordT[Checked, Type]])
+  def getRecord(qn: QualifiedName) : Result[Record] = content get qn match {
+    case Some(r : Record) => Right(r.asInstanceOf[Record])
     case _ => typingError(s"No record schema found for $qn")
   }
 
-  def getDefinition(qn: QualifiedName) : Result[DefinitionT[Checked, Type]] = content get qn match {
-    case Some(d : DefinitionT[Checked, Type]) => Right(d.asInstanceOf[DefinitionT[Checked, Type]])
+  def getDefinition(qn: QualifiedName) : Result[Definition] = content get qn match {
+    case Some(d : Definition) => Right(d.asInstanceOf[Definition])
     case _ => typingError(s"No definition found for $qn")
   }
 
 }
-
-type Declaration = DeclarationT[Checked, Type]
-type Data = DataT[Checked, Type]
-type Record = RecordT[Checked, Type]
-type Definition = DefinitionT[Checked, Type]
-type Constructor = ConstructorT[Type]
-type Field = FieldT[Type]
-type Clause = ClauseT[Checked, Type]
 
 extension dataTypingOps on (self: Data) {
   def apply(name: String) : Result[Constructor] = self.getCons.flatMap {
@@ -108,7 +108,7 @@ extension recordTypingOps on (self: Record) {
   }
 }
 
-type PreDeclaration = DeclarationT[Unchecked, Term]
+type PreDeclaration = DeclarationT[Unchecked, Term, Unit]
 type PreConstructor = ConstructorT[Term]
 type PreField = FieldT[Term]
 
@@ -126,7 +126,7 @@ object SignatureBuilder {
   }
 }
 
-class SignatureBuilder(val mContent: HashMap[QualifiedName, DeclarationT[Checked, Type]]) extends Signature(mContent) {
+class SignatureBuilder(val mContent: HashMap[QualifiedName, Declaration]) extends Signature(mContent) {
   given Signature = this
   given Context = Context.empty
 

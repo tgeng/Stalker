@@ -15,9 +15,9 @@ import io.github.tgeng.stalker.core.tt.{UncheckedRhs => TtUncheckedRhs}
 import telescopeOps._
 
 enum Declaration {
-  case DataDecl(qn: QualifiedName, paramTys: Telescope, level: Int)
+  case DataDecl(qn: QualifiedName, paramTys: Telescope)
   case DataDef(qn: QualifiedName, cons: Seq[Constructor])
-  case RecordDecl(qn: QualifiedName, paramTys: Telescope, level: Int)
+  case RecordDecl(qn: QualifiedName, paramTys: Telescope)
   case RecordDef(qn: QualifiedName, fields: Seq[Field])
   case Definition(qn: QualifiedName, ty: Term, clauses: Seq[UncheckedClause])
 
@@ -39,15 +39,15 @@ import Declaration._
 import UncheckedRhs._
 
 class Signature {
-  private val sb = SignatureBuilder()
+  private val sb = SignatureBuilder.create
   given NameContext = NameContext.empty
 
   def += (d: Declaration) : Result[Unit] = d match {
-    case DataDecl(qn, paramTys, level) => sb += DataT(qn)(paramTys.tt, level, null)
+    case DataDecl(qn, paramTys) => sb += DataT(qn)(paramTys.tt, (), null)
     case DataDef(qn, cons) => sb.updateData(qn, cons.map {
       case Constructor(name, argTys) => ConstructorT(name, argTys.tt)
     })
-    case RecordDecl(qn, paramTys, level) => sb += RecordT(qn)(paramTys.tt, level, null)
+    case RecordDecl(qn, paramTys) => sb += RecordT(qn)(paramTys.tt, (), null)
     case RecordDef(qn, fields) => NameContext.empty.withName(".self") {
       sb.updateRecord(qn, fields.map{
         case Field(name, ty) => FieldT(name, ty.tt)

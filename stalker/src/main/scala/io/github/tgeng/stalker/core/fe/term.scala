@@ -3,9 +3,11 @@ package io.github.tgeng.stalker.core.fe
 import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.core.common.error._
-import io.github.tgeng.stalker.core.tt.{Term => TtTerm, Elimination => TtElimination, Whnf, stringBindingOps, Binding => TtBinding}
+import io.github.tgeng.stalker.core.tt.{Term => TtTerm, Elimination => TtElimination, Whnf, stringBindingOps, Binding => TtBinding, Level}
+import io.github.tgeng.stalker.core.tt.builtins
 import TtTerm.TWhnf
 import Whnf._
+import Level._
 
 case class Binding(name: String, ty: Term) {
   def tt(using ctx: NameContext) : TtBinding[TtTerm] = TtBinding(ty.tt)(name)
@@ -14,13 +16,9 @@ case class Binding(name: String, ty: Term) {
 enum Term {
   case TRedux(fn: QualifiedName, elims: List[Elimination])
   case TFunction(arg: Binding, bodyTy: Term)
-  case TUniverse(level: Int)
-  case TData(qn: QualifiedName, params: List[Term])
-  case TRecord(qn: QualifiedName, params: List[Term])
-  case TId(ty: Term, left: Term, right: Term)
   case TVar(name: String, elims: List[Elimination])
-  case TCon(con: String, args: List[Term])
-  case TRefl
+  case TCon(name: String, args: List[Term])
+  case TLevel(level: Int)
 
   def tt(using ctx: NameContext) : TtTerm = this match {
     case TRedux(fn, elims) => TtTerm.TRedux(fn, elims.map(_.tt))
@@ -29,13 +27,9 @@ enum Term {
       ctx.withName(arg.name) {
         bodyTy.tt
       }))
-    case TUniverse(l) => TWhnf(WUniverse(l))
-    case TData(qn, params) => TWhnf(WData(qn, params.map(_.tt)))
-    case TRecord(qn, params) => TWhnf(WRecord(qn, params.map(_.tt)))
-    case TId(ty, left, right) => TWhnf(WId(ty.tt, left.tt, right.tt))
     case TVar(name, elims) => TWhnf(WVar(ctx(name), elims.map(_.tt)))
     case TCon(con, args) => TWhnf(WCon(con, args.map(_.tt)))
-    case TRefl => TWhnf(WRefl)
+    case TLevel(level: Int) => TWhnf(WLevel(lconst(level)))
   }
 }
 
@@ -51,13 +45,23 @@ extension termFeOps on (self: TtTerm) {
 extension whnfFeOps on (self: Whnf) {
   def fe(using ctx: IndexedSeq[String]): Term = self match {
     case WFunction(_A, _B) => TFunction(Binding(_A.name, _A.ty.fe), _B.fe(using _A.name +: ctx))
-    case WUniverse(l) => TUniverse(l)
-    case WData(qn, params) => TData(qn, params.map(_.fe))
-    case WRecord(qn, params) => TRecord(qn, params.map(_.fe))
-    case WId(ty, left, right) => TId(ty.fe, left.fe, right.fe)
+    case WUniverse(l) => TRedux(builtins.universeType.qn, List(ETerm(l.fe)))
+    case WLevel(l) => l.fe
+    case WLevelType => TRedux(builtins.levelType.qn, Nil)
+    case WData(qn, params) => TRedux(qn, params.map(t => ETerm(t.fe)))
+    case WRecord(qn, params) => TRedux(qn, params.map(t => ETerm(t.fe)))
+    case WId(level, ty, left, right) => TRedux(builtins.idType.qn, List(ETerm(level.fe), ETerm(ty.fe), ETerm(left.fe), ETerm(right.fe)))
     case WVar(idx, elims) => TVar(ctx(idx), elims.map(_.fe))
     case WCon(con, args) => TCon(con, args.map(_.fe))
-    case WRefl => TRefl
+  }
+}
+
+extension levelFeOps on (self: Level) {
+  def fe(using ctx: IndexedSeq[String]): Term = self match {
+    case LVar(idx) => TVar(ctx(idx), Nil)
+    case LConst(n) => TLevel(n)
+    case LMax(l1, l2) => TRedux(builtins.lmaxFn.qn, List(ETerm(l1.fe), ETerm(l2.fe)))
+    case LSuc(l) => TRedux(builtins.lsucFn.qn, List(ETerm(l.fe)))
   }
 }
 
