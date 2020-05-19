@@ -197,7 +197,7 @@ class SignatureBuilder(
         case false => typingError(s"Data $qn already has constructors.")
       }
       cons <- cons.reduceCons(using Context.empty + data.paramTys)
-    } yield mContent(qn) = DataT(qn)(data.paramTys, data.level, cons)
+    } yield mData(qn) = new DataT(qn)(data.paramTys, data.level, cons)
   }
 
   def updateRecord(qn: QualifiedName, fields: Seq[PreField]) : Result[Unit] = {
@@ -208,7 +208,7 @@ class SignatureBuilder(
         case false => typingError(s"Record $qn already has fields.")
       }
       fields <- fields.reduceFields(using Context.empty + record.paramTys + ("self" ∷ Whnf.WRecord(qn, record.paramTys.vars.toList)))
-    } yield mContent(qn) = RecordT(qn)(record.paramTys, record.level, fields)
+    } yield mRecords(qn) = new RecordT(qn)(record.paramTys, record.level, fields)
   }
 
   private def (cons: Seq[PreConstructor]) reduceCons(using Γ: Context)(using Σ: Signature) : Result[Seq[Constructor]] = 

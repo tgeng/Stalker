@@ -14,10 +14,18 @@ object parser {
   import Elimination._
   import NamespaceElement._
 
-  private val bodyInvalidChars = " \\r\\n\\t()\\[\\]{}."
+  private val bodyInvalidChars = " \\r\\n\\t()\\[\\]{},."
   private val bodyPattern = s"[^${bodyInvalidChars}]"
   private val headPattern = s"""[^`'"0-9${bodyInvalidChars}]"""
   private val name = P { s"$headPattern$bodyPattern*".rp.satisfying(!Set("->", ":", "=", "_").contains(_)) }
+  private val level = P { "[0-9]+".rp.map(s => Right(TLevel(Integer.parseInt(s)))) << "lv" }
+
+  private def con(using ns: Namespace)(using ln: LocalNames)(using opt: ParsingOptions) : Parser[Result[Term]] = P {
+    for {
+      n <- name
+      args <- '{' >> whitespaces >> (termImpl sepBy (whitespaces >> ',' << whitespaces)) << whitespaces << '}'
+    } yield args.liftMap(t => t).map(args => TCon(n, args.toList))
+  }
 
   private def ref(using ns: Namespace)(using ln: LocalNames)(using opt: ParsingOptions) : Parser[Result[Term]] = P {
     for {
@@ -33,7 +41,7 @@ object parser {
   }
 
   private def atom(using opt: ParsingOptions)(using ns: Namespace)(using ln: LocalNames) : Parser[Result[Term]] = P {
-    '('.! >> termImpl(using opt.copy(appDelimiter = whitespace*)) << ')' | ref
+    '('.! >> termImpl(using opt.copy(appDelimiter = whitespace*)) << ')' | con | ref | level
   }
 
   private def proj = '.'.! >> name

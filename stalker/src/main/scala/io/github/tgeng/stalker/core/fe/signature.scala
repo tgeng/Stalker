@@ -48,7 +48,7 @@ class Signature {
       case Constructor(name, argTys) => ConstructorT(name, argTys.tt)
     })
     case RecordDecl(qn, paramTys) => sb += RecordT(qn)(paramTys.tt, (), null)
-    case RecordDef(qn, fields) => NameContext.empty.withName(".self") {
+    case RecordDef(qn, fields) => NameContext.empty.withName("self") {
       sb.updateRecord(qn, fields.map{
         case Field(name, ty) => FieldT(name, ty.tt)
       })
