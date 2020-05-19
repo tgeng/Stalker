@@ -135,6 +135,9 @@ class SignatureBuilder(
   given Context = Context.empty
 
   def += (d: PreDeclaration) : Result[Unit] = {
+    import Term._
+    import Whnf._
+    import CoPattern._
     d match {
       case d@DataT(qn) => for {
         _Δ <- d.paramTys.tele
@@ -143,7 +146,16 @@ class SignatureBuilder(
           case _ : Null => Right(null)
           case cons : Seq[PreConstructor] => cons.reduceCons(using Context.empty + _Δ)
         }
-      } yield mData(qn) = new Data(qn)(_Δ, level, cons)
+        _ = mData(qn) = new Data(qn)(_Δ, level, cons)
+        _ <- this += DefinitionT(qn)(
+          _Δ.foldRight(TWhnf(WUniverse(level)))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
+          Seq(UncheckedClause(
+            _Δ.pvars.map(QPattern(_)).toList,
+            UTerm(TWhnf(WData(qn, _Δ.vars.toList)))
+          )),
+          null
+        )
+      } yield ()
       case r@RecordT(qn) => for {
         _Δ <- r.paramTys.tele
         level <- _Δ.level
@@ -151,7 +163,16 @@ class SignatureBuilder(
           case _ : Null => Right(null)
           case fields: Seq[PreField] => fields.reduceFields(using Context.empty + _Δ + ("self" ∷ Whnf.WRecord(qn, _Δ.vars.toList)))
         }
-      } yield mRecords(qn) = new Record(qn)(_Δ, level, fields)
+        _ = mRecords(qn) = new Record(qn)(_Δ, level, fields)
+        _ <- this += DefinitionT(qn)(
+          _Δ.foldRight(TWhnf(WUniverse(level)))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
+          Seq( UncheckedClause(
+            _Δ.pvars.map(QPattern(_)).toList,
+            UTerm(TWhnf(WData(qn, _Δ.vars.toList)))
+          )),
+          null
+        )
+      } yield ()
       case d@DefinitionT(qn) => {
         val clauses = ArrayBuffer[Clause]()
         for {
