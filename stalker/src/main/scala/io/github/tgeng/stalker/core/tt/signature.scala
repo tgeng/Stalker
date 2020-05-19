@@ -60,19 +60,19 @@ type Constructor = ConstructorT[Type]
 type Field = FieldT[Type]
 type Clause = ClauseT[Checked, Type]
 
-class Signature(val content: Map[QualifiedName, Declaration]) {
-  def getData(qn: QualifiedName) : Result[Data] = content get qn match {
-    case Some(d : Data) => Right(d.asInstanceOf[Data])
+class Signature(val data: Map[QualifiedName, Data], val records: Map[QualifiedName, Record], val definitions: Map[QualifiedName, Definition]) {
+  def getData(qn: QualifiedName) : Result[Data] = data get qn match {
+    case Some(d) => Right(d)
     case _ => typingError(s"No data schema found for $qn")
   }
 
-  def getRecord(qn: QualifiedName) : Result[Record] = content get qn match {
-    case Some(r : Record) => Right(r.asInstanceOf[Record])
+  def getRecord(qn: QualifiedName) : Result[Record] = records get qn match {
+    case Some(r) => Right(r)
     case _ => typingError(s"No record schema found for $qn")
   }
 
-  def getDefinition(qn: QualifiedName) : Result[Definition] = content get qn match {
-    case Some(d : Definition) => Right(d.asInstanceOf[Definition])
+  def getDefinition(qn: QualifiedName) : Result[Definition] = definitions get qn match {
+    case Some(d) => Right(d)
     case _ => typingError(s"No definition found for $qn")
   }
 
@@ -114,7 +114,7 @@ type PreField = FieldT[Term]
 
 object SignatureBuilder {
   def create : SignatureBuilder = {
-    val sb = SignatureBuilder(HashMap.empty)
+    val sb = SignatureBuilder(HashMap.empty, HashMap.empty, HashMap.empty)
     import builtins._
     import scala.language.postfixOps
     assert(sb += levelType isRight)
@@ -126,7 +126,11 @@ object SignatureBuilder {
   }
 }
 
-class SignatureBuilder(val mContent: HashMap[QualifiedName, Declaration]) extends Signature(mContent) {
+class SignatureBuilder(
+  val mData: HashMap[QualifiedName, Data],
+  val mRecords: HashMap[QualifiedName, Record],
+  val mDefinitions: HashMap[QualifiedName, Definition],
+) extends Signature(mData, mRecords, mDefinitions) {
   given Signature = this
   given Context = Context.empty
 
@@ -139,7 +143,7 @@ class SignatureBuilder(val mContent: HashMap[QualifiedName, Declaration]) extend
           case _ : Null => Right(null)
           case cons : Seq[PreConstructor] => cons.reduceCons(using Context.empty + _Δ)
         }
-      } yield mContent(qn) = DataT(qn)(_Δ, level, cons)
+      } yield mData(qn) = new Data(qn)(_Δ, level, cons)
       case r@RecordT(qn) => for {
         _Δ <- r.paramTys.tele
         level <- _Δ.level
@@ -147,18 +151,18 @@ class SignatureBuilder(val mContent: HashMap[QualifiedName, Declaration]) extend
           case _ : Null => Right(null)
           case fields: Seq[PreField] => fields.reduceFields(using Context.empty + _Δ + ("self" ∷ Whnf.WRecord(qn, _Δ.vars.toList)))
         }
-      } yield mContent(qn) = RecordT(qn)(_Δ, level, fields)
+      } yield mRecords(qn) = new Record(qn)(_Δ, level, fields)
       case d@DefinitionT(qn) => {
         val clauses = ArrayBuffer[Clause]()
         for {
           ty <- d.ty.whnf
-          _ = mContent(qn) = DefinitionT(qn)(ty, clauses, null)
+          _ = mDefinitions(qn) = new Definition(qn)(ty, clauses, null)
           _Q <- (d.clauses
             .map {
               case UncheckedClause(lhs, rhs) => (Set.empty[(Term /? Pattern) ∷ Type], lhs) |-> rhs
             }
             .toList ||| (qn, Nil) ∷ ty).elaborate(using clauses)
-          _ = mContent(qn) = DefinitionT(qn)(ty, clauses, _Q)
+          _ = mDefinitions(qn) = new Definition(qn)(ty, clauses, _Q)
         } yield ()
       }
     }
