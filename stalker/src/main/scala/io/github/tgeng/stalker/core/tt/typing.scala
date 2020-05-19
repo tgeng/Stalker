@@ -147,6 +147,9 @@ object typing {
           case _ => judgementError(j)
         }
         // Heads
+        case TWhnf(WVar(idx, Nil)) ∷ _A => 
+          if (Γ(idx).ty == _A) Right(())
+          else typingError(s"Variable $idx is not of type $_A but of type ${Γ(idx).ty}.")
         case TWhnf(WVar(idx, e̅)) ∷ _A => for {
           _ <- (TWhnf(WVar(idx, Nil)) ∷ Γ(idx).ty |- e̅ ∷ _A).check
         } yield ()
