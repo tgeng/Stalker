@@ -91,7 +91,7 @@ extension termUnification on (p: =?[Term] ∷ Type) {
       lA <- wA.level
       w1 = List(_A, a1, a2)
       w2 = List(_B, b1, b2)
-      _Γ = List("X" ∷ WUniverse(lA), "x" ∷ WVar(0, Nil), "y" ∷ WVar(1, Nil))
+      _Γ = List("X" ∷ WUniverse(TWhnf(lA)), "x" ∷ WVar(0, Nil), "y" ∷ WVar(1, Nil))
       unifier <- ((w1 =? w2) ∷ _Γ).unify
     } yield positive(
       Γ + idTypes(_Γ, w1, w2),
@@ -267,13 +267,13 @@ private def idTypes(Δ: Telescope, u̅: List[Term], v̅: List[Term]) : List[Bind
     s"e${_A.name}" ∷ WId(
       // Level does not matter here since the generated Id type is only used inside the unification
       // algorithm. The output of the unification algorithm never includes these generated Id types.
-      Level.lconst(0), TWhnf(_A.ty), u, v) :: idTypes(Δ, u̅, v̅)
+      TWhnf(lconst(0)), TWhnf(_A.ty), u, v) :: idTypes(Δ, u̅, v̅)
   case _ => throw IllegalArgumentException()
 }
 
 private def idType(_A: Type, u: Term, v: Term) : Binding[Type] = 
   // For the same reason above, the level of ID type does not matter.
-  "e" ∷ WId(Level.lconst(0), TWhnf(_A), u, v)
+  "e" ∷ WId(TWhnf(lconst(0)), TWhnf(_A), u, v)
 
 private def simplTerm(tm: Term)(using Γ: Context)(using Σ: Signature) : Term = tm.whnf match {
   case Right(WFunction(a, b)) => TWhnf(WFunction(a.map(simplTerm), simplTerm(b)))

@@ -3,11 +3,10 @@ package io.github.tgeng.stalker.core.fe
 import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.core.common.error._
-import io.github.tgeng.stalker.core.tt.{Term => TtTerm, Elimination => TtElimination, Whnf, stringBindingOps, Binding => TtBinding, Level}
+import io.github.tgeng.stalker.core.tt.{Term => TtTerm, Elimination => TtElimination, Whnf, stringBindingOps, Binding => TtBinding, LSuc}
 import io.github.tgeng.stalker.core.tt.builtins
 import TtTerm.TWhnf
 import Whnf._
-import Level._
 
 case class Binding(name: String, ty: Term) {
   def tt(using ctx: NameContext) : TtBinding[TtTerm] = TtBinding(ty.tt)(name)
@@ -29,7 +28,7 @@ enum Term {
       }))
     case TVar(name, elims) => TWhnf(WVar(ctx(name), elims.map(_.tt)))
     case TCon(con, args) => TWhnf(WCon(con, args.map(_.tt)))
-    case TLevel(level: Int) => TWhnf(WLevel(lconst(level)))
+    case TLevel(level: Int) => TWhnf(WLevel(level, Set.empty))
   }
 }
 
@@ -46,7 +45,12 @@ extension whnfFeOps on (self: Whnf) {
   def fe(using ctx: IndexedSeq[String]): Term = self match {
     case WFunction(_A, _B) => TFunction(Binding(_A.name, _A.ty.fe), _B.fe(using _A.name +: ctx))
     case WUniverse(l) => TRedux(builtins.universeType.qn, List(ETerm(l.fe)))
-    case WLevel(l) => l.fe
+    case WLevel(l, maxOperands) => (l, maxOperands.toList) match {
+      case (l, Nil) => TLevel(l)
+      case (0, lsuc :: Nil) => lsuc.fe
+      case (0, lsuc :: rest) => rest.foldLeft(lsuc.fe)((acc, l) => TRedux(builtins.lmaxFn.qn, List(ETerm(acc), ETerm(l.fe))))
+      case (l, lsucs) => lsucs.foldLeft(TLevel(l))((acc, l) => TRedux(builtins.lmaxFn.qn, List(ETerm(acc), ETerm(l.fe))))
+    }
     case WLevelType => TRedux(builtins.levelType.qn, Nil)
     case WData(qn, params) => TRedux(qn, params.map(t => ETerm(t.fe)))
     case WRecord(qn, params) => TRedux(qn, params.map(t => ETerm(t.fe)))
@@ -56,13 +60,15 @@ extension whnfFeOps on (self: Whnf) {
   }
 }
 
-extension levelFeOps on (self: Level) {
+extension lsucFeOps on (self: LSuc) {
   def fe(using ctx: IndexedSeq[String]): Term = self match {
-    case LVar(idx) => TVar(ctx(idx), Nil)
-    case LConst(n) => TLevel(n)
-    case LMax(l1, l2) => TRedux(builtins.lmaxFn.qn, List(ETerm(l1.fe), ETerm(l2.fe)))
-    case LSuc(l) => TRedux(builtins.lsucFn.qn, List(ETerm(l.fe)))
+    case LSuc(l, t) => lsucn(l, t.fe)
   }
+}
+
+private def lsucn(n: Int, t: Term): Term = n match {
+  case 0 => t
+  case n => (0 until n).foldLeft(t)((t, _) => TRedux(builtins.lsucFn.qn, List(ETerm(t))))
 }
 
 enum Elimination {

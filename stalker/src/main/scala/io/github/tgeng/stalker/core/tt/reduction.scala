@@ -1,6 +1,7 @@
 package io.github.tgeng.stalker.core.tt
 
 import scala.util.control.NonLocalReturns._
+import io.github.tgeng.common.extraSetOps
 import io.github.tgeng.stalker.core.common.error._
 import io.github.tgeng.stalker.core.tt.typing.level
 import Term._
@@ -29,6 +30,21 @@ object reduction {
       r <- rhs.whnf
       _ <- r.level
     } yield r
+  } match {
+    case Right(WLevel(l, lsucs)) => for{
+      lsucTuples <- lsucs.liftMap { case LSuc(n, t) => t.whnf.map((n, _)) }
+      newLsucs = lsucTuples.flatMap{
+        case (n, WLevel(l, lsucs)) => lsucs.map{ case LSuc(n1, t) => LSuc(n + n1, t)}
+        case (n, t@WVar(x, Nil)) => Set(LSuc(n, TWhnf(t)))
+        case _ => throw IllegalStateException("invalid level term")
+      }
+      newLevel = scala.math.max(lsucTuples.map{
+        case (n, WLevel(l, lsucs)) => n + l
+        case (n, t@WVar(x, Nil)) => 0
+        case _ => throw IllegalStateException("invalid level term")
+      }.max, l)
+    } yield WLevel(newLevel, newLsucs)
+    case w => w
   }
 
   private def evalClauses(cs: scala.collection.Seq[Clause], e̅: List[Elimination], d: Definition)(using Γ: Context)(using Σ: Signature) : Result[Term] = returning[Result[Term]] {

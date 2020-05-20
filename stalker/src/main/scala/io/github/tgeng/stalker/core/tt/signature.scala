@@ -24,9 +24,9 @@ enum Status {
 
 import Status._
 
-enum DeclarationT[+S <: Status, +T, +L] {
-  case DataT(val qn: QualifiedName)(val paramTys: List[Binding[T]], val level: L, val cons: Seq[ConstructorT[T]] | Null)
-  case RecordT(val qn: QualifiedName)(val paramTys: List[Binding[T]], val level: L, val fields: Seq[FieldT[T]] | Null)
+enum DeclarationT[+S <: Status, +T] {
+  case DataT(val qn: QualifiedName)(val paramTys: List[Binding[T]], val level: T, val cons: Seq[ConstructorT[T]] | Null)
+  case RecordT(val qn: QualifiedName)(val paramTys: List[Binding[T]], val level: T, val fields: Seq[FieldT[T]] | Null)
   case DefinitionT(val qn: QualifiedName)(val ty: T, val clauses: Seq[ClauseT[S, T]], val ct: CaseTree | Null)
 
   def qn: QualifiedName
@@ -52,10 +52,10 @@ enum UncheckedRhs {
 
 import UncheckedRhs._
 
-type Declaration = DeclarationT[Checked, Type, Level]
-type Data = DataT[Checked, Type, Level]
-type Record = RecordT[Checked, Type, Level]
-type Definition = DefinitionT[Checked, Type, Level]
+type Declaration = DeclarationT[Checked, Type]
+type Data = DataT[Checked, Type]
+type Record = RecordT[Checked, Type]
+type Definition = DefinitionT[Checked, Type]
 type Constructor = ConstructorT[Type]
 type Field = FieldT[Type]
 type Clause = ClauseT[Checked, Type]
@@ -108,7 +108,7 @@ extension recordTypingOps on (self: Record) {
   }
 }
 
-type PreDeclaration = DeclarationT[Unchecked, Term, Unit]
+type PreDeclaration = DeclarationT[Unchecked, Term]
 type PreConstructor = ConstructorT[Term]
 type PreField = FieldT[Term]
 
@@ -148,7 +148,7 @@ class SignatureBuilder(
         }
         _ = mData(qn) = new Data(qn)(_Δ, level, cons)
         _ <- this += DefinitionT(qn)(
-          _Δ.foldRight(TWhnf(WUniverse(level)))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
+          _Δ.foldRight(TWhnf(WUniverse(TWhnf(level))))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
           Seq(UncheckedClause(
             _Δ.pvars.map(QPattern(_)).toList,
             UTerm(TWhnf(WData(qn, _Δ.vars.toList)))
@@ -165,7 +165,7 @@ class SignatureBuilder(
         }
         _ = mRecords(qn) = new Record(qn)(_Δ, level, fields)
         _ <- this += DefinitionT(qn)(
-          _Δ.foldRight(TWhnf(WUniverse(level)))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
+          _Δ.foldRight(TWhnf(WUniverse(TWhnf(level))))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
           Seq( UncheckedClause(
             _Δ.pvars.map(QPattern(_)).toList,
             UTerm(TWhnf(WData(qn, _Δ.vars.toList)))

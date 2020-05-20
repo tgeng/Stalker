@@ -11,7 +11,6 @@ import substitutionConversion.{given _}
 import Term._
 import Whnf._
 import Elimination._
-import Level._
 import ClauseT._
 import Pattern._
 import CoPattern._
@@ -19,7 +18,7 @@ import reduction.tele
 import reduction.whnf
 
 object typing {
-  def (tm: Type)level(using Γ: Context)(using Σ: Signature) : Result[Level] = tm match {
+  def (tm: Type)level(using Γ: Context)(using Σ: Signature) : Result[Whnf] = tm match {
     case WUniverse(l) => Right(lsuc(l))
     case WLevelType => Right(lconst(0))
     case WFunction(_A, _B) => {
@@ -30,7 +29,7 @@ object typing {
           for {
             rB <- _B.whnf
             lB <- rB.level
-          } yield lmax(lA, lB)
+          } yield lmax(TWhnf(lA), TWhnf(lB))
         }
       } yield r
     }
@@ -55,15 +54,15 @@ object typing {
     case _ => typingError(s"$tm is not a type.")
   }
   
-  def (Δ: Telescope)level(using Γ: Context)(using Σ: Signature) : Result[Level] = Δ match {
+  def (Δ: Telescope)level(using Γ: Context)(using Σ: Signature) : Result[Whnf] = Δ match {
     case Nil => Right(lconst(0))
     case _A :: _Δ => for {
       lA <- _A.ty.level
       lΔ <- _Δ.level(using Γ + _A)
-    } yield lmax(lA, lΔ)
+    } yield lmax(TWhnf(lA), TWhnf(lΔ))
   }
 
-  def (eq: ≡[Type])level(using Γ: Context)(using Σ: Signature) : Result[Level] = eq match {
+  def (eq: ≡[Type])level(using Γ: Context)(using Σ: Signature) : Result[Whnf] = eq match {
     case _A ≡ _B if _A == _B => _A.level
     case WFunction(_A1, _B1) ≡ WFunction(_A2, _B2) => {
       for {
@@ -75,7 +74,7 @@ object typing {
             wB1 <- _B1.whnf
             wB2 <- _B2.whnf
             lB <- (wB1 ≡ wB2).level
-          } yield lmax(lA, lB)
+          } yield lmax(TWhnf(lA), TWhnf(lB))
         }
       } yield r
     }
@@ -100,7 +99,7 @@ object typing {
     case _ => typingError(s"Cannot infer level of $eq")
   }
   
-  def (elim: Term ∷ Type |- ≡[List[Elimination]])level(using Γ: Context)(using Σ: Signature) : Result[Level] = {
+  def (elim: Term ∷ Type |- ≡[List[Elimination]])level(using Γ: Context)(using Σ: Signature) : Result[Whnf] = {
     elim match {
       case x ∷ _A |- e̅1 ≡ e̅2 => (for {
         _ <- (x ∷ _A).check
@@ -170,7 +169,7 @@ object typing {
           _ <- (u ≡ v ∷ wA).check
         } yield ()
         // Level
-        case TWhnf(WLevel(l)) ∷ WLevelType => Right(())
+        case TWhnf(l) ∷ WLevelType => Right(())
         case _ => judgementError(j)
       }
     }
