@@ -14,19 +14,20 @@ enum NamespaceElement[+T] {
 import NamespaceElement._
 
 class MutableNamespace extends Namespace {
-  import QualifiedName.{given _}
+  import QualifiedName.{_, given _}
   import scala.language.implicitConversions
+  import io.github.tgeng.stalker.core.tt._
  
   private val content = scala.collection.mutable.Map[String, NamespaceElement[MutableNamespace]]()
-
-  this("Type") = "stalker.builtin.Type"
-  this("Nat") = "stalker.builtin.Nat"
-  this("String") = "stalker.builtin.String"
-  this("Double") = "stalker.builtin.Double"
 
   override def get(name: String) = content.get(name)
 
   override def iterator: Iterator[(String, NamespaceElement[Namespace])] = content.iterator
+
+  def importDefinition(d: PreDefinition) = d.qn match {
+    case _ / name => this(name) = d.qn
+    case _ => ()
+  }
 
   def update(name: String, qn: QualifiedName) = content(name) = Leaf(qn)
   
@@ -39,5 +40,18 @@ class MutableNamespace extends Namespace {
       }
     }
     this
+  }
+}
+
+object MutableNamespace {
+  def create = {
+    import io.github.tgeng.stalker.core.tt.builtins._
+    val r = MutableNamespace()
+    r.importDefinition(levelType)
+    r.importDefinition(universeType)
+    r.importDefinition(lsucFn)
+    r.importDefinition(lmaxFn)
+    r.importDefinition(idType)
+    r
   }
 }

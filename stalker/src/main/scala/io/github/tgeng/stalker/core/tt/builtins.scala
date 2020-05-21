@@ -14,7 +14,7 @@ import UncheckedRhs._
 object builtins {
   private val parent = Root / "stalker" / "builtins"
 
-  val levelType: PreDeclaration = DefinitionT(parent / "Level")(
+  val levelType: PreDefinition = new DefinitionT(parent / "Level")(
     TWhnf(WUniverse(TWhnf(lconst(0)))),
     Seq(UncheckedClause(
       Nil,
@@ -23,7 +23,7 @@ object builtins {
     null
   )
 
-  val universeType: PreDeclaration = DefinitionT(parent / "Type")(
+  val universeType: PreDefinition = new DefinitionT(parent / "Type")(
     TWhnf(WFunction("l" ∷ TWhnf(WLevelType), TWhnf(WUniverse(TWhnf(lsuc(TWhnf(WVar(0, Nil)))))))),
     Seq(UncheckedClause(
       List(QPattern(PVar(0)("l"))),
@@ -32,7 +32,7 @@ object builtins {
     null
   )
   
-  val lsucFn: PreDeclaration = DefinitionT(parent / "lsuc")(
+  val lsucFn: PreDefinition = new DefinitionT(parent / "lsuc")(
     TWhnf(WFunction("l" ∷ TWhnf(WLevelType), TWhnf(WLevelType))),
     Seq(UncheckedClause(
       List(QPattern(PVar(0)("l"))),
@@ -41,7 +41,7 @@ object builtins {
     null
   )
 
-  val lmaxFn: PreDeclaration = DefinitionT(parent / "lmax")(
+  val lmaxFn: PreDefinition = new DefinitionT(parent / "lmax")(
     TWhnf(WFunction("l1" ∷ TWhnf(WLevelType), TWhnf(WFunction("l2" ∷ TWhnf(WLevelType), TWhnf(WLevelType))))),
     Seq(UncheckedClause(
       List(QPattern(PVar(1)("l1")), QPattern(PVar(0)("l2"))),
@@ -50,7 +50,7 @@ object builtins {
     null
   )
 
-  val idType: PreDeclaration = DefinitionT(parent / "Id")(
+  val idType: PreDefinition = new DefinitionT(parent / "Id")(
     TWhnf(WFunction("l" ∷ TWhnf(WLevelType), TWhnf(WFunction("A" ∷ TWhnf(WUniverse(TWhnf(WVar(0, Nil)))), TWhnf(WFunction("x" ∷ TWhnf(WVar(0, Nil)), TWhnf(WFunction("y" ∷ TWhnf(WVar(1, Nil)), TWhnf(WUniverse(TWhnf(WVar(3, Nil)))))))))))),
     Seq(UncheckedClause(
       List(QPattern(PVar(3)("l")), QPattern(PVar(2)("A")), QPattern(PVar(1)("x")), QPattern(PVar(0)("y"))),
