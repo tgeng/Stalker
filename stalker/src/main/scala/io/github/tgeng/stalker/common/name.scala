@@ -17,5 +17,5 @@ import QualifiedName._
 
 object QualifiedName {
   def (qn: QualifiedName) / (name: String) : QualifiedName = /(qn, name)
-  given Conversion[String, QualifiedName] = s => s.split('.').foldLeft(Root)(_ / _)
+  given qn as Conversion[String, QualifiedName] = s => s.split('.').foldLeft(Root)(_ / _)
 }

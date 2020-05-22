@@ -14,24 +14,24 @@ object Main {
 
     // val sig = SignatureBuilder.create
     
-    val ns = InMemoryNamespace()
-    ns("Vector") = Root/"stalker"/"collection"/"Vector"
-    ns("Nat") = Root/"stalker"/"collection"/"Nat"
-    ns("String") = Root/"stalker"/"collection"/"Nat"
-    ns("zero") = Root/"mymodule"/"zero"
+    // val ns = InMemoryNamespace()
+    // ns("Vector") = Root/"stalker"/"collection"/"Vector"
+    // ns("Nat") = Root/"stalker"/"collection"/"Nat"
+    // ns("String") = Root/"stalker"/"collection"/"Nat"
+    // ns("zero") = Root/"mymodule"/"zero"
 
-    given Namespace = ns
+    // given Namespace = ns
 
-    val termP = whitespaces >> term << whitespaces
+    // val termP = whitespaces >> term << whitespaces
 
-    println(termP.parse("(t : Type -> String) -> String"))
-    println(termP.parse("""
-    |(f : (n : Nat) -> (A : Type 0lv) -> String -> Vector n A) -> (n : Nat) -> (A : Type zero) -> Vector n A
-    """.stripMargin))
-    println("======")
-    println(termP.parse("""
-    con1{ 0lv, (n : Nat) -> Vector n String}
-    """))
+    // println(termP.parse("(t : Type -> String) -> String"))
+    // println(termP.parse("""
+    // |(f : (n : Nat) -> (A : Type 0lv) -> String -> Vector n A) -> (n : Nat) -> (A : Type zero) -> Vector n A
+    // """.stripMargin))
+    // println("======")
+    // println(termP.parse("""
+    // con1{ 0lv, (n : Nat) -> Vector n String}
+    // """))
     /*
       (f : A -> B -> C) ->
       D

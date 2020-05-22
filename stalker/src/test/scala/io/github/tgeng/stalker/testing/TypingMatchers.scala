@@ -17,14 +17,14 @@ trait TypingMatchers {
       s"Term $x had type $_A")
   }
 
-  def haveLevel(l: Int)(using Γ: Context)(using Σ: Signature) = Matcher { (x: Term) =>
-    MatchResult(
-      x.whnf.flatMap(_.level) match {
-        case Right(actualLevel) => actualLevel == l
-        case _ => false
-      },
-      s"Type $x was not at level $l",
-      s"Type $x was at level $l",
-    )
-  }
+  // def haveLevel(l: Int)(using Γ: Context)(using Σ: Signature) = Matcher { (x: Term) =>
+  //   MatchResult(
+  //     x.whnf.flatMap(_.level) match {
+  //       case Right(actualLevel) => actualLevel == l
+  //       case _ => false
+  //     },
+  //     s"Type $x was not at level $l",
+  //     s"Type $x was at level $l",
+  //   )
+  // }
 }

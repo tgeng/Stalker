@@ -9,14 +9,8 @@ lazy val root = project
     scalaVersion := dottyVersion,
 
     libraryDependencies ++= Seq(
-      "io.github.tgeng" %% "dotty-parser-combinators" % "0.2.4"
-      // "org.scalactic" %% "scalactic" % "3.1.1",
-      // "org.scalatest" %% "scalatest" % "3.1.1" % "test",
-      // ("org.scalatestplus" %% "scalacheck-1-14" % "3.1.1.1" % "test")
-        // .intransitive()
-        // .withDottyCompat(scalaVersion.value),
-      // ("org.scalacheck" %% "scalacheck" % "1.14.3" % "test")
-      // .withDottyCompat(scalaVersion.value)
+      "io.github.tgeng" %% "dotty-parser-combinators" % "0.2.4",
+      "org.scalatest" %% "scalatest" % "3.1.2" % "test",
     ),
     scalacOptions += "-Yexplicit-nulls",
     scalacOptions += "-Ykind-projector",
