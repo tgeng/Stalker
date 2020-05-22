@@ -2,51 +2,47 @@ package io.github.tgeng.stalker.core.fe
 
 import io.github.tgeng.stalker.common.QualifiedName
 
-trait Namespace extends Iterable[(String, NamespaceElement[Namespace])]{
-  def get(name: String) : Option[NamespaceElement[Namespace]]
+trait Namespace extends Iterable[(String, NamespaceElement)]{
+  def get(name: String) : Option[NamespaceElement]
 }
 
-enum NamespaceElement[+T] {
-  case Sub(namespace: T)
+enum NamespaceElement {
+  case Sub(ns: Namespace)
   case Leaf(qn: QualifiedName)
 }
 
 import NamespaceElement._
 
-class MutableNamespace extends Namespace {
+class InMemoryNamespace extends Namespace {
   import QualifiedName.{_, given _}
   import scala.language.implicitConversions
   import io.github.tgeng.stalker.core.tt._
+  import scala.collection.mutable.Map
  
-  private val content = scala.collection.mutable.Map[String, NamespaceElement[MutableNamespace]]()
+  private val content = Map[String, NamespaceElement]()
 
   override def get(name: String) = content.get(name)
 
-  override def iterator: Iterator[(String, NamespaceElement[Namespace])] = content.iterator
+  override def iterator: Iterator[(String, NamespaceElement)] = content.iterator
 
   def importDefinition(d: PreDefinition) = d.qn match {
     case _ / name => this(name) = d.qn
     case _ => ()
   }
 
-  def update(name: String, qn: QualifiedName) = content(name) = Leaf(qn)
-  
-  def incorporate(namespace: Namespace) : MutableNamespace = {
-    namespace.foreach{
-      case (k, v) => content(k) = (content.get(k), v) match {
-        case (Some(Sub(ns1)), Sub(ns2)) => Sub(ns1.incorporate(ns2))
-        case (_, Sub(ns)) => Sub(MutableNamespace().incorporate(ns))
-        case (_, Leaf(qn)) => Leaf(qn)
-      }
-    }
-    this
+  def update(name: String, qn: QualifiedName): Unit = update(name, Leaf(qn))
+  def update(name: String, ns: Namespace): Unit = update(name, Sub(ns))
+  def update(name: String, elem: NamespaceElement): Unit = content(name) = elem 
+
+  def render(qn: QualifiedName): String = {
+    ???
   }
 }
 
-object MutableNamespace {
+object InMemoryNamespace {
   def create = {
     import io.github.tgeng.stalker.core.tt.builtins._
-    val r = MutableNamespace()
+    val r = InMemoryNamespace()
     r.importDefinition(levelType)
     r.importDefinition(universeType)
     r.importDefinition(lsucFn)

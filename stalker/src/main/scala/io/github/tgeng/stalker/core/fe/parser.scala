@@ -41,7 +41,7 @@ object parser {
   }
 
   private def atom(using opt: ParsingOptions)(using ns: Namespace)(using ln: LocalNames) : Parser[Result[Term]] = P {
-    '('.! >> termImpl(using opt.copy(appDelimiter = whitespace*)) << ')' | con | ref | level
+    '('.! >> termImpl(using opt.copy(appDelimiter = whitespaces)) << ')' | con | ref | level
   }
 
   private def proj = '.'.! >> name
@@ -69,11 +69,11 @@ object parser {
   }
 
   private def binding(using opt: ParsingOptions)(using ns: Namespace)(using ln: LocalNames) : Parser[Result[Binding]] = P {
-    '(' >> lift(name << whitespaces, ':'.! >> whitespaces >> termImpl).map((x, ty) => ty.map(Binding(x, _))) << ')' | 
+    '(' >> whitespaces >> lift(name << whitespaces, ':'.! >> whitespaces >> termImpl).map((x, ty) => ty.map(Binding(x, _))) << whitespaces << ')' | 
     app.map(_.map(t => Binding("", t)))
   }
 
-  private def termImpl(using opt: ParsingOptions)(using ln: LocalNames)(using ns: Namespace) : Parser[Result[Term]] = P{
+  private def termImpl(using opt: ParsingOptions)(using ln: LocalNames)(using ns: Namespace) : Parser[Result[Term]] = P {
     for {
       bdn <- (binding << whitespaces << "->".! << whitespaces).?
       r <- bdn match {
@@ -89,6 +89,6 @@ object parser {
   def term(using ns: Namespace) = P { termImpl(using ParsingOptions())(using Set())(using ns) }
 }
 
-private case class ParsingOptions(val appDelimiter: Parser[?] = space*)
+private case class ParsingOptions(val appDelimiter: Parser[?] = spaces)
 
 private type LocalNames = Set[String]
