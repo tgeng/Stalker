@@ -19,6 +19,11 @@ class NamespaceTest extends UnitSpec {
       assert(ns("lsuc").qn == qn("stalker.builtins.lsuc"))
       assert(ns("lmax").qn == qn("stalker.builtins.lmax"))
       assert(ns("Id").qn == qn("stalker.builtins.Id"))
+      assert(ns("Refl").qn == qn("stalker.builtins.Id.Refl"))
+    }
+
+    "constructor name check works" in {
+      assert(ns("Refl").constructorName == Some("Refl"))
     }
 
     "non-existent types indeed don't exist" in {
@@ -56,4 +61,6 @@ class NamespaceTest extends UnitSpec {
     case Right(ns) => ns
     case Left(e) => throw IllegalArgumentException()
   }
+
+  private def (ns: InMemoryNamespace) update(name: String, qn: QualifiedName) = ns(name) = InMemoryNamespace.create(qn)
 }

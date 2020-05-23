@@ -10,6 +10,7 @@ trait Namespace extends Iterable[(String, Namespace)]{
   def get(names: Seq[String]) : Result[Namespace] = {
     names.foldLeft[Result[Namespace]]((Right(this)))((ns, n) => ns.flatMap(_.get(n)))
   }
+  def constructorName : Option[String]
 
   def qn: QualifiedName
 
@@ -26,11 +27,13 @@ trait Namespace extends Iterable[(String, Namespace)]{
   }
 }
 
-class InMemoryNamespace(val qn: QualifiedName) extends Namespace {
+import scala.language.implicitConversions
+import io.github.tgeng.stalker.core.tt._
+
+case class InMemoryNamespace(override val qn: QualifiedName) extends Namespace {
   import QualifiedName.{_, given _}
-  import scala.language.implicitConversions
-  import io.github.tgeng.stalker.core.tt._
   import scala.collection.mutable.Map
+  import scala.collection.mutable.Set
  
   private val content = Map[String, Namespace]()
 
@@ -41,25 +44,54 @@ class InMemoryNamespace(val qn: QualifiedName) extends Namespace {
 
   override def iterator: Iterator[(String, Namespace)] = content.iterator
 
-  def importDefinition(d: PreDefinition) = d.qn match {
-    case _ / name => this(name) = d.qn
-    case _ => ()
-  }
+  override def constructorName : Option[String] = None
 
-  def update(name: String, qn: QualifiedName): Unit = update(name, InMemoryNamespace.create(qn))
-  def update(name: String, ns: Namespace): Unit = content.update(name, ns)
+  def importNs(ns: Namespace) : Unit = ns.qn match {
+    case Root => merge(ns)
+    case parent / name => this(name) = ns
+  }
+  def merge(ns: Namespace) : Unit = content.addAll(ns)
+  def update(name: String, ns: Namespace) : Unit = content.update(name, ns)
+}
+
+case class LeafNamespace(override val qn: QualifiedName)(override val constructorName: Option[String]) extends Namespace {
+  override def get(name: String) = noNameError(s"Cannot find $name in $qn.")
+
+  override def iterator: Iterator[(String, Namespace)] = Iterator.empty
 }
 
 object InMemoryNamespace {
+  import io.github.tgeng.stalker.core.tt.builtins._
+
   def createWithBuiltins(qn: QualifiedName) = {
-    import io.github.tgeng.stalker.core.tt.builtins._
     val r = InMemoryNamespace(qn)
-    r.importDefinition(levelType)
-    r.importDefinition(universeType)
-    r.importDefinition(lsucFn)
-    r.importDefinition(lmaxFn)
-    r.importDefinition(idType)
+    r.importNs(levelType)
+    r.importNs(universeType)
+    r.importNs(lsucFn)
+    r.importNs(lmaxFn)
+    r.importNs(idTypeNs)
+    r.merge(idTypeNs)
     r
   }
   def create(qn: QualifiedName) = InMemoryNamespace(qn)
+
+  given dataToNamespace as Conversion[PreData, Namespace] = d => {
+    val r = InMemoryNamespace(d.qn)
+    val cons = d.cons
+    if (cons != null) {
+      for (con <- cons) {
+        r(con.name) = LeafNamespace(d.qn / con.name)(Some(con.name))
+      }
+    }
+    r
+  }
+
+  given recordToNamespace as Conversion[PreRecord, Namespace] = r => InMemoryNamespace(r.qn)
+  given definitionToNamespace as Conversion[PreDefinition, Namespace] = d => InMemoryNamespace(d.qn)
+
+  val idTypeNs : Namespace = {
+    val r = InMemoryNamespace(idType.qn)
+    r("Refl") = LeafNamespace(idType.qn / "Refl")(Some("Refl"))
+    r
+  }
 }

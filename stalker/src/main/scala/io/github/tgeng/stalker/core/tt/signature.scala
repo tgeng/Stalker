@@ -110,6 +110,8 @@ extension recordTypingOps on (self: Record) {
 
 type PreDefinition = DefinitionT[Unchecked, Term]
 type PreDeclaration = DeclarationT[Unchecked, Term]
+type PreData = DataT[Unchecked, Term]
+type PreRecord = RecordT[Unchecked, Term]
 type PreConstructor = ConstructorT[Term]
 type PreField = FieldT[Term]
 
