@@ -1,6 +1,8 @@
 package io.github.tgeng.stalker.core.fe
 
+import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.core.common.Namespace
+import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.stalker.core.common.error._
 import io.github.tgeng.stalker.core.tt._
 
@@ -18,10 +20,54 @@ trait TF[T, F] {
 
 object conversion {
   import FTerm._
+  import FElimination._
+  import Term._
+  import Whnf._
+  import Elimination._
 
   given FT[FTerm, Term] {
     def (f: FTerm) ttImpl (using ctx: LocalIndices)(using ns: Namespace) : Result[Term] = f match {
-      case _ => ???
+      case FTFunction(arg, bodyTy) => for arg <- arg.ttImpl
+                                          bodyTy <- ctx.withName(arg.name) { bodyTy.ttImpl } 
+                                      yield TWhnf(WFunction(arg, bodyTy))
+      case FTCon(name, args) => for args <- args.liftMap(_.ttImpl)
+                                yield TWhnf(WCon(name, args))
+      case FTLevel(level) => Right(TWhnf(WLevel(level, Set.empty)))
+      case FTQRedux(qn, elims) => for elims <- elims.liftMap(_.ttImpl)
+                                  yield TRedux(qn, elims)
+      case FTRedux(head, names, elims) => ctx.get(head) match {
+        case Right(idx) => for elims <- elims.liftMap(_.ttImpl)
+                          yield TWhnf(WVar(idx, names.map(EProj(_)) ++ elims))
+        case _ => ns.get(head) match {
+          case Right(ns) => resolveInNamespace(ns, names) match {
+            case (qn, names) => for elims <- elims.liftMap(_.ttImpl)
+                                yield TRedux(qn, names.map(EProj(_)) ++ elims)
+          }
+          case _ => noNameError(s"$head is not a local variable nor a name in the current scope.")
+        }
+      }
+    }
+  }
+
+  private def resolveInNamespace(ns: Namespace, names: List[String]): (QualifiedName, List[String]) = names match {
+    case Nil => (ns.qn, Nil)
+    case name :: rest => ns.get(name) match {
+      case Right(ns) => resolveInNamespace(ns, rest)
+      case _ => (ns.qn, names)
+    }
+  }
+
+  given FT[FElimination, Elimination] {
+    def (f: FElimination) ttImpl (using ctx: LocalIndices)(using ns: Namespace) : Result[Elimination] = f match {
+      case FETerm(t) => for t <- t.ttImpl
+                        yield ETerm(t)
+      case FEProj(p) => Right(EProj(p))
+    }
+  }
+
+  given FT[FBinding, Binding[Term]] {
+    def (b: FBinding) ttImpl (using ctx: LocalIndices)(using ns: Namespace) : Result[Binding[Term]] = b match {
+      case FBinding(name, ty) => ty.ttImpl.map(Binding(_)(name))
     }
   }
 }

@@ -8,10 +8,11 @@ case class FBinding(name: String, ty: FTerm)
 type FTelescope = List[FBinding]
 
 enum FTerm {
-  case FTRedux(name: String, elims: List[FElimination])
   case FTFunction(arg: FBinding, bodyTy: FTerm)
   case FTCon(name: String, args: List[FTerm])
   case FTLevel(level: Int)
+  case FTQRedux(qn: QualifiedName, elims: List[FElimination])
+  case FTRedux(head: String, names: List[String], elims: List[FElimination])
 }
 
 enum FElimination {
