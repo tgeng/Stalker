@@ -23,7 +23,7 @@ class NamespaceTest extends UnitSpec {
     }
 
     "constructor name check works" in {
-      assert(ns("Refl").constructorName == Some("Refl"))
+      assert(ns.constructors.contains("Refl"))
     }
 
     "non-existent types indeed don't exist" in {

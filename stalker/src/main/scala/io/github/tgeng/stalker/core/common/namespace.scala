@@ -10,7 +10,7 @@ trait Namespace extends Iterable[(String, Namespace)]{
   def get(names: Seq[String]) : Result[Namespace] = {
     names.foldLeft[Result[Namespace]]((Right(this)))((ns, n) => ns.flatMap(_.get(n)))
   }
-  def constructorName : Option[String]
+  def constructors: scala.collection.Set[String]
 
   def qn: QualifiedName
 
@@ -36,6 +36,8 @@ case class InMemoryNamespace(override val qn: QualifiedName) extends Namespace {
   import scala.collection.mutable.Set
  
   private val content = Map[String, Namespace]()
+  val constructors: Set[String] = Set[String]()
+
 
   override def get(name: String) = content.get(name) match {
     case Some(ns) => Right(ns)
@@ -44,20 +46,23 @@ case class InMemoryNamespace(override val qn: QualifiedName) extends Namespace {
 
   override def iterator: Iterator[(String, Namespace)] = content.iterator
 
-  override def constructorName : Option[String] = None
-
   def importNs(ns: Namespace) : Unit = ns.qn match {
     case Root => merge(ns)
     case parent / name => this(name) = ns
   }
-  def merge(ns: Namespace) : Unit = content.addAll(ns)
+  def merge(ns: Namespace) : Unit = {
+    content.addAll(ns)
+    constructors.addAll(ns.constructors)
+  }
   def update(name: String, ns: Namespace) : Unit = content.update(name, ns)
 }
 
-case class LeafNamespace(override val qn: QualifiedName)(override val constructorName: Option[String]) extends Namespace {
+case class LeafNamespace(override val qn: QualifiedName) extends Namespace {
   override def get(name: String) = noNameError(s"Cannot find $name in $qn.")
 
   override def iterator: Iterator[(String, Namespace)] = Iterator.empty
+
+  override val constructors = Set.empty
 }
 
 object InMemoryNamespace {
@@ -80,7 +85,8 @@ object InMemoryNamespace {
     val cons = d.cons
     if (cons != null) {
       for (con <- cons) {
-        r(con.name) = LeafNamespace(d.qn / con.name)(Some(con.name))
+        r(con.name) = LeafNamespace(d.qn / con.name)
+        r.constructors.add(con.name)
       }
     }
     r
@@ -91,7 +97,8 @@ object InMemoryNamespace {
 
   val idTypeNs : Namespace = {
     val r = InMemoryNamespace(idType.qn)
-    r("Refl") = LeafNamespace(idType.qn / "Refl")(Some("Refl"))
+    r("Refl") = LeafNamespace(idType.qn / "Refl")
+    r.constructors.add("Refl")
     r
   }
 }

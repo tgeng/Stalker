@@ -15,15 +15,15 @@ enum Pattern {
   // binding in the context. Therefore, the left most PVar index is the biggest,
   // e.g. context.size - 1.
   case PVar(idx: Int)(val name: String)
-  case PCon(con: String, patterns: List[Pattern])
-  case PForcedCon(con: String, patterns: List[Pattern])
+  case PCon(con: String, args: List[Pattern])
+  case PForcedCon(con: String, args: List[Pattern])
   case PForced(t: Term)
   case PAbsurd
 
   def toTerm: Term = this match {
     case PVar(idx) => TWhnf(WVar(idx, Nil))
-    case PCon(con, patterns) => TWhnf(WCon(con, patterns.map(_.toTerm)))
-    case PForcedCon(con, patterns) => TWhnf(WCon(con, patterns.map(_.toTerm)))
+    case PCon(con, args) => TWhnf(WCon(con, args.map(_.toTerm)))
+    case PForcedCon(con, args) => TWhnf(WCon(con, args.map(_.toTerm)))
     case PForced(t) => t
     case PAbsurd => throw IllegalArgumentException()
   }

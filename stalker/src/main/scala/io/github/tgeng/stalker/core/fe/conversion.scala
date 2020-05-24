@@ -24,6 +24,10 @@ object conversion {
   import Term._
   import Whnf._
   import Elimination._
+  import FPattern._
+  import Pattern._
+  import FCoPattern._
+  import CoPattern._
 
   given FT[FTerm, Term] {
     def (f: FTerm) ttImpl (using ctx: LocalIndices)(using ns: Namespace) : Result[Term] = f match {
@@ -59,8 +63,7 @@ object conversion {
 
   given FT[FElimination, Elimination] {
     def (f: FElimination) ttImpl (using ctx: LocalIndices)(using ns: Namespace) : Result[Elimination] = f match {
-      case FETerm(t) => for t <- t.ttImpl
-                        yield ETerm(t)
+      case FETerm(t) => for t <- t.ttImpl yield ETerm(t)
       case FEProj(p) => Right(EProj(p))
     }
   }
@@ -70,13 +73,34 @@ object conversion {
       case FBinding(name, ty) => ty.ttImpl.map(Binding(_)(name))
     }
   }
+
+  given FT[FTelescope, List[Binding[Term]]] {
+    def (ts: FTelescope) ttImpl (using ctx: LocalIndices)(using ns: Namespace) : Result[List[Binding[Term]]] = ts.liftMap(_.ttImpl)
+  }
+
+  given FT[FPattern, Pattern] {
+    def (p: FPattern) ttImpl (using ctx:LocalIndices)(using ns: Namespace) : Result[Pattern] = p match {
+      case FPVar(name) => for idx <- ctx.get(name) yield PVar(idx)(name)
+      case FPCon(con, args) => for args <- args.liftMap(_.ttImpl) yield PCon(con, args)
+      case FPForcedCon(con, args) => for args <- args.liftMap(_.ttImpl) yield PForcedCon(con, args)
+      case FPForced(t) => for t <- t.ttImpl yield PForced(t)
+      case FPAbsurd => Right(PAbsurd)
+    }
+  }
+
+  given FT[FCoPattern, CoPattern] {
+    def (q: FCoPattern) ttImpl (using ctx:LocalIndices)(using ns: Namespace) : Result[CoPattern] = q match {
+      case FQPattern(p) => for p <- p.ttImpl yield QPattern(p)
+      case FQProj(p) => Right(QProj(p))
+    }
+  }
 }
 
-private class LocalIndices {
+private class LocalIndices(content: Map[String, Int] = Map.empty) {
   import scala.collection.mutable.Map
   import scala.collection.mutable.ArrayBuffer
 
-  val indices = Map[String, ArrayBuffer[Int]]()
+  val indices : Map[String, ArrayBuffer[Int]] = Map.from(content.view.mapValues(ArrayBuffer(_)))
   var size : Int = 0
 
   def get(name: String) : Result[Int] = indices.get(name).flatMap(_.lastOption) match {

@@ -114,6 +114,7 @@ type PreData = DataT[Unchecked, Term]
 type PreRecord = RecordT[Unchecked, Term]
 type PreConstructor = ConstructorT[Term]
 type PreField = FieldT[Term]
+type PreClause = ClauseT[Unchecked, Term]
 
 object SignatureBuilder {
   def create : SignatureBuilder = {
