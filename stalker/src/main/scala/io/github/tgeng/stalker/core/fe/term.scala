@@ -11,7 +11,6 @@ enum FTerm {
   case FTFunction(arg: FBinding, bodyTy: FTerm)
   case FTCon(name: String, args: List[FTerm])
   case FTLevel(level: Int)
-  case FTQRedux(qn: QualifiedName, elims: List[FElimination])
   case FTRedux(head: String, names: List[String], elims: List[FElimination])
 }
 

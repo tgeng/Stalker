@@ -37,8 +37,6 @@ object conversion {
       case FTCon(name, args) => for args <- args.liftMap(_.ttImpl)
                                 yield TWhnf(WCon(name, args))
       case FTLevel(level) => Right(TWhnf(WLevel(level, Set.empty)))
-      case FTQRedux(qn, elims) => for elims <- elims.liftMap(_.ttImpl)
-                                  yield TRedux(qn, elims)
       case FTRedux(head, names, elims) => ctx.get(head) match {
         case Right(idx) => for elims <- elims.liftMap(_.ttImpl)
                           yield TWhnf(WVar(idx, names.map(EProj(_)) ++ elims))
