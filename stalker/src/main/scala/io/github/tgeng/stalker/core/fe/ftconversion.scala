@@ -12,13 +12,7 @@ trait FT[F, T] {
   def (f: F) ttImpl (using ctx: LocalIndices)(using ns: Namespace) : Result[T]
 }
 
-trait TF[T, F] {
-  def (t: T) fe(using ns: Namespace) : F = t.feImpl(using LocalNames())
-
-  def (t: T) feImpl(using localVars: LocalNames)(using ns: Namespace) : F
-}
-
-object conversion {
+object ftConversion {
   import FTerm._
   import FElimination._
   import Term._
@@ -114,19 +108,5 @@ private class LocalIndices(content: Map[String, Int] = Map.empty) {
     buffer.dropRightInPlace(1)
     size -= 1
     t
-  }
-}
-
-private class LocalNames {
-  import scala.collection.mutable.ArrayBuffer
-
-  val names = ArrayBuffer[String]()
-
-  def get(idx: Int) : String = names(idx)
-  def withName[T](name: String)(action: => T) : T = {
-    names.prepend(name)
-    val r = action
-    names.dropInPlace(1)
-    r
   }
 }

@@ -33,7 +33,7 @@ import FUncheckedRhs._
 import UncheckedRhs._
 
 class FSignature {
-  import conversion.{given _, _}
+  import ftConversion.{given _, _}
   private val sb = SignatureBuilder.create
 
   def += (d: FDeclaration)(using ns: Namespace) : Result[Unit] = d match {

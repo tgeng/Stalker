@@ -14,15 +14,18 @@ trait Namespace extends Iterable[(String, Namespace)]{
 
   def qn: QualifiedName
 
-  def render(qn: QualifiedName): String = render(qn, "")
+  def render(qn: QualifiedName): (String, List[String]) = render(qn, Nil) match {
+    case head :: rest => (head, rest)
+    case _ => throw IllegalArgumentException(s"Invalid qualified name $qn to render.")
+  }
 
-  private def render(qn: QualifiedName, current: String) : String = qn match {
+  private def render(qn: QualifiedName, current: List[String]) : List[String] = qn match {
     case Root => current
     case parent / name => {
       for ((name1, elem) <- this) {
-        if(qn == elem.qn) return name1 + current
+        if(qn == elem.qn) return name1 :: current
       }
-      render(parent, "." + name + current)
+      render(parent, name :: current)
     }
   }
 }

@@ -42,18 +42,18 @@ class NamespaceTest extends UnitSpec {
 
     "render should be concise" in {
       ns("Foo") = "foo.Foo"
-      assert(ns.render("foo.Foo") == "Foo")
+      assert(ns.render("foo.Foo") == ("Foo", Nil))
     }
 
     "render should be concise for names in sub namespace" in {
       val sub = InMemoryNamespace.create("foo.bar")
       sub("Foo") = "foo.bar.Foo"
       ns("bar") = sub
-      assert(ns.render("foo.bar.Foo") == "bar.Foo")
+      assert(ns.render("foo.bar.Foo") == ("bar", List("Foo")))
     }
 
     "render should output full name if not found " in {
-      assert(ns.render("random.a.b.c") == ".random.a.b.c")
+      assert(ns.render("random.a.b.c") == ("random", List("a", "b", "c")))
     }
   }
 
