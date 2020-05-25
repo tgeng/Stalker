@@ -3,7 +3,7 @@ package io.github.tgeng.stalker.core.fe
 import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.core.common.Namespace
 import io.github.tgeng.common.extraSeqOps
-import io.github.tgeng.stalker.core.common.error._
+import io.github.tgeng.stalker.core.common.Error._
 import io.github.tgeng.stalker.core.tt._
 
 trait FT[F, T] {

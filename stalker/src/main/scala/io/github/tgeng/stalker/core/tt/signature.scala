@@ -6,7 +6,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
 import io.github.tgeng.common._
 import io.github.tgeng.common.extraSeqOps
-import io.github.tgeng.stalker.core.common.error._
+import io.github.tgeng.stalker.core.common.Error._
 import io.github.tgeng.stalker.common.QualifiedName
 import reduction.tele
 import reduction.whnf
@@ -121,11 +121,12 @@ object SignatureBuilder {
     val sb = SignatureBuilder(HashMap.empty, HashMap.empty, HashMap.empty)
     import builtins._
     import scala.language.postfixOps
-    assert(sb += levelType isRight)
-    assert(sb += universeType isRight)
-    assert(sb += lsucFn isRight)
-    assert(sb += lmaxFn isRight)
-    assert(sb += idType isRight)
+
+    assertResult(sb += levelType)
+    assertResult(sb += universeType)
+    assertResult(sb += lsucFn)
+    assertResult(sb += lmaxFn)
+    assertResult(sb += idType)
     sb
   }
 }

@@ -2,7 +2,7 @@ package io.github.tgeng.stalker.core.tt
 
 import scala.util.control.NonLocalReturns._
 import io.github.tgeng.common.extraSetOps
-import io.github.tgeng.stalker.core.common.error._
+import io.github.tgeng.stalker.core.common.Error._
 import io.github.tgeng.stalker.core.tt.typing.level
 import Term._
 import Whnf._
@@ -42,7 +42,7 @@ object reduction {
         case (n, WLevel(l, lsucs)) => n + l
         case (n, t@WVar(x, Nil)) => 0
         case _ => throw IllegalStateException("invalid level term")
-      }.max, l)
+      }.maxOption.getOrElse(0), l)
     } yield WLevel(newLevel, newLsucs)
     case w => w
   }

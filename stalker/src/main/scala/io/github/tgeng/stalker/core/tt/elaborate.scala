@@ -7,10 +7,9 @@ import io.github.tgeng.common.extraIterableOps
 import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.common.extraSetOps
 import io.github.tgeng.stalker.common._
-import io.github.tgeng.stalker.core.common.error._
+import io.github.tgeng.stalker.core.common.Error._
 import reduction._
 import typing.checkTerm
-import typing.checkTermsEq
 import CaseTree._
 import CoPattern._
 import Pattern._
@@ -41,18 +40,18 @@ extension elaboration on (p: Problem) {
       case Left(_) => throw AssertionError()
     }
     // Intro
-    case _P ||| (f, q̅) ∷ (WFunction(_A, _B)) => for {
+    case _P ||| (f, q̅) ∷ (WFunction(_A, _B)) => (for {
       wA <- _A.ty.whnf 
       r <- withCtxExtendedBy(_A.name ∷ wA) {
         for {
           wB <- _B.whnf
-          _Pmod <- _P.shift(wA)
+          _Pmod <- _P.shift(wA.raise(1))
           r <- (_Pmod ||| (f, q̅.map(_.raise(1)) :+ QPattern(PVar(0)(_A.name))) ∷ wB).elaborate
         } yield CLam(r)
       }
-    } yield r
+    } yield r)
     // Cosplit
-    case _P ||| (f, q̅) ∷ (WRecord(qn, v̅)) => for {
+    case _P ||| (f, q̅) ∷ (WRecord(qn, v̅)) => (for {
       record <- Σ getRecord qn
       fields <- record.getFields
       fieldCaseTrees <- fields.foldLeft[Result[Map[String, CaseTree]]](Right(Map())){ (acc, field) =>
@@ -63,7 +62,7 @@ extension elaboration on (p: Problem) {
           q <- (_Pmod ||| (f, q̅ :+ QProj(field.name)) ∷ wA).elaborate
         } yield m ++ Map(field.name -> q)
       }
-    } yield CRecord(fieldCaseTrees)
+    } yield CRecord(fieldCaseTrees))
     case (_P@((_E1, q̅1) |-> rhs1) :: _) ||| (f, q̅) ∷ _C => {
       // Sort it so that we start splitting from the left most pattern.
       _E1.toSeq.sortBy {
@@ -146,7 +145,7 @@ extension elaboration on (p: Problem) {
         case _ => Right(None)
       }.flatMap {
         case Some(p) => Right(p)
-        case None => typingError("Elaboration failed.")
+        case None => typingError(s"Elaboration failed when solving problem $p")
       }
     }
     // Split empty by detecting absurd pattern
@@ -174,9 +173,10 @@ private def (_E: Set[(Term /? Pattern) ∷ Type]) solve(using Γ: Context)(using
       val ws = _ESeq.map{ case (w /? _) ∷ _ => w}
       val ps = _ESeq.map{ case (_ /? p) ∷ _ => p}
       val Δ = _ESeq.map{ case (_ /? _) ∷ _A => "" ∷ _A}
+      import typing.checkTermEq
       for {
         // Check again to ensure forced patterns are correct.
-        _ <- (ps.map(_.toTerm).map(_.subst(σ)) ≡ ws ∷ Δ).check
+        _ <- _E.liftMap{ case (w /? p) ∷ _A => (p.toTerm ≡ w ∷ _A).check }
       } yield σ
     }
     case _ => typingError("Mismatch")
@@ -187,7 +187,7 @@ private def (_P: UserInput) shift(_A: Type): Result[UserInput] = _P match {
   case Nil => Right(Nil)
   case ((_E, QPattern(p) :: q̅) |-> rhs) :: _P => for {
     _Pmod <- _P.shift(_A)
-  } yield ((_E.map{ case (w /? p) ∷ _B => (w.raise(1) /? p) ∷ _B } ++ Set((TWhnf(WVar(0, Nil)) /? p) ∷ _A) , q̅) |-> rhs) :: _Pmod
+  } yield ((_E.map{ case (w /? p) ∷ _B => (w.raise(1) /? p) ∷ _B.raise(1) } ++ Set((TWhnf(WVar(0, Nil)) /? p) ∷ _A) , q̅) |-> rhs) :: _Pmod
   case _ => typingError("Unexpected clause")
 }
 
@@ -317,6 +317,12 @@ extension termsMatchTypingRelation on (m: List[Term] /? List[Pattern]) {
   def ∷(_Δ: Telescope) = new ∷(m, _Δ)
 }
 
-case class |||[A, B](a: A, b: B)
-case class |->[Lhs, Rhs](lhs: Lhs, rhs: Rhs)
-case class /?[T, P](w: T, p: P)
+case class |||[A, B](a: A, b: B) {
+  override def toString = s"$a ||| $b"
+}
+case class |->[Lhs, Rhs](lhs: Lhs, rhs: Rhs) {
+  override def toString = s"$lhs |-> $rhs"
+}
+case class /?[T, P](w: T, p: P) {
+  override def toString = s"$w /? $p"
+}

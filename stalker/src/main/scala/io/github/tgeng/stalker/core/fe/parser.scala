@@ -5,7 +5,7 @@ import scala.language.implicitConversions
 import scala.collection.Map
 import io.github.tgeng.common.extraSeqOps._
 import io.github.tgeng.stalker.common.QualifiedName
-import io.github.tgeng.stalker.core.common.error._
+import io.github.tgeng.stalker.core.common.Error._
 import io.github.tgeng.stalker.core.common.Namespace
 import io.github.tgeng.parse._
 import io.github.tgeng.parse.string.{given _, _}

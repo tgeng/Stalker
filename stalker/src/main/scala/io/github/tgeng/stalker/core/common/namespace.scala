@@ -3,7 +3,7 @@ package io.github.tgeng.stalker.core.common
 import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.common.extraSeqOps
 import QualifiedName._
-import error._
+import Error._
 
 trait Namespace extends Iterable[(String, Namespace)]{
   def get(name: String) : Result[Namespace]

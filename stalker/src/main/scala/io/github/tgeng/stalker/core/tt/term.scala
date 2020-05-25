@@ -2,11 +2,13 @@ package io.github.tgeng.stalker.core.tt
 
 import scala.collection.mutable.ArrayBuffer
 import io.github.tgeng.stalker.common.QualifiedName
-import io.github.tgeng.stalker.core.common.error._
+import io.github.tgeng.stalker.core.common.Error._
 
 type Type = Whnf
 
-case class Binding[+T](ty: T)(val name: String)
+case class Binding[+T](ty: T)(val name: String) {
+  override def toString = s"$name ∷ $ty"
+}
 
 extension stringBindingOps on [T](self: String) {
   def ∷ (t: T) = Binding(t)(self)
@@ -99,7 +101,7 @@ object Whnf {
 given Raisable[Whnf] {
   def (w: Whnf) raiseImpl(using spec: RaiseSpec) : Whnf = w match {
     case WFunction(arg, bodyTy) => WFunction(arg.map(_.raiseImpl), bodyTy.raiseImpl(using spec.raised))
-    case WUniverse(_) => w
+    case WUniverse(t) => WUniverse(t.raiseImpl)
     case WLevel(l, maxOperands) => WLevel(l, maxOperands.map{ case LSuc(a, t) => LSuc(a, t.raiseImpl)})
     case WLevelType => WLevelType
     case WData(data, params) => WData(data, params.map(_.raiseImpl))
