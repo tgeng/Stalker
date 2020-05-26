@@ -1,4 +1,4 @@
-package io.github.tgeng.stalker.core.tt
+package io.github.tgeng.stalker.core.common
 
 import scala.collection.immutable.ArraySeq
 import scala.language.implicitConversions
