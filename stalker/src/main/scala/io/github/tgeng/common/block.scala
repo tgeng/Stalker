@@ -93,6 +93,7 @@ case class Block(
               first = false
               child.printBlockOrString
             }
+            if (indentPolicy.isInstanceOf[FixedIncrement]) ctx.nextBlockOnNewLine = true
           }
           case NoWrap => throw IllegalStateException()
         }
@@ -156,10 +157,15 @@ class PrintContext(
   private var width: Int,
   private val widthLimit: Int,
   private var indent: Int,
+  var nextBlockOnNewLine: Boolean = false,
 ) {
   def widthLeft = widthLimit - width
 
   def append(s: String) = {
+    if (nextBlockOnNewLine) {
+      delimitWithNewline
+      nextBlockOnNewLine = false
+    }
     sb.append(s)
     width += s.size
   }

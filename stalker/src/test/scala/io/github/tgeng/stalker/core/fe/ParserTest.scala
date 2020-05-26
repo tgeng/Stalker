@@ -35,6 +35,15 @@ class ParserTest extends UnitSpec {
         |(d : A -> B -> D) ->
         |veryLongFn a b c d
         """,
+        "con1{a, b, c}",
+        """
+        |con1{
+        |  a b c d e,
+        |  A -> B -> C -> D -> E,
+        |  con2{a b c d e, A -> B -> C -> D -> E, x y z},
+        |  con3{x y z}
+        |}
+        """,
       )
     }
   }

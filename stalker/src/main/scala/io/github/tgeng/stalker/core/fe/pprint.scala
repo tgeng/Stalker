@@ -47,7 +47,7 @@ object pprint {
       case FTCon(name, Nil) => Block(wrapPolicy = NoWrap)(name, "{", "}")
       case FTCon(name, args) => Block()(
         Block(wrapPolicy = NoWrap)(name, "{"),
-        Block(wrapPolicy = ChopDown, indentPolicy = FixedIncrement(2))(
+        Block(wrapPolicy = ChopDown, indentPolicy = FixedIncrement(2), delimitPolicy = Whitespace)(
           args.dropRight(1).map(arg => Block(wrapPolicy = NoWrap)(arg.block(using PriorityContext.zero), ",")) :+ args.last.block(using PriorityContext.zero) : _*
         ),
         "}"
