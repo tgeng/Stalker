@@ -2,6 +2,9 @@ package io.github.tgeng.stalker.core.fe
 
 import io.github.tgeng.common._
 import Block._
+import IndentPolicy._
+import WrapPolicy._
+import DelimitPolicy._
 
 trait PPrinter[T] extends BlockConverter[T] {
   final def (t: T) toBlock : Block = t.block(using PriorityContext.zero)
@@ -9,7 +12,7 @@ trait PPrinter[T] extends BlockConverter[T] {
   final def (t: T) block(using parentCtx: PriorityContext) : Block = {
     val thisCtx = t.pctx
     if (parentCtx.priority >= thisCtx.priority) {
-      concat("(", t.blockImpl(using PriorityContext.zero), ")")
+      Block()("(", Block(indentPolicy = FixedIncrement(2))(t.blockImpl(using PriorityContext.zero)), ")")
     } else {
       t.blockImpl(using thisCtx)
     }
@@ -41,19 +44,19 @@ object pprint {
     })
 
     override def (t: FTerm) blockImpl = t match {
-      case FTCon(name, Nil) => oneLineConcat(name, "{", "}")
-      case FTCon(name, args) => concat(
-        oneLineConcat(name, "{"),
-        chopDown(
-          args.dropRight(1).map(arg => oneLineConcat(arg.block(using PriorityContext.zero), ",")) :+ args.last.block(using PriorityContext.zero)
+      case FTCon(name, Nil) => Block(wrapPolicy = NoWrap)(name, "{", "}")
+      case FTCon(name, args) => Block()(
+        Block(wrapPolicy = NoWrap)(name, "{"),
+        Block(wrapPolicy = ChopDown, indentPolicy = FixedIncrement(2))(
+          args.dropRight(1).map(arg => Block(wrapPolicy = NoWrap)(arg.block(using PriorityContext.zero), ",")) :+ args.last.block(using PriorityContext.zero) : _*
         ),
         "}"
       )
-      case FTLevel(l) => oneLineConcat(l.toString, "lv")
-      case FTRedux(head, names, elims) => oneLine(head) ++ names ++ elims.map(_.block)
+      case FTLevel(l) => Block(wrapPolicy = NoWrap)(l.toString, "lv")
+      case FTRedux(head, names, elims) => Block(wrapPolicy = NoWrap, delimitPolicy = Whitespace)(head) ++ names ++ elims.map(_.block)
       case t => unnestFn(t) match {
-        case (bindings, bodyTy) => chopDown(
-          bindings.map(b => oneLine(b.block, "->")) :+ bodyTy.block
+        case (bindings, bodyTy) => Block(wrapPolicy = ChopDown, indentPolicy = Aligned, delimitPolicy = Whitespace)(
+          bindings.map(b => Block(wrapPolicy = NoWrap, delimitPolicy = Whitespace)(b.block, "->")) :+ bodyTy.block : _*
         )
       }
     }
@@ -68,7 +71,7 @@ object pprint {
 
   given PPrinter[FBinding] {
     override def (b: FBinding) pctx = if (b.name == "") b.ty.pctx else PriorityContext.zero
-    override def (b: FBinding) blockImpl = if (b.name == "") b.ty.blockImpl else wrap(b.name, ":", b.ty.block)
+    override def (b: FBinding) blockImpl = if (b.name == "") b.ty.blockImpl else Block(delimitPolicy = Whitespace)(b.name, ":", b.ty.block)
   }
 
   given PPrinter[FElimination] {
@@ -79,7 +82,7 @@ object pprint {
 
     override def (t: FElimination) blockImpl = t match {
       case FETerm(t) => t.blockImpl
-      case FEProj(p) => oneLineConcat(".", p)
+      case FEProj(p) => Block(wrapPolicy = NoWrap)(".", p)
     }
   }
 }
