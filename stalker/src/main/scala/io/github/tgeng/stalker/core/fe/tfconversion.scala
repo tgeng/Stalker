@@ -69,7 +69,7 @@ object tfConversion {
   }
 }
 
-private class LocalNames {
+class LocalNames {
   import scala.collection.mutable.ArrayBuffer
 
   val names = ArrayBuffer[String]()

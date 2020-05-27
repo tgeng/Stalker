@@ -38,58 +38,58 @@ class FSignature {
 
   def += (d: FDeclaration)(using ns: Namespace) : Result[Unit] = d match {
     case FDataDecl(qn, paramTys, ty) =>
-      for paramTys <- paramTys.liftMap(_.tt)
-          ty <- ty.tt
+      for paramTys <- paramTys.liftMap(_.toTt)
+          ty <- ty.toTt
           _ <- sb += PreData(qn)(paramTys, ty, null)
       yield ()
     case FDataDef(qn, cons) =>
-      for cons <- cons.liftMap(_.tt)
+      for cons <- cons.liftMap(_.toTt)
           _ <- sb.updateData(qn, cons)
       yield ()
     case FRecordDecl(qn, paramTys, ty) =>
-      for paramTys <- paramTys.liftMap(_.tt)
-          ty <- ty.tt
+      for paramTys <- paramTys.liftMap(_.toTt)
+          ty <- ty.toTt
           _ <- sb += PreRecord(qn)(paramTys, ty, null)
       yield ()
     case FRecordDef(qn, fields) =>
-      for fields <- fields.liftMap(_.tt)
+      for fields <- fields.liftMap(_.toTt)
           _ <- sb.updateRecord(qn, fields)
       yield ()
     case FDefinition(qn, ty, clauses) =>
-      for ty <- ty.tt
-          clauses <- clauses.liftMap(_.tt)
+      for ty <- ty.toTt
+          clauses <- clauses.liftMap(_.toTt)
           _ <- sb += PreDefinition(qn)(ty, clauses, null)
       yield ()
   }
 
   private given FT[FConstructor, PreConstructor] {
-    def (c: FConstructor) ttImpl (using ctx: LocalIndices)(using ns: Namespace) : Result[PreConstructor] = c match {
+    def (c: FConstructor) toTtImpl (using ctx: LocalIndices)(using ns: Namespace) : Result[PreConstructor] = c match {
       case FConstructor(name, argTys) =>
-        for argTys <- argTys.ttImpl
+        for argTys <- argTys.toTtImpl
         yield PreConstructor(name, argTys)
     }
   }
 
   private given FT[FField, PreField] {
-    def (c: FField) ttImpl (using ctx: LocalIndices)(using ns: Namespace) : Result[PreField] = c match {
+    def (c: FField) toTtImpl (using ctx: LocalIndices)(using ns: Namespace) : Result[PreField] = c match {
       case FField(name, ty) =>
-        for ty <- ty.ttImpl
+        for ty <- ty.toTtImpl
         yield PreField(name, ty)
     }
   }
 
   private given FT[FUncheckedRhs, UncheckedRhs] {
-    def (c: FUncheckedRhs) ttImpl (using ctx: LocalIndices)(using ns: Namespace) : Result[UncheckedRhs] = c match {
-      case FUTerm(t) => for t <- t.ttImpl yield UTerm(t)
+    def (c: FUncheckedRhs) toTtImpl (using ctx: LocalIndices)(using ns: Namespace) : Result[UncheckedRhs] = c match {
+      case FUTerm(t) => for t <- t.toTtImpl yield UTerm(t)
       case FUImpossible => Right(UImpossible)
     }
   }
 
-  def (c: FUncheckedClause) tt (using ns: Namespace) : Result[PreClause] = c match {
+  def (c: FUncheckedClause) toTt (using ns: Namespace) : Result[PreClause] = c match {
     case FUncheckedClause(lhs, rhs) => {
       given LocalIndices = LocalIndices(lhs.flatMap(_.freeVars).toSet.zipWithIndex.toMap)
-      for lhs <- lhs.liftMap(_.ttImpl)
-          rhs <- rhs.ttImpl
+      for lhs <- lhs.liftMap(_.toTtImpl)
+          rhs <- rhs.toTtImpl
       yield ClauseT.UncheckedClause(lhs, rhs)
     }
   }

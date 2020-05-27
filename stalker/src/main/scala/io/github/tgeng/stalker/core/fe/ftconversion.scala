@@ -7,9 +7,9 @@ import io.github.tgeng.stalker.core.common.Error._
 import io.github.tgeng.stalker.core.tt._
 
 trait FT[F, T] {
-  def (f: F) tt (using ns: Namespace) : Result[T] = f.ttImpl(using LocalIndices())
+  def (f: F) toTt (using ns: Namespace) : Result[T] = f.toTtImpl(using LocalIndices())
 
-  def (f: F) ttImpl (using ctx: LocalIndices)(using ns: Namespace) : Result[T]
+  def (f: F) toTtImpl (using ctx: LocalIndices)(using ns: Namespace) : Result[T]
 }
 
 object ftConversion {
@@ -24,19 +24,19 @@ object ftConversion {
   import CoPattern._
 
   given FT[FTerm, Term] {
-    def (f: FTerm) ttImpl (using ctx: LocalIndices)(using ns: Namespace) : Result[Term] = f match {
-      case FTFunction(arg, bodyTy) => for arg <- arg.ttImpl
-                                          bodyTy <- ctx.withName(arg.name) { bodyTy.ttImpl } 
+    def (f: FTerm) toTtImpl (using ctx: LocalIndices)(using ns: Namespace) : Result[Term] = f match {
+      case FTFunction(arg, bodyTy) => for arg <- arg.toTtImpl
+                                          bodyTy <- ctx.withName(arg.name) { bodyTy.toTtImpl } 
                                       yield TWhnf(WFunction(arg, bodyTy))
-      case FTCon(name, args) => for args <- args.liftMap(_.ttImpl)
+      case FTCon(name, args) => for args <- args.liftMap(_.toTtImpl)
                                 yield TWhnf(WCon(name, args))
       case FTLevel(level) => Right(TWhnf(WLevel(level, Set.empty)))
       case FTRedux(head, names, elims) => ctx.get(head) match {
-        case Right(idx) => for elims <- elims.liftMap(_.ttImpl)
+        case Right(idx) => for elims <- elims.liftMap(_.toTtImpl)
                           yield TWhnf(WVar(idx, names.map(EProj(_)) ++ elims))
         case _ => ns.get(head) match {
           case Right(ns) => resolveInNamespace(ns, names) match {
-            case (qn, names) => for elims <- elims.liftMap(_.ttImpl)
+            case (qn, names) => for elims <- elims.liftMap(_.toTtImpl)
                                 yield TRedux(qn, names.map(EProj(_)) ++ elims)
           }
           case _ => noNameError(s"$head is not a local variable nor a name in the current scope.")
@@ -54,41 +54,41 @@ object ftConversion {
   }
 
   given FT[FElimination, Elimination] {
-    def (f: FElimination) ttImpl (using ctx: LocalIndices)(using ns: Namespace) : Result[Elimination] = f match {
-      case FETerm(t) => for t <- t.ttImpl yield ETerm(t)
+    def (f: FElimination) toTtImpl (using ctx: LocalIndices)(using ns: Namespace) : Result[Elimination] = f match {
+      case FETerm(t) => for t <- t.toTtImpl yield ETerm(t)
       case FEProj(p) => Right(EProj(p))
     }
   }
 
   given FT[FBinding, Binding[Term]] {
-    def (b: FBinding) ttImpl (using ctx: LocalIndices)(using ns: Namespace) : Result[Binding[Term]] = b match {
-      case FBinding(name, ty) => ty.ttImpl.map(Binding(_)(name))
+    def (b: FBinding) toTtImpl (using ctx: LocalIndices)(using ns: Namespace) : Result[Binding[Term]] = b match {
+      case FBinding(name, ty) => ty.toTtImpl.map(Binding(_)(name))
     }
   }
 
   given FT[FTelescope, List[Binding[Term]]] {
-    def (ts: FTelescope) ttImpl (using ctx: LocalIndices)(using ns: Namespace) : Result[List[Binding[Term]]] = ts.liftMap(_.ttImpl)
+    def (ts: FTelescope) toTtImpl (using ctx: LocalIndices)(using ns: Namespace) : Result[List[Binding[Term]]] = ts.liftMap(_.toTtImpl)
   }
 
   given FT[FPattern, Pattern] {
-    def (p: FPattern) ttImpl (using ctx:LocalIndices)(using ns: Namespace) : Result[Pattern] = p match {
+    def (p: FPattern) toTtImpl (using ctx:LocalIndices)(using ns: Namespace) : Result[Pattern] = p match {
       case FPVar(name) => for idx <- ctx.get(name) yield PVar(idx)(name)
-      case FPCon(con, args) => for args <- args.liftMap(_.ttImpl) yield PCon(con, args)
-      case FPForcedCon(con, args) => for args <- args.liftMap(_.ttImpl) yield PForcedCon(con, args)
-      case FPForced(t) => for t <- t.ttImpl yield PForced(t)
+      case FPCon(con, args) => for args <- args.liftMap(_.toTtImpl) yield PCon(con, args)
+      case FPForcedCon(con, args) => for args <- args.liftMap(_.toTtImpl) yield PForcedCon(con, args)
+      case FPForced(t) => for t <- t.toTtImpl yield PForced(t)
       case FPAbsurd => Right(PAbsurd)
     }
   }
 
   given FT[FCoPattern, CoPattern] {
-    def (q: FCoPattern) ttImpl (using ctx:LocalIndices)(using ns: Namespace) : Result[CoPattern] = q match {
-      case FQPattern(p) => for p <- p.ttImpl yield QPattern(p)
+    def (q: FCoPattern) toTtImpl (using ctx:LocalIndices)(using ns: Namespace) : Result[CoPattern] = q match {
+      case FQPattern(p) => for p <- p.toTtImpl yield QPattern(p)
       case FQProj(p) => Right(QProj(p))
     }
   }
 }
 
-private class LocalIndices(content: Map[String, Int] = Map.empty) {
+class LocalIndices(content: Map[String, Int] = Map.empty) {
   import scala.collection.mutable.Map
   import scala.collection.mutable.ArrayBuffer
 
