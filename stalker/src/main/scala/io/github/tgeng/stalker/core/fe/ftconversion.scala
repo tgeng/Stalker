@@ -33,7 +33,7 @@ object ftConversion {
       case FTLevel(level) => Right(TWhnf(WLevel(level, Set.empty)))
       case FTRedux(head, names, elims) => ctx.get(head) match {
         case Right(idx) => for elims <- elims.liftMap(_.toTtImpl)
-                          yield TWhnf(WVar(idx, names.map(EProj(_)) ++ elims))
+                           yield TWhnf(WVar(idx, names.map(EProj(_)) ++ elims))
         case _ => ns.get(head) match {
           case Right(ns) => resolveInNamespace(ns, names) match {
             case (qn, names) => for elims <- elims.liftMap(_.toTtImpl)
@@ -96,7 +96,7 @@ class LocalIndices(content: Map[String, Int] = Map.empty) {
   var size : Int = 0
 
   def get(name: String) : Result[Int] = indices.get(name).flatMap(_.lastOption) match {
-    case Some(i) => Right(i)
+    case Some(i) => Right(size - i)
     case None => noNameError(s"Cannot find local variable $name.")
   }
 

@@ -14,7 +14,7 @@ enum FTerm {
   case FTLevel(level: Int)
   case FTRedux(head: String, names: List[String], elims: List[FElimination])
 
-  override def toString = this.pprint(80)
+  override def toString = this.pprint()
 }
 
 enum FElimination {

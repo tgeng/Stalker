@@ -7,7 +7,7 @@ import io.github.tgeng.stalker.core.common.Error._
 type Type = Whnf
 
 case class Binding[+T](ty: T)(val name: String) {
-  override def toString = s"$name ∷ $ty"
+  override def toString = s""""$name" ∷ $ty"""
 }
 
 extension stringBindingOps on [T](self: String) {
@@ -37,6 +37,11 @@ enum Term {
   }
 
   def app(e̅: Seq[Elimination]) : Result[Term] = e̅.foldLeft[Result[Term]](Right(this))((acc, e) => acc.flatMap(_.app(e)))
+
+  override def toString : String = this match {
+    case TWhnf(whnf) => s"""TWhnf($whnf)"""
+    case TRedux(fn, elims) => s"""TRedux("$fn", $elims)"""
+  }
 }
 
 given Raisable[Term] {
@@ -76,6 +81,18 @@ enum Whnf {
     case WId(level, ty, left, right) => level.freeVars | ty.freeVars | left.freeVars | right.freeVars
     case WVar(idx, elims) => elims.flatMap(_.freeVars).toSet
     case WCon(con, args) => args.flatMap(_.freeVars).toSet
+  }
+
+  override def toString = this match {
+    case WFunction(arg, bodyTy) => s"WFunction($arg, $bodyTy)"
+    case WUniverse(level) => s"WUniverse($level)"
+    case WLevel(l, maxOperands) => s"WLevel($l, $maxOperands)"
+    case WLevelType => "WLevelType"
+    case WData(qn, params) => s"""WData("$qn", $params)"""
+    case WRecord(qn, params) => s"""WRecord("$qn", $params)"""
+    case WId(level, ty, left, right) => s"WId($level, $ty, $left, $right)"
+    case WVar(idx, elims) => s"WVar($idx, $elims)"
+    case WCon(con, args) => s"""WCon("$con", $args)"""
   }
 }
 
@@ -145,6 +162,11 @@ enum Elimination {
   def freeVars : Set[Int] = this match {
     case ETerm(t) => t.freeVars
     case EProj(p) => Set.empty
+  }
+
+  override def toString = this match {
+    case ETerm(t) => s"ETerm($t)"
+    case EProj(p) => s"""EProj("$p")"""
   }
 }
 

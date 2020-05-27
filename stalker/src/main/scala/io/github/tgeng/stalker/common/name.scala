@@ -7,8 +7,8 @@ enum QualifiedName {
   case /(val parent: QualifiedName, val name: String)
 
   override def toString: String = this match {
-    case Root => throw UnsupportedOperationException("toString method cannot be overwritten for the singleton Root")
-    case Root / name => "." + name
+    case Root => throw AssertionError("toString method cannot be overwritten for the singleton Root so this case should never be invoked")
+    case Root / name => name
     case parent / name => parent.toString + "." + name
   }
 }

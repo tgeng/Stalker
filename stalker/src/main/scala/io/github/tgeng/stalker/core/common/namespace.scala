@@ -95,8 +95,8 @@ object InMemoryNamespace {
     r
   }
 
-  given recordToNamespace as Conversion[PreRecord, Namespace] = r => InMemoryNamespace(r.qn)
-  given definitionToNamespace as Conversion[PreDefinition, Namespace] = d => InMemoryNamespace(d.qn)
+  given recordToNamespace as Conversion[PreRecord, Namespace] = r => LeafNamespace(r.qn)
+  given definitionToNamespace as Conversion[PreDefinition, Namespace] = d => LeafNamespace(d.qn)
 
   val idTypeNs : Namespace = {
     val r = InMemoryNamespace(idType.qn)

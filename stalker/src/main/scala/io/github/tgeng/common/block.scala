@@ -1,7 +1,7 @@
 package io.github.tgeng.common
 
 trait BlockConverter[T] {
-  final def (t: T) pprint(widthLimit: Int = 100): String = {
+  final def (t: T) pprint(widthLimit: Int = 80): String = {
     val sb = StringBuilder()
     t.toBlock.print(sb, widthLimit)
     sb.toString
@@ -49,7 +49,7 @@ case class Block(
   def ++ (more: Iterable[Block | String]) = Block(children ++ more, wrapPolicy, indentPolicy, delimitPolicy)
   def + (oneMore: Block | String) = Block(children :+ oneMore, wrapPolicy, indentPolicy, delimitPolicy)
 
-  def print(sb: StringBuilder, widthLimit: Int = 100) : Unit = {
+  def print(sb: StringBuilder, widthLimit: Int = 80) : Unit = {
     print(using PrintContext.from(sb, widthLimit))
   }
 
@@ -202,7 +202,7 @@ class PrintContext(
 }
 
 object PrintContext {
-  def from(sb: StringBuilder, widthLimit : Int = 100) = {
+  def from(sb: StringBuilder, widthLimit : Int = 80) = {
     val lineStart = sb.lastIndexOf('\n') + 1
     val width = sb.length - lineStart
     var indent = 0
