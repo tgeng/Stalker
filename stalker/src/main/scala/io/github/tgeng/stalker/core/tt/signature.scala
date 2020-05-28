@@ -143,6 +143,9 @@ class SignatureBuilder(
     import Term._
     import Whnf._
     import CoPattern._
+    if (mDefinitions.contains(d.qn)) {
+      return duplicatedDefinitionError(s"${d.qn} has been defined already.")
+    }
     d match {
       case d@DataT(qn) => for {
         _Δ <- d.paramTys.tele

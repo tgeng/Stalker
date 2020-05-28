@@ -6,8 +6,10 @@ import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.core.common.Namespace
 import io.github.tgeng.stalker.core.common.InMemoryNamespace
 import io.github.tgeng.parse._
+import io.github.tgeng.parse.string._
 import io.github.tgeng.stalker.core.fe._
 import io.github.tgeng.stalker.core.fe.ftConversion.{given _, _}
+import io.github.tgeng.stalker.core.fe.tfConversion.{given _, _}
 import io.github.tgeng.stalker.core.tt._
 import io.github.tgeng.stalker.testing.UnitSpec
 
@@ -15,7 +17,7 @@ class CoreSpec extends UnitSpec {
   val namespace = InMemoryNamespace.createWithBuiltins("stalker.unit-test")
   given Namespace = namespace
 
-  def fterm(s: String) : FTerm = (parser.term << eof).parse(s) match {
+  def fterm(s: String) : FTerm = (whitespaces >> parser.term << whitespaces << eof).parse(s) match {
     case Right(t) => t
     case Left(e) => fail(e.toString)
   }
@@ -31,4 +33,6 @@ class CoreSpec extends UnitSpec {
     case Right(t) => t
     case Left(e) => fail(e.toString)
   }
+
+  def (t: Term) fe : FTerm = t.toFe
 }

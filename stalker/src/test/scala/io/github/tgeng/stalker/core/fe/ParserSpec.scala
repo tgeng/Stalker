@@ -46,7 +46,7 @@ class ParserSpec extends UnitSpec {
     )
   }
 
-  def roundTrip(inputs: String*) = for (input <- inputs) {
+  private def roundTrip(inputs: String*) = for (input <- inputs) {
     val stripped = input.stripMargin.trim.asInstanceOf[String]
     (term << eof).parse(stripped) match {
       case Left(e) => fail(s"When parsing:\n$stripped\nit failed with error:\n$e")
