@@ -62,7 +62,7 @@ import Term._
 
 enum Whnf {
   case WFunction(arg: Binding[Term], bodyTy: Term)
-  case WUniverse(level: Term)
+  case WType(level: Term)
   case WLevel(l: Int, maxOperands: Set[LSuc])
   case WLevelType
   case WData(qn: QualifiedName, params: List[Term])
@@ -73,7 +73,7 @@ enum Whnf {
 
   def freeVars : Set[Int] = this match {
     case WFunction(arg, bodyTy) => arg.ty.freeVars | (bodyTy.freeVars &~ Set(0)).map(_ - 1)
-    case WUniverse(l) => l.freeVars
+    case WType(l) => l.freeVars
     case WLevel(l, maxOperands) => maxOperands.flatMap{case LSuc(_, t) => t.freeVars}
     case WLevelType => Set.empty
     case WData(data, params) => params.flatMap(_.freeVars).toSet
@@ -85,7 +85,7 @@ enum Whnf {
 
   override def toString = this match {
     case WFunction(arg, bodyTy) => s"WFunction($arg, $bodyTy)"
-    case WUniverse(level) => s"WUniverse($level)"
+    case WType(level) => s"WType($level)"
     case WLevel(l, maxOperands) => s"WLevel($l, $maxOperands)"
     case WLevelType => "WLevelType"
     case WData(qn, params) => s"""WData("$qn", $params)"""
@@ -118,7 +118,7 @@ object Whnf {
 given Raisable[Whnf] {
   def (w: Whnf) raiseImpl(using spec: RaiseSpec) : Whnf = w match {
     case WFunction(arg, bodyTy) => WFunction(arg.map(_.raiseImpl), bodyTy.raiseImpl(using spec.raised))
-    case WUniverse(t) => WUniverse(t.raiseImpl)
+    case WType(t) => WType(t.raiseImpl)
     case WLevel(l, maxOperands) => WLevel(l, maxOperands.map{ case LSuc(a, t) => LSuc(a, t.raiseImpl)})
     case WLevelType => WLevelType
     case WData(data, params) => WData(data, params.map(_.raiseImpl))
@@ -134,7 +134,7 @@ given Substitutable[Whnf, Term, Term] {
     case WFunction(arg, bodyTy) => TWhnf(WFunction(
       arg.map(_.substituteImpl),
       bodyTy.substituteImpl(using spec.raised)))
-    case WUniverse(l) => TWhnf(WUniverse(l.substituteImpl))
+    case WType(l) => TWhnf(WType(l.substituteImpl))
     case WLevel(l, maxOperands) => TWhnf(WLevel(l, maxOperands.map{ case LSuc(a, t) => LSuc(a, t.substituteImpl)}))
     case WLevelType => TWhnf(WLevelType)
     case WData(data, params) => TWhnf(WData(data, params.map(_.substituteImpl)))

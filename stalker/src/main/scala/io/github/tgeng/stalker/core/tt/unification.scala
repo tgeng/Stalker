@@ -91,7 +91,7 @@ extension termUnification on (p: =?[Term] ∷ Type) {
       lA <- wA.level
       w1 = List(_A, a1, a2)
       w2 = List(_B, b1, b2)
-      _Γ = List("X" ∷ WUniverse(TWhnf(lA)), "x" ∷ WVar(0, Nil), "y" ∷ WVar(1, Nil))
+      _Γ = List("X" ∷ WType(TWhnf(lA)), "x" ∷ WVar(0, Nil), "y" ∷ WVar(1, Nil))
       unifier <- ((w1 =? w2) ∷ _Γ).unify
     } yield positive(
       Γ + idTypes(_Γ, w1, w2),

@@ -30,7 +30,7 @@ object tfConversion {
   given TF[Whnf, FTerm] {
     def (w: Whnf) toFeImpl(using localVars: LocalNames)(using ns: Namespace) : FTerm = w match {
       case WFunction(arg, bodyTy) => FTFunction(arg.toFeImpl, localVars.withName(arg.name) { bodyTy.toFeImpl })
-      case WUniverse(level) => ftRedux(universeType.qn, FETerm(level.toFeImpl))
+      case WType(level) => ftRedux(universeType.qn, FETerm(level.toFeImpl))
       case WLevel(l, maxOperands) => (l, maxOperands.toList) match {
         case (l, Nil) => FTLevel(l)
         case (l, lsuc :: rest) => sucFeImpl(l, maxFeImpl(lsuc, rest))

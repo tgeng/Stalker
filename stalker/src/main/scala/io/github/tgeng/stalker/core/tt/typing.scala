@@ -19,7 +19,7 @@ import reduction.whnf
 
 object typing {
   def (tm: Type)level(using Γ: Context)(using Σ: Signature) : Result[Whnf] = tm match {
-    case WUniverse(l) => Right(lsuc(l))
+    case WType(l) => Right(lsuc(l))
     case WLevelType => Right(lconst(0))
     case WFunction(_A, _B) => {
       for {
@@ -104,7 +104,7 @@ object typing {
   def (j: Term ∷ Type |- List[Elimination])elimLevel(using Γ: Context)(using Σ: Signature) : Result[Whnf] = {
     j match {
       case u ∷ _A |- Nil  => _A match {
-        case WUniverse(l) => l.whnf
+        case WType(l) => l.whnf
         case _ => typingError(s"Expected $u to be a type (whose type would be a universe), but its type is $_A.")
       }
       case u ∷ WFunction(_A, _B) |- (ETerm(v) :: e̅) => for {
@@ -166,7 +166,7 @@ object typing {
       }
       j match {
         // Types
-        case _A ∷ WUniverse(l) => for {
+        case _A ∷ WType(l) => for {
           wl <- l.whnf
           wA <- _A.whnf
           lA <- wA.level
@@ -290,7 +290,7 @@ object typing {
           wY <- y.whnf
           _ <- wX ≡ wY ∷ _A match {
             case x ≡ y ∷ _ if x == y => Right(())
-            case x ≡ y ∷ WUniverse(l) => for {
+            case x ≡ y ∷ WType(l) => for {
               inferredL <- (x ≡ y).eqLevel
               wl <- l.whnf
               _ <- inferredL == wl match {

@@ -156,7 +156,7 @@ class SignatureBuilder(
         }
         _ = mData(qn) = new Data(qn)(_Δ, level, cons)
         _ <- this += DefinitionT(qn)(
-          _Δ.foldRight(TWhnf(WUniverse(TWhnf(level))))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
+          _Δ.foldRight(TWhnf(WType(TWhnf(level))))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
           Seq(UncheckedClause(
             _Δ.pvars.map(QPattern(_)).toList,
             UTerm(TWhnf(WData(qn, _Δ.vars.toList)))
@@ -173,7 +173,7 @@ class SignatureBuilder(
         }
         _ = mRecords(qn) = new Record(qn)(_Δ, level, fields)
         _ <- this += DefinitionT(qn)(
-          _Δ.foldRight(TWhnf(WUniverse(TWhnf(level))))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
+          _Δ.foldRight(TWhnf(WType(TWhnf(level))))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
           Seq( UncheckedClause(
             _Δ.pvars.map(QPattern(_)).toList,
             UTerm(TWhnf(WData(qn, _Δ.vars.toList)))
