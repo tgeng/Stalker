@@ -1,5 +1,17 @@
 package io.github.tgeng.common
 
+inline def [T](ctx: => StringContext) b (args: => T*)(using BlockConverter[T]): Block = {
+  val p = ctx.parts.iterator
+  val a = args.iterator
+  val resultSeq = scala.collection.mutable.ArrayBuffer[Block | String]()
+  resultSeq ++= p.next.split(" ").asInstanceOf[Array[String]].filter(s => !s.isEmpty)
+  while(p.hasNext) {
+    resultSeq += Block(wrapPolicy = ChopDown, indentPolicy = FixedIncrement(4))(a.next.toBlock)
+    resultSeq ++= p.next.split(" ").asInstanceOf[Array[String]].filter(s => !s.isEmpty)
+  }
+  Block(wrapPolicy = Wrap, delimitPolicy = Whitespace)(resultSeq.toSeq : _*)
+}
+
 trait BlockConverter[T] {
   final def (t: T) pprint(widthLimit: Int = 80): String = {
     val sb = StringBuilder()
@@ -49,7 +61,13 @@ case class Block(
   def ++ (more: Iterable[Block | String]) = Block(children ++ more, wrapPolicy, indentPolicy, delimitPolicy)
   def + (oneMore: Block | String) = Block(children :+ oneMore, wrapPolicy, indentPolicy, delimitPolicy)
 
-  def print(sb: StringBuilder, widthLimit: Int = 80) : Unit = {
+  override def toString = {
+    val sb = StringBuilder()
+    print(sb, 80)
+    sb.toString
+  }
+
+  def print(sb: StringBuilder, widthLimit: Int) : Unit = {
     print(using PrintContext.from(sb, widthLimit))
   }
 

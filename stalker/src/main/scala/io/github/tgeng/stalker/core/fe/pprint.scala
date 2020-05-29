@@ -1,6 +1,9 @@
 package io.github.tgeng.stalker.core.fe
 
 import io.github.tgeng.common._
+import io.github.tgeng.stalker.core.common.Namespace
+import io.github.tgeng.stalker.core.tt._
+import io.github.tgeng.stalker.core.fe.tfConversion.{given _, _}
 import Block._
 import IndentPolicy._
 import WrapPolicy._
@@ -84,5 +87,13 @@ object pprint {
       case FETerm(t) => t.blockImpl
       case FEProj(p) => Block(wrapPolicy = NoWrap)(".", p)
     }
+  }
+}
+
+import pprint.{given _, _}
+
+class TermBlockConverter(using namespace: Namespace) extends BlockConverter[Term] {
+  def (t: Term) toBlock: Block = {
+    t.toFe(using namespace).toBlock
   }
 }
