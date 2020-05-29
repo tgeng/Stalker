@@ -35,7 +35,7 @@ extension elaboration on (p: Problem) {
             case Left(e) => Left(e)
           }
         }
-        case _ => typingError("False impossible case.")
+        case _ => typingError(e"False impossible case.")
       }
       case Left(_) => throw AssertionError()
     }
@@ -98,7 +98,7 @@ extension elaboration on (p: Problem) {
               }
             } 
           } yield Some(CDataCase(x, r.toMap))
-          case _ => typingError(s"Unexpected constructor pattern $p for type $_A.")
+          case _ => typingError(e"Unexpected constructor pattern $p for type $_A.")
         }
         // SplitEq
         case ((TWhnf(WVar(x, Nil))) /? PRefl) ∷ _A => _A match {
@@ -124,12 +124,12 @@ extension elaboration on (p: Problem) {
                       }
                     } yield r
                   }
-                  case _ => typingError(s"Cannot match $_A with refl because unification of $u and $v failed.")
+                  case _ => typingError(e"Cannot match $_A with refl because unification of $u and $v failed.")
                 }
               } yield r
             }
           } yield Some(r)
-          case _ => typingError(s"Unexpected refl for type $_A.")
+          case _ => typingError(e"Unexpected refl for type $_A.")
         }
         // SplitEmpty
         case ((TWhnf(WVar(x, Nil))) /? PAbsurd) ∷ _A => rhs1 match {
@@ -137,15 +137,15 @@ extension elaboration on (p: Problem) {
             caseOption <- (x, _A).getEmptyCaseSplit
             r <- caseOption match {
               case Some(_Q) => Right(Some(_Q))
-              case None => typingError(s"The type inferencer failed to conclude $_A to be empty. Please prove it manually.")
+              case None => typingError(e"The type inferencer failed to conclude $_A to be empty. Please prove it manually.")
             }
           } yield r
-          case _ => typingError("Absurd pattern should have an impossible rhs")
+          case _ => typingError(e"Absurd pattern should have an impossible rhs")
         }
         case _ => Right(None)
       }.flatMap {
         case Some(p) => Right(p)
-        case None => typingError(s"Elaboration failed when solving problem $p")
+        case None => typingError(e"Elaboration failed when solving problem $p")
       }
     }
     // Split empty by detecting absurd pattern
@@ -154,7 +154,7 @@ extension elaboration on (p: Problem) {
       case (Binding(_A), x) => (x, _A).getEmptyCaseSplit
     }.flatMap {
       case Some(_Q) => Right(_Q)
-      case None => typingError("Missing branch...")
+      case None => typingError(e"Missing branch...")
     }
   }
 }
@@ -179,7 +179,7 @@ private def (_E: Set[(Term /? Pattern) ∷ Type]) solve(using Γ: Context)(using
         _ <- _E.liftMap{ case (w /? p) ∷ _A => (p.toTerm ≡ w ∷ _A).check }
       } yield σ
     }
-    case _ => typingError("Mismatch")
+    case _ => typingError(e"Mismatch")
   }
 }
 
@@ -188,7 +188,7 @@ private def (_P: UserInput) shift(_A: Type): Result[UserInput] = _P match {
   case ((_E, QPattern(p) :: q̅) |-> rhs) :: _P => for {
     _Pmod <- _P.shift(_A)
   } yield ((_E.map{ case (w /? p) ∷ _B => (w.raise(1) /? p) ∷ _B.raise(1) } ++ Set((TWhnf(WVar(0, Nil)) /? p) ∷ _A) , q̅) |-> rhs) :: _Pmod
-  case _ => typingError("Unexpected clause")
+  case _ => typingError(e"Unexpected clause")
 }
 
 private def (_P: UserInput) filter(fieldName: String, allFieldNames: Set[String]): Result[UserInput] = _P match {
@@ -199,8 +199,8 @@ private def (_P: UserInput) filter(fieldName: String, allFieldNames: Set[String]
       yield 
         if (fieldName == π) ((_E, q̅) |-> rhs) :: _Pmod
         else _Pmod
-    else typingError(s"Unexpected field $π")
-  case _ => typingError("Unexpected clause")
+    else typingError(e"Unexpected field $π")
+  case _ => typingError(e"Unexpected clause")
 }
 
 private def (_P: UserInput) subst(σ: Substitution[Term])(using Σ: Signature): Result[UserInput] = _P match {
@@ -253,7 +253,7 @@ private def (constraint: (Term /? Pattern) ∷ Type) simpl(using Σ: Signature) 
             _E <- ((v̅ /? p̅) ∷ _Δ).simplAll
           } yield _E
         case (WCon(c, v̅), PForcedCon(c1, p̅), WData(qn, u̅)) => 
-          if (c != c1) typingError("Mismatched forced constructor")
+          if (c != c1) typingError(e"Mismatched forced constructor")
           else for {
             data <- Σ getData qn
             con <- data(c)

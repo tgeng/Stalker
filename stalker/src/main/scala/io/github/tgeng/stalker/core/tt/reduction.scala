@@ -57,7 +57,7 @@ object reduction {
         }
       }
     }
-    throwReturn[Result[Term]](typingError(s"No matched clause found with eliminators ${e̅}. Is definition ${d.qn} exhaustive?"))
+    throwReturn[Result[Term]](typingError(e"No matched clause found with eliminators ${e̅}. Is definition ${d.qn} exhaustive?"))
   }
   
   def (v: Term) / (p: Pattern)(using Γ: Context)(using Σ: Signature) : MatchResult = p match {
@@ -69,11 +69,11 @@ object reduction {
       } else {
         mismatch(v, p)
       }
-      case _ => typingError(s"stuck when reducing $v")
+      case _ => typingError(e"stuck when reducing $v")
     }
     case PForcedCon(_, p̅) => v.whnf match {
       case Right(WCon(_, v̅)) => v̅.map(ETerm(_)) / p̅.map(QPattern(_))
-      case _ => typingError(s"stuck when reducing $v")
+      case _ => typingError(e"stuck when reducing $v")
     }
     case PAbsurd => throw IllegalStateException("Checked pattern should not contain absurd pattern.")
   }
@@ -100,7 +100,7 @@ object reduction {
     // * extra arguments: type error indeed
     // * wrong number of args for constructor: type error indeed
     // * mismatched field: this would have resulted an earlier mismatch instead.
-    case _ => typingError(s"stuck when matching ${e̅} with ${q̅}")
+    case _ => typingError(e"stuck when matching ${e̅} with ${q̅}")
   }
   def matched(s: Map[Int, Term]) : MatchResult = Right(Right(s))
   private def mismatch(e: Elimination, q: CoPattern) : MatchResult = Right(Left(Mismatch(e, q)))
@@ -111,7 +111,7 @@ object reduction {
   } yield (s1, s2)) match {
     case Right(s1, s2) => (s1.keySet intersect s2.keySet) match {
       case s if s.forall(k => s1(k) == s2(k)) => matched(s1 ++ s2)
-      case _ => typingError("Nonlinear patterns.")
+      case _ => typingError(e"Nonlinear patterns.")
     }
     case Left(l) => Right(Left(l))
   }
@@ -135,7 +135,7 @@ object reduction {
         case WRefl <- σ(x).whnf
         r <- evalCaseTree(_Q, τ ∘ σ, e̅)
       } yield r
-      case _ => typingError(s"Stuck while evaluating case tree $Q with substitution $σ and eliminations ${e̅}")
+      case _ => typingError(e"Stuck while evaluating case tree $Q with substitution $σ and eliminations ${e̅}")
     }
   }
 } 

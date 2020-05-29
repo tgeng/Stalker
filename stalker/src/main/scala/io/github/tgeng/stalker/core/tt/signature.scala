@@ -63,17 +63,17 @@ type Clause = ClauseT[Checked, Type]
 class Signature(val data: Map[QualifiedName, Data], val records: Map[QualifiedName, Record], val definitions: Map[QualifiedName, Definition]) {
   def getData(qn: QualifiedName) : Result[Data] = data get qn match {
     case Some(d) => Right(d)
-    case _ => typingError(s"No data schema found for $qn")
+    case _ => typingError(e"No data schema found for $qn")
   }
 
   def getRecord(qn: QualifiedName) : Result[Record] = records get qn match {
     case Some(r) => Right(r)
-    case _ => typingError(s"No record schema found for $qn")
+    case _ => typingError(e"No record schema found for $qn")
   }
 
   def getDefinition(qn: QualifiedName) : Result[Definition] = definitions get qn match {
     case Some(d) => Right(d)
-    case _ => typingError(s"No definition found for $qn")
+    case _ => typingError(e"No definition found for $qn")
   }
 
 }
@@ -82,13 +82,13 @@ extension dataTypingOps on (self: Data) {
   def apply(name: String) : Result[Constructor] = self.getCons.flatMap {
     _.find(_.name == name) match {
       case Some(c) => Right(c)
-      case None => typingError(s"Cannot find constructor '$name' for data ${self.qn}.")
+      case None => typingError(e"Cannot find constructor '$name' for data ${self.qn}.")
     }
   } 
 
   def getCons : Result[Seq[Constructor]] = {
     val cons = self.cons
-    if (cons == null) return typingError(s"Record ${self.qn} is declared but not initialized.")
+    if (cons == null) return typingError(e"Record ${self.qn} is declared but not initialized.")
     Right(cons)
   }
 }
@@ -97,13 +97,13 @@ extension recordTypingOps on (self: Record) {
   def apply(name: String) : Result[Field] = self.getFields.flatMap {
     _.find(_.name == name) match {
     case Some(f) => Right(f) 
-    case None => typingError(s"Cannot find field '$name' for record ${self.qn}.") 
+    case None => typingError(e"Cannot find field '$name' for record ${self.qn}.") 
     } 
   }
 
   def getFields : Result[Seq[Field]] = {
     val fields = self.fields
-    if (fields == null) return typingError(s"Record ${self.qn} is declared but not initialized.")
+    if (fields == null) return typingError(e"Record ${self.qn} is declared but not initialized.")
     Right(fields)
   }
 }
@@ -202,7 +202,7 @@ class SignatureBuilder(
       data <- getData(qn)
       _ = data.cons == null match {
         case true => Right(())
-        case false => typingError(s"Data $qn already has constructors.")
+        case false => typingError(e"Data $qn already has constructors.")
       }
       cons <- cons.reduceCons(using Context.empty + data.paramTys)
     } yield mData(qn) = new DataT(qn)(data.paramTys, data.level, cons)
@@ -213,7 +213,7 @@ class SignatureBuilder(
       record <- getRecord(qn)
       _ = record.fields == null match {
         case true => Right(())
-        case false => typingError(s"Record $qn already has fields.")
+        case false => typingError(e"Record $qn already has fields.")
       }
       fields <- fields.reduceFields(using Context.empty + record.paramTys + ("self" ∷ Whnf.WRecord(qn, record.paramTys.vars.toList)))
     } yield mRecords(qn) = new RecordT(qn)(record.paramTys, record.level, fields)

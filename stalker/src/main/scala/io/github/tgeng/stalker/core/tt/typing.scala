@@ -47,13 +47,13 @@ object typing {
         wA <- _A.whnf
         lA <- wA.level
         _ <- if (wl == lA) Right(())
-             else typingError(s"Expect $_A to be at level $l but it's at level $lA")
+             else typingError(e"Expect $_A to be at level $l but it's at level $lA")
         _ <- (x ∷ wA).check
         _ <- (y ∷ wA).check
       } yield lA
     }
     case WVar(idx, e̅) => (TWhnf(WVar(idx, Nil)) ∷ Γ(idx).ty |- e̅).elimLevel
-    case _ => typingError(s"$tm is not a type.")
+    case _ => typingError(e"$tm is not a type.")
   }
   
   def (Δ: Telescope)level(using Γ: Context)(using Σ: Signature) : Result[Whnf] = Δ match {
@@ -98,14 +98,14 @@ object typing {
       record <- Σ getRecord r1
       _ <- (u̅1 ≡ u̅2 ∷ record.paramTys).check
     } yield record.level
-    case _ => typingError(s"Cannot infer level of $eq")
+    case _ => typingError(e"Cannot infer level of $eq")
   }
 
   def (j: Term ∷ Type |- List[Elimination])elimLevel(using Γ: Context)(using Σ: Signature) : Result[Whnf] = {
     j match {
       case u ∷ _A |- Nil  => _A match {
         case WType(l) => l.whnf
-        case _ => typingError(s"Expected $u to be a type (whose type would be a universe), but its type is $_A.")
+        case _ => typingError(e"Expected $u to be a type (whose type would be a universe), but its type is $_A.")
       }
       case u ∷ WFunction(_A, _B) |- (ETerm(v) :: e̅) => for {
         wA <- _A.ty.whnf
@@ -123,7 +123,7 @@ object typing {
         ft <- field.ty.substHead(v̅ :+ u).whnf
         r <- (uπ ∷ ft |- e̅).elimLevel
       } yield r
-      case u ∷ _A |- elims => typingError(s"Invalid application of $elims to $u of type $_A.")
+      case u ∷ _A |- elims => typingError(e"Invalid application of $elims to $u of type $_A.")
     }
   }
 
@@ -152,7 +152,7 @@ object typing {
         uπ <- u.app(π)
         l <- (uπ ∷ wA |- e̅1 ≡ e̅2).elimEqLevel
       } yield l
-      case _ => typingError(s"Cannot infer level of $elim")
+      case _ => typingError(e"Cannot infer level of $elim")
     }
   }
   
@@ -172,13 +172,13 @@ object typing {
           lA <- wA.level
           _ <- lA == wl match {
             case true => Right(())
-            case false => typingError(s"Expected $_A to be at level $l, but it's at level $lA.")
+            case false => typingError(e"Expected $_A to be at level $l, but it's at level $lA.")
           }
         } yield ()
         // Heads
         case TWhnf(v@WVar(idx, Nil)) ∷ _A => 
           if (Γ(idx).ty == _A) Right(())
-          else typingError(s"Variable $v is not of type $_A but of type ${Γ(idx).ty}.")
+          else typingError(e"Variable $v is not of type $_A but of type ${Γ(idx).ty}.")
         case TWhnf(WVar(idx, e̅)) ∷ _A => for {
           _ <- (TWhnf(WVar(idx, Nil)) ∷ Γ(idx).ty |- e̅ ∷ _A).check
         } yield ()
@@ -200,7 +200,7 @@ object typing {
         } yield ()
         // Level
         case TWhnf(l) ∷ WLevelType => Right(())
-        case tm ∷ ty => typingError(s"Expected $tm to be of type $ty.")
+        case tm ∷ ty => typingError(e"Expected $tm to be of type $ty.")
       }
     }
   }
@@ -213,7 +213,7 @@ object typing {
         _Θ <- _Δ.substHead(x).tele
         _ <- (u̅ ∷ _Θ).check(using Γ + _A)
       } yield ()
-      case tms ∷ tys => typingError(s"Mismatched length when checking types of $tms against $tys")
+      case tms ∷ tys => typingError(e"Mismatched length when checking types of $tms against $tys")
     }
   }
   
@@ -248,7 +248,7 @@ object typing {
           ft <- field.ty.substHead(v̅ :+ u).whnf
           _ <- (uπ ∷ ft |- e̅ ∷ _C).check
         } yield ()
-        case u ∷ _A |- elims ∷ _C => typingError(s"Invalid application of $elims to $u of type $_A.")
+        case u ∷ _A |- elims ∷ _C => typingError(e"Invalid application of $elims to $u of type $_A.")
       }
     }
   }
@@ -295,7 +295,7 @@ object typing {
               wl <- l.whnf
               _ <- inferredL == wl match {
                 case true => Right(())
-                case false => typingError(s"Expected $x ≡ $y at level $l but it's at level $inferredL.")
+                case false => typingError(e"Expected $x ≡ $y at level $l but it's at level $inferredL.")
               }
             } yield ()
             case WVar(x, e̅1) ≡ WVar(y, e̅2) ∷ _A if x == y => (TWhnf(WVar(x, Nil)) ∷ Γ(x).ty |- e̅1 ≡ e̅2 ∷ _A).check
@@ -306,7 +306,7 @@ object typing {
               _Δ <- con.argTys.substHead(u̅).tele
               _ <- (v̅1 ≡ v̅2 ∷ _Δ).check
             } yield ()
-            case _ => typingError(s"Cannot decide if $x and $y of type $_A are computationally equivalent.")
+            case _ => typingError(e"Cannot decide if $x and $y of type $_A are computationally equivalent.")
           }
         } yield ()  
       }
@@ -359,7 +359,7 @@ object typing {
           uπ <- u.app(π)
           _ <- (uπ ∷ wA |- e̅1 ≡ e̅2 ∷ _C).check
         } yield ()
-        case u ∷ _A |- elims1 ≡ elims2 ∷ _C => typingError(s"Cannot decide if applying $elims1 and $elims1 to $u of type $_A are computationally equivalent.")
+        case u ∷ _A |- elims1 ≡ elims2 ∷ _C => typingError(e"Cannot decide if applying $elims1 and $elims1 to $u of type $_A are computationally equivalent.")
       }
     }
   }
@@ -436,7 +436,7 @@ extension derivationRelation on [X, Y](x: X) {
 extension resultFilter on [T](r: Result[T]) {
   def withFilter(p : T => Boolean) : Result[T] = r match {
     case Right(t) if (p(t)) => Right(t)
-    case Right(t) => typingError(s"Result $t does not satisfy predicate $p")
+    case Right(t) => typingError(e"Result $t does not satisfy predicate $p")
     case e => e
   }
 }
