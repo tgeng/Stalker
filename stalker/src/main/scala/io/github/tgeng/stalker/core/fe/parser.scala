@@ -35,10 +35,10 @@ object parser {
   }
 
   private def atom(using opt: ParsingOptions) : Parser[FTerm] = P {
-    '('.! >> termImpl(using opt.copy(appDelimiter = whitespaces)) << ')' | con | ref | level
+    '(' >>! termImpl(using opt.copy(appDelimiter = whitespaces)) << ')' | con | ref | level
   }
 
-  private def proj = '.'.! >> name
+  private def proj = '.' >>! name
 
   private def elim(using opt: ParsingOptions) : Parser[FElimination] = P {
     atom.map(FETerm(_)) | proj.map(p => FEProj(p))
@@ -60,13 +60,13 @@ object parser {
   }
 
   private def binding(using opt: ParsingOptions) : Parser[FBinding] = P {
-    '(' >> whitespaces >> lift(name << whitespaces, ':'.! >> whitespaces >> termImpl).map((x, ty) => FBinding(x, ty)) << whitespaces << ')' | 
+    '(' >> whitespaces >> lift(name << whitespaces, ':' >>! whitespaces >> termImpl).map((x, ty) => FBinding(x, ty)) << whitespaces << ')' | 
     app.map(FBinding("", _))
   }
 
   private def termImpl(using opt: ParsingOptions) : Parser[FTerm] = P {
     for {
-      bdn <- (binding << whitespaces << "->".! << whitespaces).?
+      bdn <- (binding << whitespaces << "->" <<! whitespaces).?
       r <- bdn match {
         case Some(b) => for t <- termImpl(using opt) yield FTFunction(b, t)
         case None => app
