@@ -295,7 +295,7 @@ object typing {
               wl <- l.whnf
               _ <- inferredL == wl match {
                 case true => Right(())
-                case false => typingError(e"Expected $x ≡ $y at level $l but it's at level $inferredL.")
+                case false => typingError(e"Expected ${x ≡ y} at level $l but it's at level $inferredL.")
               }
             } yield ()
             case WVar(x, e̅1) ≡ WVar(y, e̅2) ∷ _A if x == y => (TWhnf(WVar(x, Nil)) ∷ Γ(x).ty |- e̅1 ≡ e̅2 ∷ _A).check

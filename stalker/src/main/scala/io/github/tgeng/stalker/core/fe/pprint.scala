@@ -2,6 +2,7 @@ package io.github.tgeng.stalker.core.fe
 
 import io.github.tgeng.common._
 import io.github.tgeng.stalker.core.common.Namespace
+import io.github.tgeng.stalker.core.common.Error
 import io.github.tgeng.stalker.core.tt._
 import io.github.tgeng.stalker.core.fe.tfConversion.{given _, _}
 import Block._
@@ -88,12 +89,26 @@ object pprint {
       case FEProj(p) => Block(wrapPolicy = NoWrap)(".", p)
     }
   }
-}
 
-import pprint.{given _, _}
-
-class TermBlockConverter(using namespace: Namespace) extends BlockConverter[Term] {
-  def (t: Term) toBlock: Block = {
-    t.toFe(using namespace).toBlock
+  def (e: Error) toBlock (using Namespace): Block = {
+    val children = scala.collection.mutable.ArrayBuffer[Block | String]()
+    for (part <- e.msg) {
+      part match {
+        case s: String => children ++= s.split(" ").asInstanceOf[Array[String]]
+        case _ => children += Block(wrapPolicy = ChopDown, indentPolicy = FixedIncrement(2))(part.toBlockOrString)
+      }
+    }
+    Block(wrapPolicy = Wrap, delimitPolicy = Whitespace)(children.toSeq : _*)
+  }
+  
+  private def (part: Any) toBlockOrString(using Namespace): Block | String = part match {
+        case t: Term => t.toFe.toBlock
+        case t: Whnf => t.toFe.toBlock
+        case t: Elimination => t.toFe.toBlock
+        case t: FTerm => t.toBlock
+        case t: FElimination => t.toBlock
+        case a ∷ b => Block(wrapPolicy = NoWrap, delimitPolicy = Whitespace)(a.toBlockOrString, ":", Block(indentPolicy = Aligned)(b.toBlockOrString))
+        case a ≡ b => Block(wrapPolicy = ChopDown, delimitPolicy = Whitespace)(a.toBlockOrString, "=", b.toBlockOrString)
+        case _ => part.toString
   }
 }
