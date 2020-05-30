@@ -10,6 +10,7 @@ import io.github.tgeng.stalker.core.common.InMemoryNamespace
 import io.github.tgeng.parse._
 import io.github.tgeng.parse.string._
 import io.github.tgeng.stalker.core.fe._
+import io.github.tgeng.stalker.core.fe.builders._
 import io.github.tgeng.stalker.core.fe.pprint._
 import io.github.tgeng.stalker.core.fe.ftConversion.{given _, _}
 import io.github.tgeng.stalker.core.fe.tfConversion.{given _, _}
@@ -37,10 +38,10 @@ class CoreSpec extends UnitSpec {
       case Right(_) => MatchResult(
         true,
         "",
-        b"Term $x had type $_A")
+        pp"Term $x had type $_A")
       case Left(e) => MatchResult(
         false,
-        b"Term $x failed type checking against $_A because $e",
+        pp"Term $x failed type checking against $_A because $e",
         ""
       )
     }

@@ -90,7 +90,7 @@ object pprint {
     }
   }
 
-  def [T](ctx: StringContext) b (args: Any*)(using Namespace): String = {
+  def [T](ctx: StringContext) pp (args: Any*)(using Namespace): String = {
     val p = ctx.parts.iterator
     val a = args.iterator
     val resultSeq = scala.collection.mutable.ArrayBuffer[Any]()

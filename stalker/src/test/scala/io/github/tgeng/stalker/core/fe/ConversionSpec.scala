@@ -2,6 +2,7 @@ package io.github.tgeng.stalker.core.fe
 
 import scala.language.implicitConversions
 import io.github.tgeng.stalker.core.testing.CoreSpec
+import io.github.tgeng.stalker.core.fe.builders._
 import io.github.tgeng.stalker.core.fe.parser._
 import io.github.tgeng.stalker.core.tt._
 import io.github.tgeng.stalker.core.tt.stringBindingOps
