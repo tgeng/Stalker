@@ -17,19 +17,7 @@ class CoreSpec extends UnitSpec {
   val namespace = InMemoryNamespace.createWithBuiltins("stalker.unit-test")
   given Namespace = namespace
 
-  def fterm(s: String) : FTerm = (whitespaces >> parser.term << whitespaces << eof).parse(s) match {
-    case Right(t) => t
-    case Left(e) => fail(e.toString)
-  }
-
   def (ft: FTerm) tt : Term = ft.toTt match {
-    case Right(t) => t
-    case Left(e) => fail(e.toString)
-  }
-
-  def term(s: String) : Term = fterm(s).tt
-
-  def openTerm(s: String)(using LocalIndices) : Term = fterm(s).toTtImpl match {
     case Right(t) => t
     case Left(e) => fail(e.toString)
   }
