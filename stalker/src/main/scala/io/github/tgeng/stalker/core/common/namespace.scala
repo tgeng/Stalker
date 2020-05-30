@@ -44,7 +44,7 @@ case class InMemoryNamespace(override val qn: QualifiedName) extends Namespace {
 
   override def get(name: String) = content.get(name) match {
     case Some(ns) => Right(ns)
-    case None => noNameError(s"Cannot find $name in $qn.")
+    case None => noNameError(e"Cannot find $name in $qn.")
   }
 
   override def iterator: Iterator[(String, Namespace)] = content.iterator
@@ -61,7 +61,7 @@ case class InMemoryNamespace(override val qn: QualifiedName) extends Namespace {
 }
 
 case class LeafNamespace(override val qn: QualifiedName) extends Namespace {
-  override def get(name: String) = noNameError(s"Cannot find $name in $qn.")
+  override def get(name: String) = noNameError(e"Cannot find $name in $qn.")
 
   override def iterator: Iterator[(String, Namespace)] = Iterator.empty
 

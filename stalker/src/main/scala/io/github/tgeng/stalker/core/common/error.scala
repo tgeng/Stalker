@@ -28,13 +28,16 @@ object Error {
     case Left(e) => throw e.trace
   }
 
-  inline def [T](ctx: => StringContext) e (args: => T*): Seq[Any] = {
+  def [T](ctx: StringContext) e (args: T*): Seq[Any] = {
     val p = ctx.parts.iterator
     val a = args.iterator
     val resultSeq = scala.collection.mutable.ArrayBuffer[Any]()
     resultSeq += p.next
     while(p.hasNext) {
-      resultSeq += a.next
+      resultSeq += (a.next match {
+        case s: String => s"'$s'"
+        case x => x
+      })
       resultSeq += p.next
     }
     resultSeq

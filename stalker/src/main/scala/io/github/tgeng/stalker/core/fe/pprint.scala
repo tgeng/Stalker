@@ -90,11 +90,28 @@ object pprint {
     }
   }
 
-  def (e: Error) toBlock (using Namespace): Block = {
+  def [T](ctx: StringContext) b (args: Any*)(using Namespace): String = {
+    val p = ctx.parts.iterator
+    val a = args.iterator
+    val resultSeq = scala.collection.mutable.ArrayBuffer[Any]()
+    resultSeq += p.next
+    while(p.hasNext) {
+      resultSeq += (a.next match {
+        case s: String => s"'$s'"
+        case x => x
+      })
+      resultSeq += p.next
+    }
+    resultSeq.toBlock.toString
+  }
+
+  def (e: Error) toBlock (using Namespace): Block = e.msg.toBlock
+
+  private def (seq: scala.collection.Seq[Any]) toBlock (using Namespace): Block = {
     val children = scala.collection.mutable.ArrayBuffer[Block | String]()
-    for (part <- e.msg) {
+    for (part <- seq) {
       part match {
-        case s: String => children ++= s.split(" ").asInstanceOf[Array[String]]
+        case s: String => children ++= s.split(" ").asInstanceOf[Array[String]].filter(t => !t.isEmpty)
         case _ => children += Block(wrapPolicy = ChopDown, indentPolicy = FixedIncrement(2))(part.toBlockOrString)
       }
     }
@@ -109,6 +126,7 @@ object pprint {
         case t: FElimination => t.toBlock
         case a ∷ b => Block(wrapPolicy = NoWrap, delimitPolicy = Whitespace)(a.toBlockOrString, ":", Block(indentPolicy = Aligned)(b.toBlockOrString))
         case a ≡ b => Block(wrapPolicy = ChopDown, delimitPolicy = Whitespace)(a.toBlockOrString, "=", b.toBlockOrString)
+        case e: Error => Block(wrapPolicy = AlwaysNewline, indentPolicy = FixedIncrement(2))(e.toBlock)
         case _ => part.toString
   }
 }

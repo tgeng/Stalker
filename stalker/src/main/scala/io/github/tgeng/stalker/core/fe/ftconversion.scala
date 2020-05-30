@@ -39,7 +39,7 @@ object ftConversion {
             case (qn, names) => for elims <- elims.liftMap(_.toTtImpl)
                                 yield TRedux(qn, names.map(EProj(_)) ++ elims)
           }
-          case _ => noNameError(s"$head is not a local variable nor a name in the current scope.")
+          case _ => noNameError(e"$head is not a local variable nor a name in the current scope.")
         }
       }
     }
@@ -97,7 +97,7 @@ class LocalIndices(content: Map[String, Int] = Map.empty) {
 
   def get(name: String) : Result[Int] = indices.get(name).flatMap(_.lastOption) match {
     case Some(i) => Right(size - i)
-    case None => noNameError(s"Cannot find local variable $name.")
+    case None => noNameError(e"Cannot find local variable $name.")
   }
 
   def withName[T](name: String)(action: => T) : T = {

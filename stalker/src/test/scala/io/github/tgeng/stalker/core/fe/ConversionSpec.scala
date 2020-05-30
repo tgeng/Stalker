@@ -13,10 +13,10 @@ import Elimination._
 
 class ConversionSpec extends CoreSpec {
 
-  namespace("Vector") = LeafNamespace("stalker.collection.Vector")
-  namespace("Nat") = LeafNamespace("stalker.util.Nat")
-  namespace("String") = LeafNamespace("stalker.util.String")
-  namespace("Integer") = LeafNamespace("stalker.util.Integer")
+  ns("Vector") = LeafNamespace("stalker.collection.Vector")
+  ns("Nat") = LeafNamespace("stalker.util.Nat")
+  ns("String") = LeafNamespace("stalker.util.String")
+  ns("Integer") = LeafNamespace("stalker.util.Integer")
 
   "FTerm -> Term" - {
     "basic terms" in {
