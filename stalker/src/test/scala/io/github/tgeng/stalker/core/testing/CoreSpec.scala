@@ -32,8 +32,8 @@ class CoreSpec extends UnitSpec {
 
   def (t: Term) fe : FTerm = t.toFe
 
-  def haveType(_A: Term)(using Γ: Context)(using Σ: Signature)(using Namespace) = Matcher { (x: Term) =>
-    _A.whnf.flatMap(wA => (x ∷ wA).check) match {
+  def haveType(_A: Term)(using Γ: Context) = Matcher { (x: Term) =>
+    _A.whnf.flatMap(wA => new ∷(x, wA).check) match {
       case Right(_) => MatchResult(
         true,
         "",
@@ -45,4 +45,6 @@ class CoreSpec extends UnitSpec {
       )
     }
   }
+
+  inline def (tm: Term) ∷ (ty: Term)(using Γ: Context) = tm should haveType(ty)
 }

@@ -6,9 +6,10 @@ import io.github.tgeng.stalker.core.testing.CoreSpec
 
 class TypingSpec extends CoreSpec {
 
+  given Context = Context.empty
+
   "basic term typing" in {
-    given Context = Context.empty
-    t"Level" should haveType(t"Type 0lv")
-    t"Type 0lv" should haveType(t"Type 1lv")
+    t"Level" ∷ t"Type 0lv"
+    t"Type 0lv" ∷ t"Type 1lv"
   }
 }

@@ -25,6 +25,7 @@ enum IndentPolicy {
 enum DelimitPolicy {
   case Concat
   case Whitespace
+  case Paragraph
 }
 
 import IndentPolicy._
@@ -68,6 +69,7 @@ case class Block(
           if (!first) {
             delimitPolicy match {
               case Whitespace => ctx.delimitWithSpace
+              case Paragraph => child.delimitInParagraph
               case Concat => ()
             }
           }
@@ -85,6 +87,7 @@ case class Block(
                 } else {
                   delimitPolicy match {
                     case Whitespace => ctx.delimitWithSpace
+                    case Paragraph => child.delimitInParagraph
                     case Concat => ()
                   }
                 }
@@ -110,6 +113,13 @@ case class Block(
   private def (b: Block | String) printBlockOrString(using ctx: PrintContext) = b match {
     case b: Block => b.print
     case s: String => ctx.append(s)
+  }
+
+  private def (b: Block | String) delimitInParagraph (using ctx: PrintContext) : Unit = if (!Set(',', '.', '!', '?', ';').contains(b.peek)) ctx.delimitWithSpace
+
+  private def (b: Block | String) peek : Char = b match {
+    case b: Block => b.children.headOption.map(_.peek).getOrElse(' ')
+    case s: String => s.headOption.getOrElse(' ')
   }
 
   private def (b: Block | String) width(widthLeft: Int, onlyMeasureFirstLine: Boolean = false)(using ctx: PrintContext) : Option[Int] = b match {
@@ -144,14 +154,14 @@ case class Block(
           case None => return None
         }
         delimitPolicy match {
-          case Whitespace => childWidth += 1
+          case Whitespace | Paragraph => childWidth += 1
           case Concat => ()
         }
         width += childWidth
         widthLeft2 -= childWidth
       }
       delimitPolicy match {
-        case Whitespace => Some(width - 1)
+        case Whitespace | Paragraph => Some(width - 1)
         case Concat => Some(width)
       }
     }

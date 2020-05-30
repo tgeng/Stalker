@@ -115,7 +115,7 @@ object pprint {
         case _ => children += Block(wrapPolicy = ChopDown, indentPolicy = FixedIncrement(2))(part.toBlockOrString)
       }
     }
-    Block(wrapPolicy = Wrap, delimitPolicy = Whitespace)(children.toSeq : _*)
+    Block(wrapPolicy = Wrap, delimitPolicy = Paragraph)(children.toSeq : _*)
   }
   
   private def (part: Any) toBlockOrString(using Namespace): Block | String = part match {
@@ -126,7 +126,7 @@ object pprint {
         case t: FElimination => t.toBlock
         case a ∷ b => Block(wrapPolicy = NoWrap, delimitPolicy = Whitespace)(a.toBlockOrString, ":", Block(indentPolicy = Aligned)(b.toBlockOrString))
         case a ≡ b => Block(wrapPolicy = ChopDown, delimitPolicy = Whitespace)(a.toBlockOrString, "=", b.toBlockOrString)
-        case e: Error => Block(wrapPolicy = AlwaysNewline, indentPolicy = FixedIncrement(2))(e.toBlock)
+        case e: Error => e.toBlock
         case _ => part.toString
   }
 }

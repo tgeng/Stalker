@@ -14,5 +14,6 @@ lazy val root = project
     ),
     scalacOptions += "-Yexplicit-nulls",
     scalacOptions += "-Ykind-projector",
-    scalacOptions += "-Ycheck-init"
+    // Skip init check for tests since it does not work well with scalatest freespec
+    compile / scalacOptions += "-Ycheck-init"
   )
