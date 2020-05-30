@@ -58,14 +58,18 @@ object parser {
     }
   }
 
-  private def binding(using opt: ParsingOptions) : Parser[FBinding] = P {
-    '(' >> whitespaces >> lift(name << whitespaces, ':' >>! whitespaces >> termImpl).map((x, ty) => FBinding(x, ty)) << whitespaces << ')' | 
+  private def bindingImpl(using opt: ParsingOptions) : Parser[FBinding] = P {
+    lift(name << whitespaces, ':' >>! whitespaces >> termImpl).map((x, ty) => FBinding(x, ty))
+  }
+
+  private def arg(using opt: ParsingOptions) : Parser[FBinding] = P {
+    '(' >> whitespaces >> bindingImpl << whitespaces << ')' | 
     app.map(FBinding("", _))
   }
 
   private def termImpl(using opt: ParsingOptions) : Parser[FTerm] = P {
     for {
-      bdn <- (binding << whitespaces << "->" <<! whitespaces).?
+      bdn <- (arg << whitespaces << "->" <<! whitespaces).?
       r <- bdn match {
         case Some(b) => for t <- termImpl(using opt) yield FTFunction(b, t)
         case None => app
@@ -74,6 +78,7 @@ object parser {
   }
 
   def term = P { termImpl(using ParsingOptions()) }
+  def binding = P { bindingImpl(using ParsingOptions()) }
 }
 
 private case class ParsingOptions(val appDelimiter: Parser[?] = spaces)

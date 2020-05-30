@@ -76,10 +76,13 @@ class LocalNames {
   val names = ArrayBuffer[String]()
 
   def get(idx: Int) : String = names(idx)
+  def add(name: String) = names.prepend(name)
   def withName[T](name: String)(action: => T) : T = {
     names.prepend(name)
     val r = action
     names.dropInPlace(1)
     r
   }
+
+  override def toString = names.toString
 }

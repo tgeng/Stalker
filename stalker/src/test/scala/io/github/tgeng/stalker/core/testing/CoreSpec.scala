@@ -25,6 +25,9 @@ class CoreSpec extends UnitSpec {
   given Namespace = ns
   val Σ = SignatureBuilder.create
   given Signature = Σ
+  given Context = Context.empty
+  given LocalIndices = LocalIndices()
+  given LocalNames = LocalNames()
 
   def (ft: FTerm) tt : Term = ft.toTt match {
     case Right(t) => t
@@ -33,7 +36,7 @@ class CoreSpec extends UnitSpec {
 
   def (t: Term) fe : FTerm = t.toFe
 
-  def haveType(_A: Term)(using Γ: Context) = Matcher { (x: Term) =>
+  def haveType(_A: Term)(using LocalNames, Context) = Matcher { (x: Term) =>
     _A.whnf.flatMap(wA => new ∷(x, wA).check) match {
       case Right(_) => MatchResult(
         true,
@@ -47,5 +50,5 @@ class CoreSpec extends UnitSpec {
     }
   }
 
-  inline def (tm: Term) ∷ (ty: Term)(using Γ: Context) = tm should haveType(ty)
+  inline def (tm: Term) ∷ (ty: Term)(using LocalNames, Context) = tm should haveType(ty)
 }

@@ -100,13 +100,24 @@ class LocalIndices(content: Map[String, Int] = Map.empty) {
     case None => noNameError(e"Cannot find local variable $name.")
   }
 
+  def add(name: String) = {
+    size += 1
+    val buffer = indices.getOrElseUpdate(name, ArrayBuffer())
+    buffer += size
+  }
+
   def withName[T](name: String)(action: => T) : T = {
     size += 1
     val buffer = indices.getOrElseUpdate(name, ArrayBuffer())
     buffer += size
     val t = action
     buffer.dropRightInPlace(1)
+    if (buffer.isEmpty) {
+      indices.remove(name)
+    }
     size -= 1
     t
   }
+
+  override def toString = indices.view.mapValues(_.last).toMap.toString
 }

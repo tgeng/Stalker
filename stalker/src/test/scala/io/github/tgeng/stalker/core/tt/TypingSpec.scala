@@ -1,13 +1,12 @@
 package io.github.tgeng.stalker.core.tt
 
-import io.github.tgeng.stalker.core.fe.builders._
 import scala.language.implicitConversions
+import io.github.tgeng.stalker.core.fe.builders._
 import io.github.tgeng.stalker.core.testing.CoreSpec
 
 class TypingSpec extends CoreSpec {
 
   "basic term typing" in {
-    given Context = Context.empty
     t"Level" ∷ t"Type 0lv"
     t"Type 0lv" ∷ t"Type 1lv"
     t"Type 6lv" ∷ t"Type 7lv"
@@ -17,6 +16,15 @@ class TypingSpec extends CoreSpec {
   }
 
   "more complex terms" in {
-    // given Context = Context.empty + b"A : Type 0lv"
+    withBindings(
+      b"X : Type 0lv",
+      b"Y : Type 0lv",
+      b"Z : Type 0lv",
+      b"x : X",
+      b"y : Y",
+      b"fn : X -> Y -> Z",
+    ) {
+      t"fn x y" ∷ t"Z"
+    }
   }
 }

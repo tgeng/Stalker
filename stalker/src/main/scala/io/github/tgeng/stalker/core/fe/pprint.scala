@@ -90,7 +90,7 @@ object pprint {
     }
   }
 
-  def [T](ctx: StringContext) pp (args: Any*)(using Namespace): String = {
+  def [T](ctx: StringContext) pp (args: Any*)(using LocalNames)(using Namespace): String = {
     val p = ctx.parts.iterator
     val a = args.iterator
     val resultSeq = scala.collection.mutable.ArrayBuffer[Any]()
@@ -105,9 +105,9 @@ object pprint {
     resultSeq.toBlock.toString
   }
 
-  def (e: Error) toBlock (using Namespace): Block = e.msg.toBlock
+  def (e: Error) toBlock (using LocalNames)(using Namespace): Block = e.msg.toBlock
 
-  private def (seq: scala.collection.Seq[Any]) toBlock (using Namespace): Block = {
+  private def (seq: scala.collection.Seq[Any]) toBlock (using LocalNames)(using Namespace): Block = {
     val children = scala.collection.mutable.ArrayBuffer[Block | String]()
     for (part <- seq) {
       part match {
@@ -118,15 +118,15 @@ object pprint {
     Block(wrapPolicy = Wrap, delimitPolicy = Paragraph)(children.toSeq : _*)
   }
   
-  private def (part: Any) toBlockOrString(using Namespace): Block | String = part match {
-        case t: Term => t.toFe.toBlock
-        case t: Whnf => t.toFe.toBlock
-        case t: Elimination => t.toFe.toBlock
-        case t: FTerm => t.toBlock
-        case t: FElimination => t.toBlock
-        case a ∷ b => Block(wrapPolicy = NoWrap, delimitPolicy = Whitespace)(a.toBlockOrString, ":", Block(indentPolicy = Aligned)(b.toBlockOrString))
-        case a ≡ b => Block(wrapPolicy = ChopDown, delimitPolicy = Whitespace)(a.toBlockOrString, "=", b.toBlockOrString)
-        case e: Error => e.toBlock
-        case _ => part.toString
+  private def (part: Any) toBlockOrString(using LocalNames)(using Namespace): Block | String = part match {
+    case t: Term => t.toFeImpl.toBlock
+    case t: Whnf => t.toFeImpl.toBlock
+    case t: Elimination => t.toFeImpl.toBlock
+    case t: FTerm => t.toBlock
+    case t: FElimination => t.toBlock
+    case a ∷ b => Block(wrapPolicy = NoWrap, delimitPolicy = Whitespace)(a.toBlockOrString, ":", Block(indentPolicy = Aligned)(b.toBlockOrString))
+    case a ≡ b => Block(wrapPolicy = ChopDown, delimitPolicy = Whitespace)(a.toBlockOrString, "=", b.toBlockOrString)
+    case e: Error => e.toBlock
+    case _ => part.toString
   }
 }
