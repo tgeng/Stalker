@@ -220,15 +220,6 @@ object typing {
   extension checkElim on (j: Term ∷ Type |- List[Elimination] ∷ Type) {
     def check(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
       j match {
-        case u ∷ _A |- e̅ ∷ _C => (for {
-          _ <- (u ∷ _A).check
-          _ <- _C.level
-        } yield ()) match {
-          case Right(_) => ()
-          case Left(e) => return Left(e)
-        }
-      }
-      j match {
         case u ∷ _A |- Nil ∷ _B  => for {
           _ <- (_A ≡ _B).eqLevel
         } yield ()
@@ -238,7 +229,6 @@ object typing {
           uv <- u.app(v)
           _Bv = _B.substHead(v)
           wBv <- _Bv.whnf
-          _ <- (uv ∷ wBv).check
           _ <- (uv ∷ wBv |- e̅ ∷ _C).check
         } yield ()
         case u ∷ WRecord(r, v̅) |- (EProj(π) :: e̅) ∷ _C => for {

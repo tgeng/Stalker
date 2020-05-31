@@ -15,7 +15,7 @@ class TypingSpec extends CoreSpec {
     t"Refl{}" ∷ t"Id 0lv Level 0lv 0lv"
   }
 
-  "more complex terms" in {
+  "simple function applications" in {
     withBindings(
       b"X : Type 0lv",
       b"Y : Type 0lv",
@@ -24,6 +24,7 @@ class TypingSpec extends CoreSpec {
       b"y : Y",
       b"fn : X -> Y -> Z",
     ) {
+      t"fn x" ∷ t"Y -> Z"
       t"fn x y" ∷ t"Z"
     }
   }
