@@ -17,14 +17,14 @@ import io.github.tgeng.stalker.core.fe.tfConversion.{given _, _}
 import io.github.tgeng.stalker.core.tt._
 import io.github.tgeng.stalker.core.tt.typingRelation
 import io.github.tgeng.stalker.core.tt.typing.checkTerm
-import io.github.tgeng.stalker.core.tt.reduction.whnf
+import io.github.tgeng.stalker.core.tt.reduction.toWhnf
 import io.github.tgeng.stalker.testing.UnitSpec
 
 import Term._
 
 object matchers {
   def haveType(_A: Term)(using LocalNames, Context, Signature, Namespace) = Matcher { (x: Term) =>
-    _A.whnf.flatMap(wA => (x ∷ wA).check) match {
+    _A.toWhnf.flatMap(wA => (x ∷ wA).check) match {
       case Right(_) => MatchResult(
         true,
         "",
@@ -38,7 +38,7 @@ object matchers {
   }
 
   def haveWhnf(w: FTerm)(using LocalIndices, LocalNames, Context, Signature, Namespace) = Matcher { (t: Term) => 
-    (for wt <- t.whnf
+    (for wt <- t.toWhnf
     yield MatchResult(
       TWhnf(wt).toFe == w,
       pp"Term $t did not reduce to $w but to $wt.",

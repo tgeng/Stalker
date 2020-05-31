@@ -14,8 +14,8 @@ import Elimination._
 import ClauseT._
 import Pattern._
 import CoPattern._
-import reduction.tele
-import reduction.whnf
+import reduction.toWhnfs
+import reduction.toWhnf
 
 object typing {
   def (tm: Type)level(using Γ: Context)(using Σ: Signature) : Result[Whnf] = tm match {
@@ -23,11 +23,11 @@ object typing {
     case WLevel => Right(lconst(0))
     case WFunction(_A, _B) => {
       for {
-        wA <- _A.ty.whnf
+        wA <- _A.ty.toWhnf
         lA <- wA.level
         r <- withCtxExtendedBy(_A.name ∷ wA) {
           for {
-            rB <- _B.whnf
+            rB <- _B.toWhnf
             lB <- rB.level
           } yield lmax(TWhnf(lA), TWhnf(lB))
         }
@@ -43,8 +43,8 @@ object typing {
     } yield record.level
     case WId(l, _A, x, y) => {
       for {
-        wl <- l.whnf
-        wA <- _A.whnf
+        wl <- l.toWhnf
+        wA <- _A.toWhnf
         lA <- wA.level
         _ <- if (wl == lA) Right(())
              else typingError(e"Expect $_A to be at level $l but it's at level $lA")
@@ -53,7 +53,7 @@ object typing {
       } yield lA
     }
     case WVar(idx, Nil) => Γ(idx).ty match {
-      case WType(l) => l.whnf
+      case WType(l) => l.toWhnf
       case t => typingError(e"${Γ(idx).name} is not a type but a $t.")
     }
     case WVar(idx, e̅) => (TWhnf(WVar(idx, Nil)) ∷ Γ(idx).ty |- e̅).elimLevel
@@ -75,13 +75,13 @@ object typing {
     case _A ≡ _B if _A == _B => _A.level
     case WFunction(_A1, _B1) ≡ WFunction(_A2, _B2) => {
       for {
-        wA1 <- _A1.ty.whnf
-        wA2 <- _A2.ty.whnf
+        wA1 <- _A1.ty.toWhnf
+        wA2 <- _A2.ty.toWhnf
         lA <- (wA1 ≡ wA2).eqLevel
         r <- withCtxExtendedBy(_A1.name ∷ wA2) {
           for {
-            wB1 <- _B1.whnf
-            wB2 <- _B2.whnf
+            wB1 <- _B1.toWhnf
+            wB2 <- _B2.toWhnf
             lB <- (wB1 ≡ wB2).eqLevel
           } yield lmax(TWhnf(lA), TWhnf(lB))
         }
@@ -90,8 +90,8 @@ object typing {
     case WVar(x, e̅1) ≡ WVar(y, e̅2) if (x == y) => (TWhnf(WVar(x, Nil)) ∷ Γ(x).ty |- e̅1 ≡ e̅2).elimEqLevel
     case WId(_, _A1, u1, v1) ≡ WId(_, _A2, u2, v2) => {
       for {
-        wA1 <- _A1.whnf
-        wA2 <- _A2.whnf
+        wA1 <- _A1.toWhnf
+        wA2 <- _A2.toWhnf
         l <- (wA1 ≡ wA2).eqLevel
         _ <- (u1 ≡ u2 ∷ wA1).check
         _ <- (v1 ≡ v2 ∷ wA1).check
@@ -111,22 +111,22 @@ object typing {
   def (j: Term ∷ Type |- List[Elimination])elimLevel(using Γ: Context)(using Σ: Signature) : Result[Whnf] = {
     j match {
       case u ∷ _A |- Nil  => _A match {
-        case WType(l) => l.whnf
+        case WType(l) => l.toWhnf
         case _ => typingError(e"Expected $u to be a type (whose type would be a Type at some level), but its type is $_A.")
       }
       case u ∷ WFunction(_A, _B) |- (ETerm(v) :: e̅) => for {
-        wA <- _A.ty.whnf
+        wA <- _A.ty.toWhnf
         _ <- (v ∷ wA).check
         uv <- u.app(v)
         _Bv = _B.substHead(v)
-        wBv <- _Bv.whnf
+        wBv <- _Bv.toWhnf
         r <- (uv ∷ wBv |- e̅).elimLevel
       } yield r
       case u ∷ WRecord(r, v̅) |- (EProj(π) :: e̅) => for {
         record <- Σ getRecord r
         field <- record(π) 
         uπ <- u.app(π)
-        ft <- field.ty.substHead(v̅ :+ u).whnf
+        ft <- field.ty.substHead(v̅ :+ u).toWhnf
         r <- (uπ ∷ ft |- e̅).elimLevel
       } yield r
       case u ∷ _A |- elims => typingError(e"Invalid application of $elims to $u of type $_A.")
@@ -145,16 +145,16 @@ object typing {
     elim match {
       case u ∷ _A |- Nil ≡ Nil => _A.level
       case u ∷ WFunction(_A, _B) |- (ETerm(v1) :: e̅1) ≡ (ETerm(v2) :: e̅2) => for {
-        wA <- _A.ty.whnf
+        wA <- _A.ty.toWhnf
         _ <- (v1 ≡ v2 ∷ wA).check
-        wB <- _B.substHead(v1).whnf
+        wB <- _B.substHead(v1).toWhnf
         uv <- u.app(v1)
         l <- (uv ∷ wB |- e̅1 ≡ e̅2).elimEqLevel
       } yield l
       case u ∷ WRecord(r, v̅) |- (EProj(π) :: e̅1) ≡ (EProj(π1) :: e̅2) if π == π1 => for {
         record <- Σ getRecord r
         field <- record(π)
-        wA <- field.ty.substHead(v̅ :+ u).whnf
+        wA <- field.ty.substHead(v̅ :+ u).toWhnf
         uπ <- u.app(π)
         l <- (uπ ∷ wA |- e̅1 ≡ e̅2).elimEqLevel
       } yield l
@@ -173,8 +173,8 @@ object typing {
       j match {
         // Types
         case _A ∷ WType(l) => for {
-          wl <- l.whnf
-          wA <- _A.whnf
+          wl <- l.toWhnf
+          wA <- _A.toWhnf
           lA <- wA.level
           _ <- lA == wl match {
             case true => Right(())
@@ -197,11 +197,11 @@ object typing {
           data <- Σ getData d
           constructor <- data(c)     
           _ <- (u̅ ∷ data.paramTys).check
-          _Δ <- constructor.argTys.substHead(v̅).tele
+          _Δ <- constructor.argTys.substHead(v̅).toWhnfs
           _ <- (v̅ ∷ _Δ).check
         } yield ()
         case TWhnf(WRefl) ∷ WId(_, _A, u, v) => for {
-          wA <- _A.whnf
+          wA <- _A.toWhnf
           _ <- (u ≡ v ∷ wA).check
         } yield ()
         // Level
@@ -216,7 +216,7 @@ object typing {
       case Nil ∷ Nil => Right(())
       case (x :: u̅) ∷ (_A :: _Δ) => for {
         _ <- (x ∷ _A.ty).check
-        _Θ <- _Δ.substHead(x).tele
+        _Θ <- _Δ.substHead(x).toWhnfs
         _ <- (u̅ ∷ _Θ).check(using Γ + _A)
       } yield ()
       case tms ∷ tys => typingError(e"Mismatched length when checking types of $tms against $tys")
@@ -230,18 +230,18 @@ object typing {
           _ <- (_A ≡ _B).eqLevel
         } yield ()
         case u ∷ WFunction(_A, _B) |- (ETerm(v) :: e̅) ∷ _C => for {
-          wA <- _A.ty.whnf
+          wA <- _A.ty.toWhnf
           _ <- (v ∷ wA).check
           uv <- u.app(v)
           _Bv = _B.substHead(v)
-          wBv <- _Bv.whnf
+          wBv <- _Bv.toWhnf
           _ <- (uv ∷ wBv |- e̅ ∷ _C).check
         } yield ()
         case u ∷ WRecord(r, v̅) |- (EProj(π) :: e̅) ∷ _C => for {
           record <- Σ getRecord r
           field <- record(π) 
           uπ <- u.app(π)
-          ft <- field.ty.substHead(v̅ :+ u).whnf
+          ft <- field.ty.substHead(v̅ :+ u).toWhnf
           _ <- (uπ ∷ ft |- e̅ ∷ _C).check
         } yield ()
         case u ∷ _A |- elims ∷ _C => typingError(e"Invalid application of $elims to $u of type $_A.")
@@ -277,18 +277,18 @@ object typing {
         case f ≡ g ∷ WFunction(_A, _B) => for {
           fx <- f.app(TWhnf(WVar(0, Nil)))
           gx <- g.app(TWhnf(WVar(0, Nil)))
-          wA <- _A.ty.whnf
-          wB <- _B.whnf
+          wA <- _A.ty.toWhnf
+          wB <- _B.toWhnf
           _ <- (fx ≡ gx ∷ wB).check(using Γ + _A.name ∷ wA)
         } yield ()
         case x ≡ y ∷ _A => for {
-          wX <- x.whnf
-          wY <- y.whnf
+          wX <- x.toWhnf
+          wY <- y.toWhnf
           _ <- wX ≡ wY ∷ _A match {
             case x ≡ y ∷ _ if x == y => Right(())
             case x ≡ y ∷ WType(l) => for {
               inferredL <- (x ≡ y).eqLevel
-              wl <- l.whnf
+              wl <- l.toWhnf
               _ <- inferredL == wl match {
                 case true => Right(())
                 case false => typingError(e"Expected ${x ≡ y} at level $l but it's at level $inferredL.")
@@ -299,7 +299,7 @@ object typing {
               data <- Σ getData d
               con <- data(c1)
               _ <- (u̅ ∷ data.paramTys).check
-              _Δ <- con.argTys.substHead(u̅).tele
+              _Δ <- con.argTys.substHead(u̅).toWhnfs
               _ <- (v̅1 ≡ v̅2 ∷ _Δ).check
             } yield ()
             case _ => typingError(e"Cannot decide if $x and $y of type $_A are computationally equivalent.")
@@ -321,7 +321,7 @@ object typing {
         case Nil ≡ Nil ∷ Nil => Right(())
         case (u :: u̅) ≡ (v :: v̅) ∷ (_A :: _Δ) => for {
           _ <- (u ≡ v ∷ _A.ty).check
-          _Θ <- _Δ.substHead(u).tele
+          _Θ <- _Δ.substHead(u).toWhnfs
           _ <- (u̅ ≡ v̅ ∷ _Θ).check(using Γ + _A)
         } yield ()
       }
@@ -342,16 +342,16 @@ object typing {
       j match {
         case u ∷ _A |- Nil ≡ Nil ∷ _C => (_A ≡ _C).eqLevel.map(l => ())
         case u ∷ WFunction(_A, _B) |- (ETerm(v1) :: e̅1) ≡ (ETerm(v2) :: e̅2) ∷ _C => for {
-          wA <- _A.ty.whnf
+          wA <- _A.ty.toWhnf
           _ <- (v1 ≡ v2 ∷ wA).check
-          wB <- _B.substHead(v1).whnf
+          wB <- _B.substHead(v1).toWhnf
           uv <- u.app(v1)
           _ <- (uv ∷ wB |- e̅1 ≡ e̅2 ∷ _C).check
         } yield ()
         case u ∷ WRecord(r, v̅) |- (EProj(π) :: e̅1) ≡ (EProj(π1) :: e̅2) ∷ _C if π == π1 => for {
           record <- Σ getRecord r
           field <- record(π)
-          wA <- field.ty.substHead(v̅ :+ u).whnf
+          wA <- field.ty.substHead(v̅ :+ u).toWhnf
           uπ <- u.app(π)
           _ <- (uπ ∷ wA |- e̅1 ≡ e̅2 ∷ _C).check
         } yield ()

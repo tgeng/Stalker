@@ -9,8 +9,8 @@ import io.github.tgeng.common._
 import io.github.tgeng.stalker.core.common.Error._
 import io.github.tgeng.stalker.common.QualifiedName
 import typing.level
-import reduction.whnf
-import reduction.tele
+import reduction.toWhnf
+import reduction.toWhnfs
 import substitutionConversion.{given _}
 
 enum UResult {
@@ -25,7 +25,7 @@ enum UResult {
 
   def ↑ (Δ: Telescope)(using Γ: Context)(using Σ: Signature) : Result[UResult] = this match {
     case (UPositive(_Γ, σ, τ)) => for {
-      _Δ <- Δ.subst(σ).tele
+      _Δ <- Δ.subst(σ).toWhnfs
     } yield positive(
       _Γ + _Δ,
       σ extendBy _Δ,
@@ -72,7 +72,7 @@ extension termUnification on (p: =?[Term] ∷ Type) {
     case (((u@TWhnf(WCon(c1, u̅))) =? (v@TWhnf(WCon(c2, v̅)))) ∷ (_A@WData(qn, params))) if c1 == c2 => for {
       data <- Σ getData(qn)
       con <- data(c1)
-      argTys <- con.argTys.substHead(params).tele
+      argTys <- con.argTys.substHead(params).toWhnfs
       unifier <- ((u̅ =? v̅) ∷ argTys).unify
     } yield positive(
       Γ + idTypes(argTys, u̅, v̅), 
@@ -87,7 +87,7 @@ extension termUnification on (p: =?[Term] ∷ Type) {
 
     // injectivity - type constructors
     case ((u@TWhnf(WId(_, _A, a1, a2))) =? (v@TWhnf(WId(_, _B, b1, b2)))) ∷ _U => for {
-      wA <- _A.whnf
+      wA <- _A.toWhnf
       lA <- wA.level
       w1 = List(_A, a1, a2)
       w2 = List(_B, b1, b2)
@@ -170,7 +170,7 @@ extension termsUnification on (p: =?[List[Term]] ∷ Telescope) {
       restUnifier <- unifier match {
         case UPositive(context, unifyingSubst, restoringSubst) => withCtx(context) {
           for {
-            _Δmod <- _Δ.subst(unifyingSubst).tele
+            _Δmod <- _Δ.subst(unifyingSubst).toWhnfs
             t <- ((u̅.map(_.subst(unifyingSubst)) =? v̅.map(_.subst(unifyingSubst))) ∷ _Δmod).unify
           } yield t
         }
@@ -275,7 +275,7 @@ private def idType(_A: Type, u: Term, v: Term) : Binding[Type] =
   // For the same reason above, the level of ID type does not matter.
   "e" ∷ WId(TWhnf(lconst(0)), TWhnf(_A), u, v)
 
-private def simplTerm(tm: Term)(using Γ: Context)(using Σ: Signature) : Term = tm.whnf match {
+private def simplTerm(tm: Term)(using Γ: Context)(using Σ: Signature) : Term = tm.toWhnf match {
   case Right(WFunction(a, b)) => TWhnf(WFunction(a.map(simplTerm), simplTerm(b)))
   case Right(w: Whnf) => TWhnf(w)
   case _ => tm

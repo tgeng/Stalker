@@ -19,11 +19,11 @@ extension bindingOps on [T, R](self: Binding[T]) {
 }
 
 enum Term {
-  case TWhnf(whnf: Whnf)
+  case TWhnf(toWhnf: Whnf)
   case TRedux(fn: QualifiedName, elims: List[Elimination])
 
   def freeVars : Set[Int] = this match {
-    case TWhnf(whnf) => whnf.freeVars
+    case TWhnf(toWhnf) => toWhnf.freeVars
     case TRedux(fn, elims) => elims.flatMap(_.freeVars).toSet
   }
 
@@ -39,21 +39,21 @@ enum Term {
   def app(e̅: Seq[Elimination]) : Result[Term] = e̅.foldLeft[Result[Term]](Right(this))((acc, e) => acc.flatMap(_.app(e)))
 
   override def toString : String = this match {
-    case TWhnf(whnf) => s"""TWhnf($whnf)"""
+    case TWhnf(toWhnf) => s"""TWhnf($toWhnf)"""
     case TRedux(fn, elims) => s"""TRedux("$fn", $elims)"""
   }
 }
 
 given Raisable[Term] {
   def (t: Term) raiseImpl(using spec: RaiseSpec) : Term = t match {
-    case TWhnf(whnf) => TWhnf(whnf.raiseImpl)
+    case TWhnf(toWhnf) => TWhnf(toWhnf.raiseImpl)
     case TRedux(fn, elims) => TRedux(fn, elims.map(_.raiseImpl))
   }
 }
 
 given Substitutable[Term, Term, Term] {
   def (t: Term) substituteImpl(using spec: SubstituteSpec[Term]) : Term = t match {
-    case TWhnf(whnf) => whnf.substituteImpl
+    case TWhnf(toWhnf) => toWhnf.substituteImpl
     case TRedux(fn, elims) => TRedux(fn, elims.map(_.substituteImpl))
   }
 }

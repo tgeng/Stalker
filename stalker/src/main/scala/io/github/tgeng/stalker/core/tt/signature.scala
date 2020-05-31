@@ -8,8 +8,8 @@ import io.github.tgeng.common._
 import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.stalker.core.common.Error._
 import io.github.tgeng.stalker.common.QualifiedName
-import reduction.tele
-import reduction.whnf
+import reduction.toWhnfs
+import reduction.toWhnf
 import typing.level
 import typing.checkElim
 import typing.checkTerm
@@ -148,7 +148,7 @@ class SignatureBuilder(
     }
     d match {
       case d@DataT(qn) => for {
-        _Δ <- d.paramTys.tele
+        _Δ <- d.paramTys.toWhnfs
         level <- _Δ.level
         cons <- d.cons match {
           case _ : Null => Right(null)
@@ -165,7 +165,7 @@ class SignatureBuilder(
         )
       } yield ()
       case r@RecordT(qn) => for {
-        _Δ <- r.paramTys.tele
+        _Δ <- r.paramTys.toWhnfs
         level <- _Δ.level
         fields <- r.fields match {
           case _ : Null => Right(null)
@@ -184,7 +184,7 @@ class SignatureBuilder(
       case d@DefinitionT(qn) => {
         val clauses = ArrayBuffer[Clause]()
         for {
-          ty <- d.ty.whnf
+          ty <- d.ty.toWhnf
           _ = mDefinitions(qn) = new Definition(qn)(ty, clauses, null)
           _Q <- (d.clauses
             .map {
@@ -220,7 +220,7 @@ class SignatureBuilder(
   }
 
   private def (cons: Seq[PreConstructor]) reduceCons(using Γ: Context)(using Σ: Signature) : Result[Seq[Constructor]] = 
-    cons.liftMap(con => con.argTys.tele.map(ConstructorT(con.name, _)))
+    cons.liftMap(con => con.argTys.toWhnfs.map(ConstructorT(con.name, _)))
   private def (fields: Seq[PreField]) reduceFields(using Γ: Context)(using Σ: Signature) : Result[Seq[Field]] = 
-    fields.liftMap(f => f.ty.whnf.map(FieldT(f.name, _)))
+    fields.liftMap(f => f.ty.toWhnf.map(FieldT(f.name, _)))
 }

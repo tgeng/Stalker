@@ -17,7 +17,7 @@ import io.github.tgeng.stalker.core.fe.tfConversion.{given _, _}
 import io.github.tgeng.stalker.core.tt._
 import io.github.tgeng.stalker.core.tt.typingRelation
 import io.github.tgeng.stalker.core.tt.typing.checkTerm
-import io.github.tgeng.stalker.core.tt.reduction.whnf
+import io.github.tgeng.stalker.core.tt.reduction.toWhnf
 import io.github.tgeng.stalker.testing.UnitSpec
 
 import matchers._

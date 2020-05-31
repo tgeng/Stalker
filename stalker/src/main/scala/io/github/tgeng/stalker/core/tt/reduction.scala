@@ -12,27 +12,27 @@ import Pattern._
 import CoPattern._
 
 object reduction {
-  def (tms: List[Binding[Term]]) tele(using Γ: Context)(using Σ: Signature) : Result[Telescope] = tms match {
+  def (tms: List[Binding[Term]]) toWhnfs(using Γ: Context)(using Σ: Signature) : Result[Telescope] = tms match {
     case Nil => Right(Nil)
     case tm :: rest => for {
-      wTm <- tm.ty.whnf
-      wRest <- rest.tele
+      wTm <- tm.ty.toWhnf
+      wRest <- rest.toWhnfs
     } yield Binding(wTm)(tm.name) :: wRest
   }
   
-  def (tm: Term) whnf(using Γ: Context)(using Σ: Signature) : Result[Whnf] = tm match {
+  def (tm: Term) toWhnf(using Γ: Context)(using Σ: Signature) : Result[Whnf] = tm match {
     case TWhnf(w) => Right(w)
     case TRedux(fn, elims) => for {
       definition <- Σ getDefinition fn
       rhs <- if (Γ.size == 0 && definition.ct != null) evalCaseTree(definition.ct, Substitution.id, elims)
              else evalClauses(definition.clauses, elims, definition)
-      r <- rhs.whnf
+      r <- rhs.toWhnf
     } yield r
   } match {
     case Right(WLMax(lsucs)) => {
       var lconst = -1
       (for {
-        lsucTuples <- lsucs.liftMap { case LSuc(n, t) => t.whnf.map((n, _)) }
+        lsucTuples <- lsucs.liftMap { case LSuc(n, t) => t.toWhnf.map((n, _)) }
         newLsucs = lsucTuples.flatMap{
           case (n, WLConst(l)) => {
             lconst = scala.math.max(lconst, n + l)
@@ -47,7 +47,7 @@ object reduction {
       } yield (lconst, newLsucs.toList)) match {
         case Right(-1, Nil) => throw IllegalStateException("Encountered empty WLMax.")
         case Right(l, Nil) => Right(WLConst(lconst))
-        case Right(-1, LSuc(0, t) :: Nil) => t.whnf
+        case Right(-1, LSuc(0, t) :: Nil) => t.toWhnf
         case Right(-1, lsucs) => Right(WLMax(lsucs.toSet))
         case Right(l, lsucs) => Right(WLMax((LSuc(0, TWhnf(WLConst(l))) :: lsucs).toSet))
         case Left(e) => Left(e)
@@ -72,7 +72,7 @@ object reduction {
   def (v: Term) / (p: Pattern)(using Γ: Context)(using Σ: Signature) : MatchResult = p match {
     case PVar(k) => matched(Map(k -> v))
     case PForced(_) => matched(Map.empty)
-    case PCon(c1, p̅) => v.whnf match {
+    case PCon(c1, p̅) => v.toWhnf match {
       case Right(WCon(c2, v̅)) => if(c1 == c2) {
        v̅.map(ETerm(_)) / p̅.map(QPattern(_))
       } else {
@@ -80,7 +80,7 @@ object reduction {
       }
       case _ => typingError(e"stuck when reducing $v")
     }
-    case PForcedCon(_, p̅) => v.whnf match {
+    case PForcedCon(_, p̅) => v.toWhnf match {
       case Right(WCon(_, v̅)) => v̅.map(ETerm(_)) / p̅.map(QPattern(_))
       case _ => typingError(e"stuck when reducing $v")
     }
@@ -137,11 +137,11 @@ object reduction {
       case (CLam(_Q), ETerm(u) :: e̅) => evalCaseTree(_Q, σ ⊎ u, e̅)
       case (CRecord(fields), EProj(π) :: e̅) => evalCaseTree(fields(π), σ, e̅)
       case (CDataCase(x, branches), e̅) => for {
-        case WCon(c, u̅) <- σ(x).whnf
+        case WCon(c, u̅) <- σ(x).toWhnf
         r <- evalCaseTree(branches(c), σ \ x ⊎ u̅, e̅)
       } yield r
       case (CIdCase(x, τ, _Q), e̅) => for {
-        case WRefl <- σ(x).whnf
+        case WRefl <- σ(x).toWhnf
         r <- evalCaseTree(_Q, τ ∘ σ, e̅)
       } yield r
       case _ => typingError(e"Stuck while evaluating case tree $Q with substitution $σ and eliminations ${e̅}")

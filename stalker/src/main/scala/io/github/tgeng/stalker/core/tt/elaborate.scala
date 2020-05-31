@@ -41,10 +41,10 @@ extension elaboration on (p: Problem) {
     }
     // Intro
     case _P ||| (f, q̅) ∷ (WFunction(_A, _B)) => (for {
-      wA <- _A.ty.whnf 
+      wA <- _A.ty.toWhnf 
       r <- withCtxExtendedBy(_A.name ∷ wA) {
         for {
-          wB <- _B.whnf
+          wB <- _B.toWhnf
           _Pmod <- _P.shift(wA.raise(1))
           r <- (_Pmod ||| (f, q̅.map(_.raise(1)) :+ QPattern(PVar(0)(_A.name))) ∷ wB).elaborate
         } yield CLam(r)
@@ -58,7 +58,7 @@ extension elaboration on (p: Problem) {
         for {
           m <- acc
           _Pmod <- _P.filter(field.name, fields.map(_.name).toSet)
-          wA <- field.ty.substHead(v̅ :+ TRedux(f, q̅.map(_.toElimination))).whnf
+          wA <- field.ty.substHead(v̅ :+ TRedux(f, q̅.map(_.toElimination))).toWhnf
           q <- (_Pmod ||| (f, q̅ :+ QProj(field.name)) ∷ wA).elaborate
         } yield m ++ Map(field.name -> q)
       }
@@ -79,16 +79,16 @@ extension elaboration on (p: Problem) {
             r <- withCtx(_Γ1) {
               cons.liftMap { con =>
                 for {
-                  _Δ <- con.argTys.substHead(v̅).tele
+                  _Δ <- con.argTys.substHead(v̅).toWhnfs
                   r <- withCtxExtendedBy(_Δ) {
                     val ρ1 = Substitution.id[Pattern].drop(_Δ.size) ⊎ PCon(con.name, con.argTys.pvars.toList)
                     val ρ2 = ρ1.extendBy(_Γ2) 
                     for {
                       _P2 <- _P.subst(ρ2)
-                      _Γ2mod <- _Γ2.subst(ρ1).tele
+                      _Γ2mod <- _Γ2.subst(ρ1).toWhnfs
                       r <- withCtxExtendedBy(_Γ2mod) {
                         for {
-                          wC <- _C.subst(ρ2).whnf
+                          wC <- _C.subst(ρ2).toWhnf
                           r <- (_P2 ||| (f, q̅.map(_.subst(ρ2))) ∷ wC).elaborate
                         } yield r
                       }
@@ -103,7 +103,7 @@ extension elaboration on (p: Problem) {
         // SplitEq
         case ((TWhnf(WVar(x, Nil))) /? PRefl) ∷ _A => _A match {
           case WId(_, _B, u, v) => for {
-            wB <- _B.whnf
+            wB <- _B.toWhnf
             (_Γ1 : Context /* required due to dotc bug */, _B1, _Γ2) = Γ.splitAt(x)
             _ = assert(_B1 == _B.raise(-(_Γ2.size + 1)))
             r <- withCtx(_Γ1) {
@@ -115,10 +115,10 @@ extension elaboration on (p: Problem) {
                     val τmod = τ.extendBy(_Γ2)
                     for {
                       _Pmod <- _P.subst(ρmod)
-                      _Γ2mod <- _Γ2.subst(ρ).tele
+                      _Γ2mod <- _Γ2.subst(ρ).toWhnfs
                       r <- withCtxExtendedBy(_Γ2mod) {
                         for {
-                          wC <- _C.subst(ρmod).whnf
+                          wC <- _C.subst(ρmod).toWhnf
                           r <- (_Pmod ||| (f, q̅.map(_.subst(ρmod))) ∷ wC).elaborate
                         } yield CIdCase(x, τmod, r)
                       }
@@ -208,7 +208,7 @@ private def (_P: UserInput) subst(σ: Substitution[Term])(using Σ: Signature): 
   case ((_E, q̅) |-> rhs) :: _P => for {
     _Es <- _E.liftMap {
       case (w /? p) ∷ _A => for {
-        wA <- _A.subst(σ).whnf(using Context.empty)
+        wA <- _A.subst(σ).toWhnf(using Context.empty)
         r <- ((w.subst(σ) /? p) ∷ wA).simpl
       } yield r
     }
@@ -229,7 +229,7 @@ private def (candidate: (Int, Type)) getEmptyCaseSplit(using Γ: Context)(using 
     case false => None
   }
   case (x, WId(_, _B, u, v)) => for {
-    wB <- _B.whnf
+    wB <- _B.toWhnf
     unifier <- ((u =? v) ∷ wB).unify
   } yield unifier match {
     case UNegative => Some(CDataCase(x, Map.empty))
@@ -242,14 +242,14 @@ private def (constraint: (Term /? Pattern) ∷ Type) simpl(using Σ: Signature) 
   given Context = Context.empty
   constraint match {
     case (w /? p) ∷ _A => for {
-      w <- w.whnf
+      w <- w.toWhnf
       r <- (w, p, _A) match {
         case (WCon(c, v̅), PCon(c1, p̅), WData(qn, u̅)) => 
           if (c != c1) Right(None)
           else for {
             data <- Σ getData qn
             con <- data(c)
-            _Δ <- con.argTys.substHead(u̅).tele
+            _Δ <- con.argTys.substHead(u̅).toWhnfs
             _E <- ((v̅ /? p̅) ∷ _Δ).simplAll
           } yield _E
         case (WCon(c, v̅), PForcedCon(c1, p̅), WData(qn, u̅)) => 
@@ -257,7 +257,7 @@ private def (constraint: (Term /? Pattern) ∷ Type) simpl(using Σ: Signature) 
           else for {
             data <- Σ getData qn
             con <- data(c)
-            _Δ <- con.argTys.substHead(u̅).tele
+            _Δ <- con.argTys.substHead(u̅).toWhnfs
             _E <- ((v̅ /? p̅) ∷ _Δ).simplAll
           } yield _E
         case (WRefl, PRefl, WId(_, _, _, _)) => Right(Some(Set.empty[(Term /? Pattern) ∷ Type]))
@@ -273,7 +273,7 @@ private def (constraints: (List[Term] /? List[Pattern]) ∷ Telescope) simplAll(
     case (Nil /? Nil) ∷ Nil => Right(Some(Set.empty))
     case ((v :: v̅) /? (p :: p̅)) ∷ (_A :: _Δ) => for {
       _E1 <- ((v /? p) ∷ _A.ty).simpl
-      _Δmod <- _Δ.substHead(v).tele
+      _Δmod <- _Δ.substHead(v).toWhnfs
       _E2 <- ((v̅ /? p̅) ∷ _Δmod).simplAll
     } yield _E1 ∪⊥ _E2
   }
