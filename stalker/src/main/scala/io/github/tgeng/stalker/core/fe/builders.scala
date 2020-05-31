@@ -23,7 +23,7 @@ object builders {
     case Left(e) => throw Exception(e.toString)
   }
 
-  def t(s: String)(using LocalIndices, LocalNames)(using Namespace) : Term = ft(s).toTtImpl match {
+  def t(s: String)(using LocalIndices, LocalNames)(using Namespace) : Term = ft(s).toTt match {
     case Right(t) => t
     case Left(e) => throw Exception(e.toBlock.toString)
   }
@@ -31,7 +31,7 @@ object builders {
   def b(s: String)(using LocalIndices, LocalNames, Context)(using Namespace, Signature) : Binding[Type] = {
     (whitespaces >> binding << whitespaces << eof).parse(s) match {
       case Right(b) => 
-        (for b <- b.toTtImpl
+        (for b <- b.toTt
             _A <- b.ty.whnf
         yield Binding(_A)(b.name)) match {
           case Right(b) => b

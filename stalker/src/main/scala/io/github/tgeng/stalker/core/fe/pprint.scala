@@ -118,9 +118,9 @@ object pprint {
   }
   
   private def (part: Any) toBlockOrString(using LocalNames)(using Namespace): Block | String = part match {
-    case t: Term => t.toFeImpl.toBlock
-    case t: Whnf => t.toFeImpl.toBlock
-    case t: Elimination => t.toFeImpl.toBlock
+    case t: Term => t.toFe.toBlock
+    case t: Whnf => t.toFe.toBlock
+    case t: Elimination => t.toFe.toBlock
     case t: FTerm => t.toBlock
     case t: FElimination => t.toBlock
     case a ∷ b => Block(wrapPolicy = NoWrap, delimitPolicy = Whitespace)(a.toBlockOrString, ":", Block(indentPolicy = Aligned)(b.toBlockOrString))

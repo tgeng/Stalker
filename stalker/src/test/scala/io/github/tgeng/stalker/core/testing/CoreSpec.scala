@@ -23,7 +23,7 @@ import io.github.tgeng.stalker.testing.UnitSpec
 import matchers._
 import Term._
 
-class CoreSpec extends UnitSpec {
+class CoreSpec extends UnitSpec with Helpers {
   val ns = InMemoryNamespace.createWithBuiltins("stalker.unit-test")
   given Namespace = ns
   val Σ = SignatureBuilder.create
@@ -31,13 +31,6 @@ class CoreSpec extends UnitSpec {
   given Context = Context.empty
   given LocalIndices = LocalIndices()
   given LocalNames = LocalNames()
-
-  def (ft: FTerm) tt (using ctx:LocalIndices)(using ns: Namespace): Term = ft.toTtImpl match {
-    case Right(t) => t
-    case Left(e) => fail(e.toString)
-  }
-
-  def (t: Term) fe (using localVars: LocalNames)(using ns: Namespace): FTerm = t.toFeImpl
 
   inline def (tm: Term) ∷ (ty: Term)(using LocalNames, Context) = tm should haveType(ty)
   inline def (tm: Term) !∷ (ty: Term)(using LocalNames, Context) = tm shouldNot haveType(ty)
