@@ -3,6 +3,7 @@ package io.github.tgeng.stalker.core.fe
 import scala.language.implicitConversions
 import io.github.tgeng.parse._
 import io.github.tgeng.stalker.core.fe.parser._
+import io.github.tgeng.stalker.core.fe.pprint.{given _, _}
 import io.github.tgeng.stalker.testing.UnitSpec
 
 class ParserSpec extends UnitSpec {
@@ -43,6 +44,9 @@ class ParserSpec extends UnitSpec {
       |  con3{x y z}
       |}
       """,
+      "(a : Nat) -> (f : Nat -> Nat) -> (g : Nat -> Nat -> Nat) -> f (f (f a))",
+      "(a : Nat) -> (f : Nat -> Nat) -> (g : Nat -> Nat -> Nat) -> g (f a) (f a)",
+      "(a : Nat) -> (f : Nat -> Nat) -> (g : Nat -> Nat -> Nat) -> f (g (f a) (f a))",
     )
   }
 
@@ -51,7 +55,7 @@ class ParserSpec extends UnitSpec {
     (term << eof).parse(stripped) match {
       case Left(e) => fail(s"When parsing:\n$stripped\nit failed with error:\n$e")
       case Right(t) => {
-        assert(t.toString == stripped)
+        assert(t.toBlock.toString == stripped)
       }
     }
   }

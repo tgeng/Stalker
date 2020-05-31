@@ -17,7 +17,6 @@ object reduction {
     case tm :: rest => for {
       wTm <- tm.ty.whnf
       wRest <- rest.tele
-      _ <- wRest.level
     } yield Binding(wTm)(tm.name) :: wRest
   }
   
@@ -28,7 +27,6 @@ object reduction {
       rhs <- if (Γ.size == 0 && definition.ct != null) evalCaseTree(definition.ct, Substitution.id, elims)
              else evalClauses(definition.clauses, elims, definition)
       r <- rhs.whnf
-      _ <- r.level
     } yield r
   } match {
     case Right(WLevel(l, lsucs)) => for{

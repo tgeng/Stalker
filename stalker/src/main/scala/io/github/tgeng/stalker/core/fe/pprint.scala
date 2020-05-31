@@ -13,7 +13,7 @@ import DelimitPolicy._
 trait PPrinter[T] extends BlockConverter[T] {
   final def (t: T) toBlock : Block = t.block(using PriorityContext.zero)
 
-  final def (t: T) block(using parentCtx: PriorityContext) : Block = {
+  def (t: T) block(using parentCtx: PriorityContext) : Block = {
     val thisCtx = t.pctx
     if (parentCtx.priority >= thisCtx.priority) {
       Block()("(", Block(indentPolicy = FixedIncrement(2))(t.blockImpl(using PriorityContext.zero)), ")")
@@ -47,7 +47,7 @@ object pprint {
       case FTRedux(_, _, _) => 5
     })
 
-    override def (t: FTerm) blockImpl = t match {
+    override def (t: FTerm) blockImpl : PriorityContext ?=> Block = t match {
       case FTCon(name, Nil) => Block(wrapPolicy = NoWrap)(name, "{", "}")
       case FTCon(name, args) => Block()(
         Block(wrapPolicy = NoWrap)(name, "{"),
@@ -57,7 +57,7 @@ object pprint {
         "}"
       )
       case FTLevel(l) => Block(wrapPolicy = NoWrap)(l.toString, "lv")
-      case FTRedux(head, names, elims) => Block(wrapPolicy = NoWrap, delimitPolicy = Whitespace)(head) ++ names ++ elims.map(_.block)
+      case FTRedux(head, names, elims) => Block(wrapPolicy = NoWrap, delimitPolicy = Whitespace)(head) ++ names ++ elims.map(_.block(using t.pctx))
       case t => unnestFn(t) match {
         case (bindings, bodyTy) => Block(wrapPolicy = ChopDown, indentPolicy = Aligned, delimitPolicy = Whitespace)(
           bindings.map(b => Block(wrapPolicy = NoWrap, delimitPolicy = Whitespace)(b.block, "->")) :+ bodyTy.block : _*
@@ -79,15 +79,14 @@ object pprint {
   }
 
   given PPrinter[FElimination] {
-    override def (t: FElimination) pctx = t match {
-      case FETerm(t) => t.pctx
-      case FEProj(p) => PriorityContext.ten
-    }
-
-    override def (t: FElimination) blockImpl = t match {
-      case FETerm(t) => t.blockImpl
+    override def (t: FElimination) block (using PriorityContext) = t match {
+      case FETerm(t) => t.block
       case FEProj(p) => Block(wrapPolicy = NoWrap)(".", p)
     }
+
+    override def (t: FElimination) pctx = throw AssertionError("impossible since block is overwritten")
+
+    override def (t: FElimination) blockImpl = throw AssertionError("impossible since block is overwritten")
   }
 
   def [T](ctx: StringContext) pp (args: Any*)(using LocalNames)(using Namespace): String = {

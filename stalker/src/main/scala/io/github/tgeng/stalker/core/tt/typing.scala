@@ -57,7 +57,10 @@ object typing {
       case t => typingError(e"${Γ(idx).name} is not a type but a $t.")
     }
     case WVar(idx, e̅) => (TWhnf(WVar(idx, Nil)) ∷ Γ(idx).ty |- e̅).elimLevel
-    case _ => typingError(e"$tm is not a type.")
+    case _ => {
+      Exception().printStackTrace
+      typingError(e"$tm is not a type.")
+    }
   }
   
   def (Δ: Telescope)level(using Γ: Context)(using Σ: Signature) : Result[Whnf] = Δ match {

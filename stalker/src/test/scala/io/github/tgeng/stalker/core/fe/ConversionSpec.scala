@@ -105,6 +105,7 @@ class ConversionSpec extends CoreSpec {
         (d : (n : Nat) -> Integer -> Vector n String) ->
         veryLongFn a b c d con1{a, b, c, d}
         """,
+        "(m : Nat) -> (f1 : Nat -> Nat) -> (f2 : Nat -> Type) -> f2 (f1 m) (f1 (f1 m))",
       )
     }
   }

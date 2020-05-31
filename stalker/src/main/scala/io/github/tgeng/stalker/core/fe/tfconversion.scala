@@ -31,9 +31,10 @@ object tfConversion {
     def (w: Whnf) toFeImpl(using localVars: LocalNames)(using ns: Namespace) : FTerm = w match {
       case WFunction(arg, bodyTy) => FTFunction(arg.toFeImpl, localVars.withName(arg.name) { bodyTy.toFeImpl })
       case WType(level) => ftRedux(typeType.qn, FETerm(level.toFeImpl))
-      case WLevel(l, maxOperands) => (l, maxOperands.toList) match {
+      case WLevel(l, maxOperands) => (l, maxOperands.toList.sortBy(_.toString)) match {
         case (l, Nil) => FTLevel(l)
-        case (l, lsuc :: rest) => sucFeImpl(l, maxFeImpl(lsuc, rest))
+        case (0, lsuc :: rest) => sucFeImpl(0, maxFeImpl(lsuc, rest))
+        case (l, lsucs) => sucFeImpl(0, maxFeImpl(LSuc(0, TWhnf(WLevel(l, Set()))), lsucs))
       }
       case WLevelType => ftRedux(levelType.qn)
       case WData(qn, params) => ftRedux(qn, params.map(t => FETerm(t.toFeImpl)))
@@ -75,7 +76,12 @@ class LocalNames {
 
   val names = ArrayBuffer[String]()
 
-  def get(idx: Int) : String = names(idx)
+  def get(idx: Int) : String = {
+    if (names.isEmpty) {
+      Exception().printStackTrace
+    }
+    names(idx)
+  }
   def add(name: String) = names.prepend(name)
   def withName[T](name: String)(action: => T) : T = {
     names.prepend(name)
