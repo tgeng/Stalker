@@ -28,6 +28,11 @@ class ReductionSpec extends CoreSpec {
       t"lsuc (lmax m (lmax n 2lv))" ~> ft"lmax (lsuc n) (lmax (lsuc m) 3lv)"
       t"lsuc (lmax m (lmax (lmax 5lv n) 2lv))" ~> ft"lmax (lsuc n) (lmax (lsuc m) 6lv)"
       t"lmax 5lv (lmax 1lv (lmax 8lv (lmax 3lv (lmax m n))))" ~> ft"lmax n (lmax m 8lv)"
+      t"lmax (lmax m n) m" ~> ft"lmax m n"
+      t"lmax m m" ~> ft"m"
+      t"lmax (lsuc m) m" ~> ft"lsuc m"
+      t"lmax (lmax (lsuc m) n) m" ~> ft"lmax (lsuc m) n"
+      t"lmax (lmax (lsuc (lsuc m)) (lmax n (lsuc n))) m" ~> ft"lmax (lsuc (lsuc m)) (lsuc n)"
     }
   }
 

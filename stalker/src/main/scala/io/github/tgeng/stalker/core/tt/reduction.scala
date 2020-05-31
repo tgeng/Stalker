@@ -41,7 +41,9 @@ object reduction {
           case (n, WLMax(lsucs)) => lsucs.map{ case LSuc(n1, t) => LSuc(n + n1, t)}
           case (n, t@WVar(x, Nil)) => Set(LSuc(n, TWhnf(t)))
           case _ => throw IllegalStateException("invalid level term")
-        }
+        }.groupBy{
+          case LSuc (_, w) => w
+        }.view.mapValues(lsucs => lsucs.maxBy{case LSuc(n, _) => n}).values
       } yield (lconst, newLsucs.toList)) match {
         case Right(-1, Nil) => throw IllegalStateException("Encountered empty WLMax.")
         case Right(l, Nil) => Right(WLConst(lconst))
