@@ -20,7 +20,7 @@ import reduction.whnf
 object typing {
   def (tm: Type)level(using Γ: Context)(using Σ: Signature) : Result[Whnf] = tm match {
     case WType(l) => Right(lsuc(l))
-    case WLevelType => Right(lconst(0))
+    case WLevel => Right(lconst(0))
     case WFunction(_A, _B) => {
       for {
         wA <- _A.ty.whnf
@@ -205,7 +205,7 @@ object typing {
           _ <- (u ≡ v ∷ wA).check
         } yield ()
         // Level
-        case TWhnf(l) ∷ WLevelType => Right(())
+        case TWhnf(l) ∷ WLevel => Right(())
         case tm ∷ ty => typingError(e"Expected $tm to be of type $ty.")
       }
     }

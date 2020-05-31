@@ -36,7 +36,7 @@ object tfConversion {
         case Nil => throw IllegalStateException("Encountered invalid empty WLMax term.")
         case first :: rest => maxFeImpl(first, rest)
       }
-      case WLevelType => ftRedux(levelType.qn)
+      case WLevel => ftRedux(levelType.qn)
       case WData(qn, params) => ftRedux(qn, params.map(t => FETerm(t.toFeImpl)))
       case WRecord(qn, params) => ftRedux(qn, params.map(t => FETerm(t.toFeImpl)))
       case WId(l, ty, x, y) => ftRedux(idType.qn, FETerm(l.toFeImpl), FETerm(ty.toFeImpl), FETerm(x.toFeImpl), FETerm(y.toFeImpl))

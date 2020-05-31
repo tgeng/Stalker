@@ -56,7 +56,7 @@ class ConversionSpec extends CoreSpec {
       assert(TWhnf(WFunction("" ∷ TRedux("stalker.builtins.Type", Nil), TRedux("stalker.builtins.Type", Nil))).fe == ft"Type -> Type")
       assert(TWhnf(WLConst(5)).fe == ft"5lv")
       assert(TWhnf(WType(TWhnf(WLConst(5)))).fe == ft"Type 5lv")
-      assert(TWhnf(WLevelType).fe == ft"Level")
+      assert(TWhnf(WLevel).fe == ft"Level")
       assert(TWhnf(WData("a.b.c", Nil)).fe == ft"a.b.c")
       assert(TWhnf(WRecord("a.b.c", Nil)).fe == ft"a.b.c")
       assert(TWhnf(WId(TWhnf(WLConst(0)), TWhnf(WData("a.b.c", Nil)), TWhnf(WCon("con1", Nil)), TWhnf(WCon("con2", Nil)))).fe == ft"Id 0lv a.b.c con1{} con2{}")

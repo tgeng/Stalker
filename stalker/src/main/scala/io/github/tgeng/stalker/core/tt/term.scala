@@ -65,7 +65,7 @@ enum Whnf {
   case WType(level: Term)
   case WLConst(l: Int)
   case WLMax(operands: Set[LSuc])
-  case WLevelType
+  case WLevel
   case WData(qn: QualifiedName, params: List[Term])
   case WRecord(qn: QualifiedName, params: List[Term])
   case WId(level: Term, ty: Term, left: Term, right: Term)
@@ -79,7 +79,7 @@ enum Whnf {
     case WLMax(operands) => operands.flatMap{
       case LSuc(_, t) => t.freeVars
     }
-    case WLevelType => Set.empty
+    case WLevel => Set.empty
     case WData(data, params) => params.flatMap(_.freeVars).toSet
     case WRecord(record, params) => params.flatMap(_.freeVars).toSet
     case WId(level, ty, left, right) => level.freeVars | ty.freeVars | left.freeVars | right.freeVars
@@ -92,7 +92,7 @@ enum Whnf {
     case WType(level) => s"WType($level)"
     case WLConst(l) => s"WLConst($l)"
     case WLMax(operands) => s"WLMax($operands)"
-    case WLevelType => "WLevelType"
+    case WLevel => "WLevel"
     case WData(qn, params) => s"""WData("$qn", $params)"""
     case WRecord(qn, params) => s"""WRecord("$qn", $params)"""
     case WId(level, ty, left, right) => s"WId($level, $ty, $left, $right)"
@@ -130,7 +130,7 @@ given Raisable[Whnf] {
     case WType(t) => WType(t.raiseImpl)
     case WLMax(op) => WLMax(op.map{ case LSuc(a, t) => LSuc(a, t.raiseImpl)})
     case WLConst(l) => WLConst(l)
-    case WLevelType => WLevelType
+    case WLevel => WLevel
     case WData(data, params) => WData(data, params.map(_.raiseImpl))
     case WRecord(record, params) => WRecord(record, params.map(_.raiseImpl))
     case WId(level, ty, left, right) => WId(level.raiseImpl, ty.raiseImpl, left.raiseImpl, right.raiseImpl)
@@ -147,7 +147,7 @@ given Substitutable[Whnf, Term, Term] {
     case WType(l) => TWhnf(WType(l.substituteImpl))
     case WLMax(op) => TWhnf(WLMax(op.map{ case LSuc(a, t) => LSuc(a, t.substituteImpl)}))
     case WLConst(l) => TWhnf(WLConst(l))
-    case WLevelType => TWhnf(WLevelType)
+    case WLevel => TWhnf(WLevel)
     case WData(data, params) => TWhnf(WData(data, params.map(_.substituteImpl)))
     case WRecord(record, params) => TWhnf(WRecord(record, params.map(_.substituteImpl)))
     case WId(level, ty, left, right) => TWhnf(WId(level.substituteImpl, ty.substituteImpl, left.substituteImpl, right.substituteImpl))
