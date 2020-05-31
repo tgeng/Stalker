@@ -123,7 +123,7 @@ object SignatureBuilder {
     import scala.language.postfixOps
 
     assertResult(sb += levelType)
-    assertResult(sb += universeType)
+    assertResult(sb += typeType)
     assertResult(sb += lsucFn)
     assertResult(sb += lmaxFn)
     assertResult(sb += idType)

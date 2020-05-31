@@ -74,7 +74,7 @@ object InMemoryNamespace {
   def createWithBuiltins(qn: QualifiedName) = {
     val r = InMemoryNamespace(qn)
     r.importNs(levelType)
-    r.importNs(universeType)
+    r.importNs(typeType)
     r.importNs(lsucFn)
     r.importNs(lmaxFn)
     r.importNs(idTypeNs)

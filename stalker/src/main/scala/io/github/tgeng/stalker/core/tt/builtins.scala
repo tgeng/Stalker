@@ -23,7 +23,7 @@ object builtins {
     null
   )
 
-  val universeType: PreDefinition = new DefinitionT(parent / "Type")(
+  val typeType: PreDefinition = new DefinitionT(parent / "Type")(
     TWhnf(WFunction("l" ∷ TWhnf(WLevelType), TWhnf(WType(TWhnf(lsuc(TWhnf(WVar(0, Nil)))))))),
     Seq(UncheckedClause(
       List(QPattern(PVar(0)("l"))),

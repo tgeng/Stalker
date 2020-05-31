@@ -28,4 +28,19 @@ class TypingSpec extends CoreSpec {
       t"fn x y" ∷ t"Z"
     }
   }
+
+  "dependent function applications" in {
+    withBindings(
+      b"X : Type 0lv",
+      b"Y : X -> Type 0lv",
+      b"Z : (x : X) -> Y x -> Type 0lv",
+      b"x : X",
+      b"y : Y x",
+      b"z : Z x y",
+      b"fn : (x : X) -> (y : Y x) -> Z x y",
+    ) {
+      t"fn x" ∷ t"(y : Y x) -> Z x y"
+      t"fn x y" ∷ t"Z x y"
+    }
+  }
 }

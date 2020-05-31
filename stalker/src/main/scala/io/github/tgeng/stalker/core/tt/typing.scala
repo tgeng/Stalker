@@ -52,6 +52,10 @@ object typing {
         _ <- (y ∷ wA).check
       } yield lA
     }
+    case WVar(idx, Nil) => Γ(idx).ty match {
+      case WType(l) => l.whnf
+      case t => typingError(e"${Γ(idx).name} is not a type but a $t.")
+    }
     case WVar(idx, e̅) => (TWhnf(WVar(idx, Nil)) ∷ Γ(idx).ty |- e̅).elimLevel
     case _ => typingError(e"$tm is not a type.")
   }
@@ -105,7 +109,7 @@ object typing {
     j match {
       case u ∷ _A |- Nil  => _A match {
         case WType(l) => l.whnf
-        case _ => typingError(e"Expected $u to be a type (whose type would be a universe), but its type is $_A.")
+        case _ => typingError(e"Expected $u to be a type (whose type would be a Type at some level), but its type is $_A.")
       }
       case u ∷ WFunction(_A, _B) |- (ETerm(v) :: e̅) => for {
         wA <- _A.ty.whnf
@@ -113,7 +117,6 @@ object typing {
         uv <- u.app(v)
         _Bv = _B.substHead(v)
         wBv <- _Bv.whnf
-        _ <- (uv ∷ wBv).check
         r <- (uv ∷ wBv |- e̅).elimLevel
       } yield r
       case u ∷ WRecord(r, v̅) |- (EProj(π) :: e̅) => for {
