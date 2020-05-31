@@ -30,7 +30,7 @@ object ftConversion {
                                       yield TWhnf(WFunction(arg, bodyTy))
       case FTCon(name, args) => for args <- args.liftMap(_.toTtImpl)
                                 yield TWhnf(WCon(name, args))
-      case FTLevel(level) => Right(TWhnf(WLevel(level, Set.empty)))
+      case FTLevel(level) => Right(TWhnf(WLConst(level)))
       case FTRedux(head, names, elims) => ctx.get(head) match {
         case Right(idx) => for elims <- elims.liftMap(_.toTtImpl)
                            yield TWhnf(WVar(idx, names.map(EProj(_)) ++ elims))

@@ -8,7 +8,7 @@ enum Error {
   case DuplicatedDefinitionError(msg: Seq[Any])
 
   def msg: Seq[Any]
-  val trace: Exception = Exception()
+  val trace: Exception = Exception(msg.toString)
 }
 
 

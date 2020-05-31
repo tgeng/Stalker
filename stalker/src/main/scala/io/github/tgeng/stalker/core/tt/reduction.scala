@@ -29,19 +29,28 @@ object reduction {
       r <- rhs.whnf
     } yield r
   } match {
-    case Right(WLevel(l, lsucs)) => for{
-      lsucTuples <- lsucs.liftMap { case LSuc(n, t) => t.whnf.map((n, _)) }
-      newLsucs = lsucTuples.flatMap{
-        case (n, WLevel(l, lsucs)) => lsucs.map{ case LSuc(n1, t) => LSuc(n + n1, t)}
-        case (n, t@WVar(x, Nil)) => Set(LSuc(n, TWhnf(t)))
-        case _ => throw IllegalStateException("invalid level term")
-      }
-      newLevel = scala.math.max(lsucTuples.map{
-        case (n, WLevel(l, lsucs)) => n + l
-        case (n, t@WVar(x, Nil)) => 0
-        case _ => throw IllegalStateException("invalid level term")
-      }.maxOption.getOrElse(0), l)
-    } yield WLevel(newLevel, newLsucs)
+    case Right(WLMax(lsucs)) => {
+      var lconst = -1
+      (for {
+        lsucTuples <- lsucs.liftMap { case LSuc(n, t) => t.whnf.map((n, _)) }
+        newLsucs = lsucTuples.flatMap{
+          case (n, WLConst(l)) => {
+            lconst = scala.math.max(lconst, n + l)
+            Set()
+          }
+          case (n, WLMax(lsucs)) => lsucs.map{ case LSuc(n1, t) => LSuc(n + n1, t)}
+          case (n, t@WVar(x, Nil)) => Set(LSuc(n, TWhnf(t)))
+          case _ => throw IllegalStateException("invalid level term")
+        }
+      } yield (lconst, newLsucs.toList)) match {
+        case Right(-1, Nil) => throw IllegalStateException("Encountered empty WLMax.")
+        case Right(l, Nil) => Right(WLConst(lconst))
+        case Right(-1, LSuc(0, t) :: Nil) => t.whnf
+        case Right(-1, lsucs) => Right(WLMax(lsucs.toSet))
+        case Right(l, lsucs) => Right(WLMax((LSuc(0, TWhnf(WLConst(l))) :: lsucs).toSet))
+        case Left(e) => Left(e)
+      } 
+    }
     case w => w
   }
 

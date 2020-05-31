@@ -22,7 +22,7 @@ class ConversionSpec extends CoreSpec {
   "FTerm -> Term" - {
     "basic terms" in {
       assert(ft"Type".tt == TRedux("stalker.builtins.Type", Nil))
-      assert(ft"5lv".tt == TWhnf(WLevel(5, Set.empty)))
+      assert(ft"5lv".tt == TWhnf(WLConst(5)))
       assert(ft"con{}".tt == TWhnf(WCon("con", Nil)))
       assert(ft"(A : Type) -> Type".tt == TWhnf(WFunction("A" ∷ TRedux("stalker.builtins.Type", Nil), TRedux("stalker.builtins.Type", Nil))))
       assert(ft"(A : Type) -> A".tt == TWhnf(WFunction("A" ∷ TRedux("stalker.builtins.Type", Nil), TWhnf(WVar(0, Nil)))))
@@ -33,7 +33,7 @@ class ConversionSpec extends CoreSpec {
         TWhnf(WFunction(
           "n" ∷ TRedux("stalker.util.Nat", List()),
           TWhnf(WFunction(
-            "A" ∷ TRedux("stalker.builtins.Type", List(ETerm(TWhnf(WLevel(0,Set()))))),
+            "A" ∷ TRedux("stalker.builtins.Type", List(ETerm(TWhnf(WLConst(0))))),
             TRedux("stalker.collection.Vector", List(ETerm(TWhnf(WVar(1,List()))), ETerm(TWhnf(WVar(0,List()))))))))))
       assert(ft"con{Nat, String, Integer}".tt == 
         TWhnf(WCon("con",List(
@@ -45,7 +45,7 @@ class ConversionSpec extends CoreSpec {
           TWhnf(WFunction("" ∷ TRedux("stalker.util.Nat", List()), TRedux("stalker.util.Nat", List()))),
           TWhnf(WFunction("" ∷ TRedux("stalker.util.String", List()), TRedux("stalker.util.String", List()))),
           TWhnf(WFunction("n" ∷ TRedux("stalker.util.Nat", List()),
-            TWhnf(WFunction("A" ∷ TRedux("stalker.builtins.Type", List(ETerm(TWhnf(WLevel(0, Set()))))),
+            TWhnf(WFunction("A" ∷ TRedux("stalker.builtins.Type", List(ETerm(TWhnf(WLConst(0))))),
               TRedux("stalker.collection.Vector", List(ETerm(TWhnf(WVar(1, List()))), ETerm(TWhnf(WVar(0, List())))))))))))))
     }
   }
@@ -54,18 +54,18 @@ class ConversionSpec extends CoreSpec {
     "basic terms" in {
       assert(TRedux("stalker.builtins.Type", Nil).fe == ft"Type")
       assert(TWhnf(WFunction("" ∷ TRedux("stalker.builtins.Type", Nil), TRedux("stalker.builtins.Type", Nil))).fe == ft"Type -> Type")
-      assert(TWhnf(WLevel(5, Set.empty)).fe == ft"5lv")
-      assert(TWhnf(WType(TWhnf(WLevel(5, Set.empty)))).fe == ft"Type 5lv")
+      assert(TWhnf(WLConst(5)).fe == ft"5lv")
+      assert(TWhnf(WType(TWhnf(WLConst(5)))).fe == ft"Type 5lv")
       assert(TWhnf(WLevelType).fe == ft"Level")
       assert(TWhnf(WData("a.b.c", Nil)).fe == ft"a.b.c")
       assert(TWhnf(WRecord("a.b.c", Nil)).fe == ft"a.b.c")
-      assert(TWhnf(WId(TWhnf(WLevel(0, Set.empty)), TWhnf(WData("a.b.c", Nil)), TWhnf(WCon("con1", Nil)), TWhnf(WCon("con2", Nil)))).fe == ft"Id 0lv a.b.c con1{} con2{}")
+      assert(TWhnf(WId(TWhnf(WLConst(0)), TWhnf(WData("a.b.c", Nil)), TWhnf(WCon("con1", Nil)), TWhnf(WCon("con2", Nil)))).fe == ft"Id 0lv a.b.c con1{} con2{}")
       assert(TWhnf(WFunction("A" ∷ TRedux("stalker.builtins.Type", Nil), TWhnf(WVar(0, Nil)))).fe == ft"(A : Type) -> A")
 
       assert(TWhnf(WFunction(
           "n" ∷ TRedux("stalker.util.Nat", List()),
           TWhnf(WFunction(
-            "A" ∷ TRedux("stalker.builtins.Type", List(ETerm(TWhnf(WLevel(0,Set()))))),
+            "A" ∷ TRedux("stalker.builtins.Type", List(ETerm(TWhnf(WLConst(0))))),
             TRedux("stalker.collection.Vector", List(ETerm(TWhnf(WVar(1,List()))), ETerm(TWhnf(WVar(0,List()))))))))).fe ==
         ft"(n : Nat) -> (A : Type 0lv) -> Vector n A")
 
@@ -78,7 +78,7 @@ class ConversionSpec extends CoreSpec {
           TWhnf(WFunction("" ∷ TRedux("stalker.util.Nat", List()), TRedux("stalker.util.Nat", List()))),
           TWhnf(WFunction("" ∷ TRedux("stalker.util.String", List()), TRedux("stalker.util.String", List()))),
           TWhnf(WFunction("n" ∷ TRedux("stalker.util.Nat", List()),
-            TWhnf(WFunction("A" ∷ TRedux("stalker.builtins.Type", List(ETerm(TWhnf(WLevel(0, Set()))))),
+            TWhnf(WFunction("A" ∷ TRedux("stalker.builtins.Type", List(ETerm(TWhnf(WLConst(0))))),
               TRedux("stalker.collection.Vector", List(ETerm(TWhnf(WVar(1, List()))), ETerm(TWhnf(WVar(0, List())))))))))))).fe ==
         ft"con{Nat -> Nat, String -> String, (n : Nat) -> (A : Type 0lv) -> Vector n A}")
     }

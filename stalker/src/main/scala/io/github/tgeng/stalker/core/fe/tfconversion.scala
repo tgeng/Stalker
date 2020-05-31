@@ -31,10 +31,10 @@ object tfConversion {
     def (w: Whnf) toFeImpl(using localVars: LocalNames)(using ns: Namespace) : FTerm = w match {
       case WFunction(arg, bodyTy) => FTFunction(arg.toFeImpl, localVars.withName(arg.name) { bodyTy.toFeImpl })
       case WType(level) => ftRedux(typeType.qn, FETerm(level.toFeImpl))
-      case WLevel(l, maxOperands) => (l, maxOperands.toList.sortBy(_.toString)) match {
-        case (l, Nil) => FTLevel(l)
-        case (0, lsuc :: rest) => sucFeImpl(0, maxFeImpl(lsuc, rest))
-        case (l, lsucs) => sucFeImpl(0, maxFeImpl(LSuc(0, TWhnf(WLevel(l, Set()))), lsucs))
+      case WLConst(l) => FTLevel(l)
+      case WLMax(ops) => ops.toList.sortBy(_.toString) match {
+        case Nil => throw IllegalStateException("Encountered invalid empty WLMax term.")
+        case first :: rest => maxFeImpl(first, rest)
       }
       case WLevelType => ftRedux(levelType.qn)
       case WData(qn, params) => ftRedux(qn, params.map(t => FETerm(t.toFeImpl)))

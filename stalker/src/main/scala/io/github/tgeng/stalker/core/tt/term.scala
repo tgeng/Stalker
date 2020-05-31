@@ -63,7 +63,8 @@ import Term._
 enum Whnf {
   case WFunction(arg: Binding[Term], bodyTy: Term)
   case WType(level: Term)
-  case WLevel(l: Int, maxOperands: Set[LSuc])
+  case WLConst(l: Int)
+  case WLMax(operands: Set[LSuc])
   case WLevelType
   case WData(qn: QualifiedName, params: List[Term])
   case WRecord(qn: QualifiedName, params: List[Term])
@@ -74,7 +75,10 @@ enum Whnf {
   def freeVars : Set[Int] = this match {
     case WFunction(arg, bodyTy) => arg.ty.freeVars | (bodyTy.freeVars &~ Set(0)).map(_ - 1)
     case WType(l) => l.freeVars
-    case WLevel(l, maxOperands) => maxOperands.flatMap{case LSuc(_, t) => t.freeVars}
+    case WLConst(l) => Set.empty
+    case WLMax(operands) => operands.flatMap{
+      case LSuc(_, t) => t.freeVars
+    }
     case WLevelType => Set.empty
     case WData(data, params) => params.flatMap(_.freeVars).toSet
     case WRecord(record, params) => params.flatMap(_.freeVars).toSet
@@ -86,7 +90,8 @@ enum Whnf {
   override def toString = this match {
     case WFunction(arg, bodyTy) => s"WFunction($arg, $bodyTy)"
     case WType(level) => s"WType($level)"
-    case WLevel(l, maxOperands) => s"WLevel($l, $maxOperands)"
+    case WLConst(l) => s"WLConst($l)"
+    case WLMax(operands) => s"WLMax($operands)"
     case WLevelType => "WLevelType"
     case WData(qn, params) => s"""WData("$qn", $params)"""
     case WRecord(qn, params) => s"""WRecord("$qn", $params)"""
@@ -100,26 +105,31 @@ case class LSuc(amount: Int, t: Term)
 
 object Whnf {
   val WRefl : Whnf = WCon("Refl", Nil)
-  def lmax(l1: Term, l2: Term) : WLevel = (l1, l2) match {
-    case (TWhnf(WLevel(l1, mo1)), TWhnf(WLevel(l2, mo2))) => new WLevel(scala.math.max(l1, l2), mo1 | mo2)
-    case (t, TWhnf(WLevel(l, mo))) => new WLevel(l, mo | Set(LSuc(0, t)))
-    case (TWhnf(WLevel(l, mo)), t) => new WLevel(l, mo | Set(LSuc(0, t)))
-    case (t1, t2) => new WLevel(0, Set(LSuc(0, t1), LSuc(0, t2)))
+  def lmax(l1: Term, l2: Term) : Whnf = (l1, l2) match {
+    case (TWhnf(WLConst(l1)), TWhnf(WLConst(l2))) => WLConst(scala.math.max(l1, l2))
+    case (TWhnf(WLMax(op1)), TWhnf(WLMax(op2))) => WLMax(op1 | op2)
+    case (t, TWhnf(WLMax(op))) => WLMax(op | Set(LSuc(0, t)))
+    case (TWhnf(WLMax(op)), t) => WLMax(op | Set(LSuc(0, t)))
+    case (t1, t2) => WLMax(Set(LSuc(0, t1), LSuc(0, t2)))
   }
 
-  def lsuc(l: Term) : WLevel = l match {
-    case (TWhnf(WLevel(l, mo))) => new WLevel(l+1, mo)
-    case t => new WLevel(0, Set(LSuc(1, t)))
+  def lsuc(l: Term) : Whnf = l match {
+    case TWhnf(WLConst(l)) => WLConst(l + 1)
+    case (TWhnf(WLMax(op))) => WLMax(op.map{
+      case LSuc(l, t) => LSuc(l + 1, t)
+    })
+    case t => WLMax(Set(LSuc(1, t)))
   }
 
-  def lconst(i: Int) = WLevel(0, Set.empty)
+  def lconst(i: Int) = WLConst(i)
 }
 
 given Raisable[Whnf] {
   def (w: Whnf) raiseImpl(using spec: RaiseSpec) : Whnf = w match {
     case WFunction(arg, bodyTy) => WFunction(arg.map(_.raiseImpl), bodyTy.raiseImpl(using spec.raised))
     case WType(t) => WType(t.raiseImpl)
-    case WLevel(l, maxOperands) => WLevel(l, maxOperands.map{ case LSuc(a, t) => LSuc(a, t.raiseImpl)})
+    case WLMax(op) => WLMax(op.map{ case LSuc(a, t) => LSuc(a, t.raiseImpl)})
+    case WLConst(l) => WLConst(l)
     case WLevelType => WLevelType
     case WData(data, params) => WData(data, params.map(_.raiseImpl))
     case WRecord(record, params) => WRecord(record, params.map(_.raiseImpl))
@@ -135,7 +145,8 @@ given Substitutable[Whnf, Term, Term] {
       arg.map(_.substituteImpl),
       bodyTy.substituteImpl(using spec.raised)))
     case WType(l) => TWhnf(WType(l.substituteImpl))
-    case WLevel(l, maxOperands) => TWhnf(WLevel(l, maxOperands.map{ case LSuc(a, t) => LSuc(a, t.substituteImpl)}))
+    case WLMax(op) => TWhnf(WLMax(op.map{ case LSuc(a, t) => LSuc(a, t.substituteImpl)}))
+    case WLConst(l) => TWhnf(WLConst(l))
     case WLevelType => TWhnf(WLevelType)
     case WData(data, params) => TWhnf(WData(data, params.map(_.substituteImpl)))
     case WRecord(record, params) => TWhnf(WRecord(record, params.map(_.substituteImpl)))

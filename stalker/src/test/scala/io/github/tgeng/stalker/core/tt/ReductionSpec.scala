@@ -23,13 +23,17 @@ class ReductionSpec extends CoreSpec {
     ) {
       t"lsuc m" ~> ft"lsuc m"
       t"lmax m n" ~> ft"lmax m n"
-      // t"lsuc (lmax m n)" ~> ft"lmax (lsuc m) (lsuc n)"
+      t"lsuc (lmax m n)" ~> ft"lmax (lsuc m) (lsuc n)"
+      t"lsuc (lmax m 2lv)" ~> ft"lmax (lsuc m) 3lv"
+      t"lsuc (lmax m (lmax n 2lv))" ~> ft"lmax (lsuc n) (lmax (lsuc m) 3lv)"
+      t"lsuc (lmax m (lmax (lmax 5lv n) 2lv))" ~> ft"lmax (lsuc n) (lmax (lsuc m) 6lv)"
+      t"lmax 5lv (lmax 1lv (lmax 8lv (lmax 3lv (lmax m n))))" ~> ft"lmax n (lmax m 8lv)"
     }
   }
 
   "type arithmetics" in {
     t"Type (lsuc 0lv)" ~> ft"Type (lsuc 0lv)"
     // Whnf should not reduce under the current head
-    t"Type (lsuc 0lv)" !~> ft"Type 1lv"
+    t"Type (lsuc 0lv)" !~> ft"Type 1lv "
   }
 }
