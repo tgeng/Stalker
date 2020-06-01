@@ -4,7 +4,6 @@ import scala.util.control.NonLocalReturns._
 import io.github.tgeng.common.extraSetOps
 import io.github.tgeng.common.debug._
 import io.github.tgeng.stalker.core.common.Error._
-import io.github.tgeng.stalker.core.tt.typing.level
 import Term._
 import Whnf._
 import Elimination._

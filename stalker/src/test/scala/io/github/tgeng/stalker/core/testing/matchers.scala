@@ -26,9 +26,8 @@ import Term._
 
 object matchers extends Helpers {
   def haveType(_A: Term)(using LocalNames, Context, Signature, Namespace) = Matcher { (x: Term) => {
-    val wA = _A.whnf
-    (for _ <- wA.level
-        r <- (x ∷ wA).check
+    (for _ <- _A.level
+        r <- (x ∷ _A.whnf).check
     yield r) match {
       case Right(_) => MatchResult(
         true,
@@ -52,9 +51,8 @@ object matchers extends Helpers {
   }
 
   def holdUnderType(_A: Term)(using LocalIndices, LocalNames, Context, Signature, Namespace) = Matcher { (e: ≡[Term]) =>
-    val wA = _A.whnf
-    (for _ <- wA.level
-        r <- (e ∷ wA).check
+    (for _ <- _A.level
+        r <- (e ∷ _A.whnf).check
     yield r) match {
       case Right(_) => MatchResult(
         true,

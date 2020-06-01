@@ -21,6 +21,21 @@ import reduction.reduceLevel
 import io.github.tgeng.common.debug._
 
 object typing {
+  def (tm: Term)level(using Γ: Context)(using Σ: Signature) : Result[Whnf] = tm match {
+    case TWhnf(w) => w.level
+    case TRedux(qn, Nil) =>
+      for definition <- Σ getDefinition qn
+          r <- definition.ty match {
+            case WType(l) => l.toWhnf
+            case w => typingError(e"Expect type of $qn to be a type but it's $w.")
+          }
+      yield r
+    case TRedux(qn, e̅) => 
+      for definition <- Σ getDefinition qn
+          r <- (TRedux(qn, Nil) ∷ definition.ty |- e̅).elimLevel
+      yield r
+  }
+
   def (tm: Type)level(using Γ: Context)(using Σ: Signature) : Result[Whnf] = tm match {
     case WType(l) => Right(lsuc(l))
     case WLevel => Right(lconst(0))
@@ -62,12 +77,21 @@ object typing {
     case WVar(idx, e̅) => (TWhnf(WVar(idx, Nil)) ∷ Γ(idx).ty |- e̅).elimLevel
     case _ => typingError(e"$tm is not a type.")
   } flatMap { _.reduceLevel }
-  
-  def (Δ: Telescope)level(using Γ: Context)(using Σ: Signature) : Result[Whnf] = Δ match {
+
+  def (Δ: List[Binding[Term]])level(using Γ: Context)(using Σ: Signature) : Result[Whnf] = Δ match {
     case Nil => Right(lconst(0))
     case _A :: _Δ => for {
       lA <- _A.ty.level
-      lΔ <- _Δ.level(using Γ + _A)
+      wA <- _A.ty.toWhnf
+      lΔ <- _Δ.level(using Γ + _A.name ∷ wA)
+    } yield lmax(TWhnf(lA), TWhnf(lΔ))
+  } flatMap { _.reduceLevel }
+
+  def (Δ: Telescope)teleLevel(using Γ: Context)(using Σ: Signature) : Result[Whnf] = Δ match {
+    case Nil => Right(lconst(0))
+    case _A :: _Δ => for {
+      lA <- _A.ty.level
+      lΔ <- _Δ.teleLevel(using Γ + _A)
     } yield lmax(TWhnf(lA), TWhnf(lΔ))
   } flatMap { _.reduceLevel }
 
@@ -328,7 +352,7 @@ object typing {
   extension checkTermsEq on (j: ≡[List[Term]] ∷ Telescope) {
     def check(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
       j match {
-        case _ ≡ _ ∷ _Δ => _Δ.level match {
+        case _ ≡ _ ∷ _Δ => _Δ.teleLevel match {
           case Right(_) => ()
           case Left(e) => return Left(e)
         }

@@ -148,8 +148,8 @@ class SignatureBuilder(
     }
     d match {
       case d@DataT(qn) => for {
+        level <- d.paramTys.level
         _Δ <- d.paramTys.toWhnfs
-        level <- _Δ.level
         cons <- d.cons match {
           case _ : Null => Right(null)
           case cons : Seq[PreConstructor] => cons.reduceCons(using Context.empty + _Δ)
@@ -165,8 +165,8 @@ class SignatureBuilder(
         )
       } yield ()
       case r@RecordT(qn) => for {
+        level <- r.paramTys.level
         _Δ <- r.paramTys.toWhnfs
-        level <- _Δ.level
         fields <- r.fields match {
           case _ : Null => Right(null)
           case fields: Seq[PreField] => fields.reduceFields(using Context.empty + _Δ + ("self" ∷ Whnf.WRecord(qn, _Δ.vars.toList)))

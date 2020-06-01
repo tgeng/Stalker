@@ -87,8 +87,8 @@ extension termUnification on (p: =?[Term] ∷ Type) {
 
     // injectivity - type constructors
     case ((u@TWhnf(WId(_, _A, a1, a2))) =? (v@TWhnf(WId(_, _B, b1, b2)))) ∷ _U => for {
+      lA <- _A.level
       wA <- _A.toWhnf
-      lA <- wA.level
       w1 = List(_A, a1, a2)
       w2 = List(_B, b1, b2)
       _Γ = List("X" ∷ WType(TWhnf(lA)), "x" ∷ WVar(0, Nil), "y" ∷ WVar(1, Nil))
