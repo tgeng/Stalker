@@ -17,14 +17,16 @@ import io.github.tgeng.stalker.core.fe.tfConversion.{given _, _}
 import io.github.tgeng.stalker.core.tt._
 import io.github.tgeng.stalker.core.tt.typingRelation
 import io.github.tgeng.stalker.core.tt.typing.checkTerm
+import io.github.tgeng.stalker.core.tt.typing.checkTermEq
 import io.github.tgeng.stalker.core.tt.reduction.toWhnf
+import io.github.tgeng.stalker.core.tt.eqTermTypingRelation
 import io.github.tgeng.stalker.testing.UnitSpec
 
 import Term._
 
-object matchers {
+object matchers extends Helpers {
   def haveType(_A: Term)(using LocalNames, Context, Signature, Namespace) = Matcher { (x: Term) =>
-    _A.toWhnf.flatMap(wA => (x ∷ wA).check) match {
+    (x ∷ _A.whnf).check match {
       case Right(_) => MatchResult(
         true,
         "",
@@ -38,18 +40,26 @@ object matchers {
   }
 
   def haveWhnf(w: FTerm)(using LocalIndices, LocalNames, Context, Signature, Namespace) = Matcher { (t: Term) => 
-    (for wt <- t.toWhnf
-    yield MatchResult(
+    val wt = t.whnf
+    MatchResult(
       TWhnf(wt).toFe == w,
       pp"Term $t did not reduce to $w but to $wt.",
       pp"Term $t reduced to $w."
-    )) match {
-      case Right(m) => m
-      case Left(e) => throw Exception(e.toBlock.toString)
-    }
+    )
   }
 
-  def holdUnderType(t: Term)(using LocalIndices, LocalNames, Context, Signature, Namespace) = Matcher { (t: ≡[Term]) =>
-    ???
+  def holdUnderType(t: Term)(using LocalIndices, LocalNames, Context, Signature, Namespace) = Matcher { (e: ≡[Term]) =>
+    (e ∷ t.whnf).check match {
+      case Right(_) => MatchResult(
+        true,
+        "",
+        pp"$e held under type $t."
+      )
+      case Left(err) => MatchResult(
+        false,
+        pp"$e did not hold under type $t because $err",
+        ""
+      )
+    }
   }
 }

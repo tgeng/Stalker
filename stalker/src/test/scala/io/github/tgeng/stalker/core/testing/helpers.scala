@@ -21,12 +21,15 @@ import io.github.tgeng.stalker.core.tt.reduction.toWhnf
 import io.github.tgeng.stalker.testing.UnitSpec
 
 trait Helpers {
-  def (ft: FTerm) tt (using ctx:LocalIndices)(using ns: Namespace): Term = ft.toTt match {
+  def (ft: FTerm) tt (using LocalIndices, Namespace): Term = ft.toTt match {
     case Right(t) => t
     case Left(e) => throw Exception(e.toString)
   }
 
-  def (t: Term) fe (using localVars: LocalNames)(using ns: Namespace): FTerm = t.toFe
+  def (t: Term) fe (using LocalNames, Namespace): FTerm = t.toFe
 
-  
+  def (t: Term) whnf (using LocalNames, Context, Namespace, Signature) = t.toWhnf match {
+    case Right(w) => w
+    case Left(e) => throw Exception(e.toBlock.toString)
+  }
 }

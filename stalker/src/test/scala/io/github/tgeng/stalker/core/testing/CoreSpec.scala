@@ -37,4 +37,12 @@ class CoreSpec extends UnitSpec with Helpers {
 
   inline def (tm: Term) ~> (w: FTerm)(using LocalIndices, LocalNames, Context) = tm should haveWhnf(w)
   inline def (tm: Term) !~> (w: FTerm)(using LocalIndices, LocalNames, Context) = tm shouldNot haveWhnf(w)
+
+  def (x: Term) ≡ (y: Term) = (new ≡(x, y), true)
+  def (x: Term) ≢ (y: Term) = (new ≡(x, y), false)
+
+  inline def (e: (≡[Term], Boolean)) ∷ (ty: Term)(using LocalIndices, LocalNames, Context) = e match {
+    case (e, true) => e should holdUnderType(ty)
+    case (e, false) => e shouldNot holdUnderType(ty)
+  }
 }

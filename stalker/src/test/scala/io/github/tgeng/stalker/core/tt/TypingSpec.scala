@@ -43,4 +43,16 @@ class TypingSpec extends CoreSpec {
       t"fn x y" ∷ t"Z x y"
     }
   }
+
+  "type hierarchy" in {
+    withBindings(
+      b"m : Level",
+      b"n : Level",
+    ) {
+      t"Type m" ∷ t"Type (lsuc m)"
+      t"Type (lmax m n)" ∷ t"Type (lsuc (lmax m n))"
+      t"Type (lmax 0lv (lmax m 2lv))" ∷ t"Type (lmax (lsuc m) (lsuc 2lv))"
+      t"Type (lmax 0lv (lsuc (lmax 3lv n)))" ∷ t"Type (lmax (lsuc (lsuc n)) 5lv)"
+    }
+  }
 }

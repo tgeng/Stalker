@@ -16,6 +16,9 @@ import Pattern._
 import CoPattern._
 import reduction.toWhnfs
 import reduction.toWhnf
+import reduction.reduceLevel
+
+import io.github.tgeng.common.debug._
 
 object typing {
   def (tm: Type)level(using Γ: Context)(using Σ: Signature) : Result[Whnf] = tm match {
@@ -57,11 +60,8 @@ object typing {
       case t => typingError(e"${Γ(idx).name} is not a type but a $t.")
     }
     case WVar(idx, e̅) => (TWhnf(WVar(idx, Nil)) ∷ Γ(idx).ty |- e̅).elimLevel
-    case _ => {
-      Exception().printStackTrace
-      typingError(e"$tm is not a type.")
-    }
-  }
+    case _ => typingError(e"$tm is not a type.")
+  } flatMap { _.reduceLevel }
   
   def (Δ: Telescope)level(using Γ: Context)(using Σ: Signature) : Result[Whnf] = Δ match {
     case Nil => Right(lconst(0))
@@ -69,7 +69,7 @@ object typing {
       lA <- _A.ty.level
       lΔ <- _Δ.level(using Γ + _A)
     } yield lmax(TWhnf(lA), TWhnf(lΔ))
-  }
+  } flatMap { _.reduceLevel }
 
   def (eq: ≡[Type])eqLevel(using Γ: Context)(using Σ: Signature) : Result[Whnf] = eq match {
     case _A ≡ _B if _A == _B => _A.level
@@ -105,8 +105,16 @@ object typing {
       record <- Σ getRecord r1
       _ <- (u̅1 ≡ u̅2 ∷ record.paramTys).check
     } yield record.level
+    case WType(l1) ≡ WType(l2) => 
+      for wl1 <- l1.toWhnf
+          wl2 <- l2.toWhnf
+          r <- wl1 == wl2 match {
+            case true => Right(wl1)
+            case false => typingError(e"Expected ${l1 ≡ l2} but they are not equal.")
+          }
+      yield r
     case _ => typingError(e"Cannot infer level of $eq")
-  }
+  } flatMap { _.reduceLevel }
 
   def (j: Term ∷ Type |- List[Elimination])elimLevel(using Γ: Context)(using Σ: Signature) : Result[Whnf] = {
     j match {
@@ -160,7 +168,7 @@ object typing {
       } yield l
       case _ => typingError(e"Cannot infer level of $elim")
     }
-  }
+  } flatMap { _.reduceLevel }
   
   extension checkTerm on (j: Term ∷ Type) {
     def check(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
@@ -178,7 +186,7 @@ object typing {
           lA <- wA.level
           _ <- lA == wl match {
             case true => Right(())
-            case false => typingError(e"Expected $_A to be at level $l, but it's at level $lA.")
+            case false => typingError(e"Expect $_A to be at level $l, but it's at level $lA.")
           }
         } yield ()
         // Heads
@@ -269,6 +277,14 @@ object typing {
         }
       }
       j match {
+        case l1 ≡ l2 ∷ WLevel =>
+          for wl1 <- l1.toWhnf
+              wl2 <- l2.toWhnf
+              _ <- wl1 == wl2 match {
+                case true => Right(())
+                case false => typingError(e"Expected ${l1 ≡ l2} but they are not equal.")
+              }
+          yield ()
         case TRedux(f1, e̅1) ≡ TRedux(f2, e̅2) ∷ _B if f1 == f2 => for {
           fn <- Σ getDefinition f1
           _ <- (TRedux(f1, Nil) ∷ fn.ty |- e̅1 ≡ e̅2 ∷ _B).check

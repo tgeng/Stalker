@@ -2,6 +2,7 @@ package io.github.tgeng.stalker.core.tt
 
 import scala.util.control.NonLocalReturns._
 import io.github.tgeng.common.extraSetOps
+import io.github.tgeng.common.debug._
 import io.github.tgeng.stalker.core.common.Error._
 import io.github.tgeng.stalker.core.tt.typing.level
 import Term._
@@ -28,8 +29,10 @@ object reduction {
              else evalClauses(definition.clauses, elims, definition)
       r <- rhs.toWhnf
     } yield r
-  } match {
-    case Right(WLMax(lsucs)) => {
+  } flatMap { _.reduceLevel }
+
+  def (w: Whnf) reduceLevel(using Γ: Context)(using Σ: Signature) : Result[Whnf] = w match {
+    case WLMax(lsucs) => {
       var lconst = -1
       (for {
         lsucTuples <- lsucs.liftMap { case LSuc(n, t) => t.toWhnf.map((n, _)) }
@@ -38,9 +41,24 @@ object reduction {
             lconst = scala.math.max(lconst, n + l)
             Set()
           }
-          case (n, WLMax(lsucs)) => lsucs.map{ case LSuc(n1, t) => LSuc(n + n1, t)}
-          case (n, t@WVar(x, Nil)) => Set(LSuc(n, TWhnf(t)))
+          case (n, WLMax(lsucs)) => lsucs.map { 
+            // Under WLMax, there should only be Whnf of WLConst and WVar.
+            // WLMax and any redux should have been processed by calls to toWhnf for each children
+            // Any other WHNFs are type errors and should have been caught by type checking before
+            // reduction.
+            case LSuc(n1, TWhnf(w : WLConst)) => (n + n1, w) 
+            case LSuc(n1, TWhnf(w : WVar)) => (n + n1, w) 
+            case _ => throw IllegalStateException("At this point there should no longer be any redux under WLMax.")
+          }
+          case (n, t@WVar(x, Nil)) => Set((n, t))
           case _ => throw IllegalStateException("invalid level term")
+        }.flatMap {
+          // Do a second round of lconst processing for grand children under child WLMax terms.
+          case (n, WLConst(l)) => {
+            lconst = scala.math.max(lconst, n + l)
+            Set()
+          }
+          case (n, w) => Set(LSuc(n, TWhnf(w)))
         }.groupBy{
           case LSuc (_, w) => w
         }.view.mapValues(lsucs => lsucs.maxBy{case LSuc(n, _) => n}).values
@@ -51,9 +69,9 @@ object reduction {
         case Right(-1, lsucs) => Right(WLMax(lsucs.toSet))
         case Right(l, lsucs) => Right(WLMax((LSuc(0, TWhnf(WLConst(l))) :: lsucs).toSet))
         case Left(e) => Left(e)
-      } 
+      }
     }
-    case w => w
+    case w => Right(w)
   }
 
   private def evalClauses(cs: scala.collection.Seq[Clause], e̅: List[Elimination], d: Definition)(using Γ: Context)(using Σ: Signature) : Result[Term] = returning[Result[Term]] {
