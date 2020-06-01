@@ -40,6 +40,14 @@ class EqualitySpec extends CoreSpec {
   }
 
   "more complex terms" in {
-
+    withBindings(
+      b"X : Type 0lv",
+      b"Y : X -> Type 0lv",
+      b"x : X",
+      b"y : Y x",
+    ) {
+      t"(x : X) -> Y x" ≡ t"(x2 : X) -> Y x2" ∷ t"Type 0lv"
+      t"Refl{}" ≡ t"Refl{}" ∷ t"Id 0lv X x x"
+    }
   }
 }

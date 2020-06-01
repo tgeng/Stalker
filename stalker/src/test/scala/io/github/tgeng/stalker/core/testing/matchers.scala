@@ -21,12 +21,15 @@ import io.github.tgeng.stalker.core.tt.typing.checkTermEq
 import io.github.tgeng.stalker.core.tt.reduction.toWhnf
 import io.github.tgeng.stalker.core.tt.eqTermTypingRelation
 import io.github.tgeng.stalker.testing.UnitSpec
-
+import io.github.tgeng.stalker.core.tt.typing.level
 import Term._
 
 object matchers extends Helpers {
-  def haveType(_A: Term)(using LocalNames, Context, Signature, Namespace) = Matcher { (x: Term) =>
-    (x ∷ _A.whnf).check match {
+  def haveType(_A: Term)(using LocalNames, Context, Signature, Namespace) = Matcher { (x: Term) => {
+    val wA = _A.whnf
+    (for _ <- wA.level
+        r <- (x ∷ wA).check
+    yield r) match {
       case Right(_) => MatchResult(
         true,
         "",
@@ -37,7 +40,7 @@ object matchers extends Helpers {
         ""
       )
     }
-  }
+  }}
 
   def haveWhnf(w: FTerm)(using LocalIndices, LocalNames, Context, Signature, Namespace) = Matcher { (t: Term) => 
     val wt = t.whnf
@@ -48,8 +51,11 @@ object matchers extends Helpers {
     )
   }
 
-  def holdUnderType(t: Term)(using LocalIndices, LocalNames, Context, Signature, Namespace) = Matcher { (e: ≡[Term]) =>
-    (e ∷ t.whnf).check match {
+  def holdUnderType(_A: Term)(using LocalIndices, LocalNames, Context, Signature, Namespace) = Matcher { (e: ≡[Term]) =>
+    val wA = _A.whnf
+    (for _ <- wA.level
+        r <- (e ∷ wA).check
+    yield r) match {
       case Right(_) => MatchResult(
         true,
         "",

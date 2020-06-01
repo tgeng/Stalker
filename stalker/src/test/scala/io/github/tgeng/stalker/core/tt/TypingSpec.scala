@@ -55,4 +55,15 @@ class TypingSpec extends CoreSpec {
       t"Type (lmax 0lv (lsuc (lmax 3lv n)))" ∷ t"Type (lmax (lsuc (lsuc n)) 5lv)"
     }
   }
+
+  "Id type" in {
+    withBindings(
+      b"X : Type 1lv",
+      b"x : X",
+      b"y : X",
+    ) {
+      t"Refl{}" ∷ t"Id 1lv X x x"
+      t"Refl{}" !∷ t"Id 1lv X x y"
+    }
+  }
 }
