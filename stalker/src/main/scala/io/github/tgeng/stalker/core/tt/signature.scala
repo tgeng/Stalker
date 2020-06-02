@@ -184,6 +184,7 @@ class SignatureBuilder(
       case d@DefinitionT(qn) => {
         val clauses = ArrayBuffer[Clause]()
         for {
+          _ <- d.ty.level
           ty <- d.ty.toWhnf
           _ = mDefinitions(qn) = new Definition(qn)(ty, clauses, null)
           _Q <- (d.clauses
@@ -220,7 +221,15 @@ class SignatureBuilder(
   }
 
   private def (cons: Seq[PreConstructor]) reduceCons(using Γ: Context)(using Σ: Signature) : Result[Seq[Constructor]] = 
-    cons.liftMap(con => con.argTys.toWhnfs.map(ConstructorT(con.name, _)))
+    cons.liftMap{
+      con => for _ <- con.argTys.level
+                 wArgTys <- con.argTys.toWhnfs
+             yield ConstructorT(con.name, wArgTys)
+    }
   private def (fields: Seq[PreField]) reduceFields(using Γ: Context)(using Σ: Signature) : Result[Seq[Field]] = 
-    fields.liftMap(f => f.ty.toWhnf.map(FieldT(f.name, _)))
+    fields.liftMap{
+      f => for _ <- f.ty.level
+              wTy <- f.ty.toWhnf
+           yield FieldT(f.name, wTy)
+    }
 }

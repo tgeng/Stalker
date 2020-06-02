@@ -41,12 +41,11 @@ object typing {
     case WLevel => Right(lconst(0))
     case WFunction(_A, _B) => {
       for {
+        lA <- _A.ty.level
         wA <- _A.ty.toWhnf
-        lA <- wA.level
         r <- withCtxExtendedBy(_A.name ∷ wA) {
           for {
-            rB <- _B.toWhnf
-            lB <- rB.level
+            lB <- _B.level
           } yield lmax(TWhnf(lA), TWhnf(lB))
         }
       } yield r
@@ -62,8 +61,8 @@ object typing {
     case WId(l, _A, x, y) => {
       for {
         wl <- l.toWhnf
+        lA <- _A.level
         wA <- _A.toWhnf
-        lA <- wA.level
         _ <- if (wl == lA) Right(())
              else typingError(e"Expect $_A to be at level $l but it's at level $lA")
         _ <- (x ∷ wA).check
@@ -206,8 +205,7 @@ object typing {
         // Types
         case _A ∷ WType(l) => for {
           wl <- l.toWhnf
-          wA <- _A.toWhnf
-          lA <- wA.level
+          lA <- _A.level
           _ <- lA == wl match {
             case true => Right(())
             case false => typingError(e"Expect $_A to be at level $l, but it's at level $lA.")

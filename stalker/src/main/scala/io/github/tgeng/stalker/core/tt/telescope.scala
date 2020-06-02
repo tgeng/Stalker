@@ -21,5 +21,5 @@ extension telescopeOps on (self: Telescope) {
 }
 
 def withCtx[T](ctx: Context)(action: (ctx: Context) ?=> T) : T = action(using ctx)
-def withCtxExtendedBy[T](toWhnfs: Telescope)(action: (ctx: Context) ?=> T)(using ctx: Context) : T = action(using ctx + toWhnfs)
+def withCtxExtendedBy[T](telescope: Telescope)(action: (ctx: Context) ?=> T)(using ctx: Context) : T = action(using ctx + telescope)
 def withCtxExtendedBy[T](binding: Binding[Type])(action: (ctx: Context) ?=> T)(using ctx: Context) : T = action(using ctx + binding)

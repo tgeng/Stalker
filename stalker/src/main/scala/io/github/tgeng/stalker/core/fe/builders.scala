@@ -5,6 +5,7 @@ import io.github.tgeng.stalker.core.fe.ftConversion.{given _, _}
 import io.github.tgeng.stalker.core.fe.pprint.toBlock
 import io.github.tgeng.stalker.core.tt.contextOps
 import io.github.tgeng.stalker.core.tt._
+import io.github.tgeng.stalker.core.tt.typing.level
 import io.github.tgeng.stalker.core.tt.reduction.toWhnf
 import io.github.tgeng.parse._
 import io.github.tgeng.parse.string.{given _, _}
@@ -32,7 +33,8 @@ object builders {
     (whitespaces >> binding << whitespaces << eof).parse(s) match {
       case Right(b) => 
         (for b <- b.toTt
-            _A <- b.ty.toWhnf
+             _ <- b.ty.level
+             _A <- b.ty.toWhnf
         yield Binding(_A)(b.name)) match {
           case Right(b) => b
           case Left(e) => throw Exception(e.toBlock.toString)
