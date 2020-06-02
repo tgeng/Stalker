@@ -52,11 +52,11 @@ object typing {
     }
     case WData(qn, u) => for {
       data <- Σ getData qn
-      _ <- (u ∷ data.paramTys).check
+      _ <- (u ∷ data.paramTys).checkTerms
     } yield data.level
     case WRecord(qn, u) => for {
       record <- Σ getRecord qn
-      _ <- (u ∷ record.paramTys).check
+      _ <- (u ∷ record.paramTys).checkTerms
     } yield record.level
     case WId(l, _A, x, y) => {
       for {
@@ -116,8 +116,8 @@ object typing {
         wA1 <- _A1.toWhnf
         wA2 <- _A2.toWhnf
         l <- (wA1 ≡ wA2).eqLevel
-        _ <- (u1 ≡ u2 ∷ wA1).check
-        _ <- (v1 ≡ v2 ∷ wA1).check
+        _ <- (u1 ≡ u2 ∷ wA1).checkEq
+        _ <- (v1 ≡ v2 ∷ wA1).checkEq
       } yield l
     }
     case WData(d1, u̅1) ≡ WData(d2, u̅2) if d1 == d2 => for {
@@ -177,7 +177,7 @@ object typing {
       case u ∷ _A |- Nil ≡ Nil => _A.level
       case u ∷ WFunction(_A, _B) |- (ETerm(v1) :: e̅1) ≡ (ETerm(v2) :: e̅2) => for {
         wA <- _A.ty.toWhnf
-        _ <- (v1 ≡ v2 ∷ wA).check
+        _ <- (v1 ≡ v2 ∷ wA).checkEq
         wB <- _B.substHead(v1).toWhnf
         uv <- u.app(v1)
         l <- (uv ∷ wB |- e̅1 ≡ e̅2).elimEqLevel
@@ -193,157 +193,149 @@ object typing {
     }
   } flatMap { _.reduceLevel }
   
-  extension checkTerm on (j: Term ∷ Type) {
-    def check(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
-      j match {
-        case _ ∷ _A => _A.level match {
-          case Right(_) => ()
-          case Left(e) => return Left(e)
-        }
-      }
-      j match {
-        // Types
-        case _A ∷ WType(l) => for {
-          wl <- l.toWhnf
-          lA <- _A.level
-          _ <- lA == wl match {
-            case true => Right(())
-            case false => typingError(e"Expect $_A to be at level $l, but it's at level $lA.")
-          }
-        } yield ()
-        // Heads
-        case TWhnf(v@WVar(idx, Nil)) ∷ _A => 
-          if (Γ(idx).ty == _A) Right(())
-          else typingError(e"Variable $v is not of type $_A but of type ${Γ(idx).ty}.")
-        case TWhnf(WVar(idx, e̅)) ∷ _A => for {
-          _ <- (TWhnf(WVar(idx, Nil)) ∷ Γ(idx).ty |- e̅ ∷ _A).check
-        } yield ()
-        case TRedux(fn, e̅) ∷ _A => for {
-          definition <- Σ getDefinition fn
-          _ <- (TRedux(fn, Nil) ∷ definition.ty |- e̅ ∷ _A).check
-        } yield ()
-        // Values
-        case TWhnf(WCon(c, v̅)) ∷ WData(d, u̅) => for {
-          data <- Σ getData d
-          constructor <- data(c)     
-          _ <- (u̅ ∷ data.paramTys).check
-          _Δ <- constructor.argTys.substHead(v̅).toWhnfs
-          _ <- (v̅ ∷ _Δ).check
-        } yield ()
-        case TWhnf(WRefl) ∷ WId(_, _A, u, v) => for {
-          wA <- _A.toWhnf
-          _ <- (u ≡ v ∷ wA).check
-        } yield ()
-        // Level
-        case TWhnf(l) ∷ WLevel => Right(())
-        case tm ∷ ty => typingError(e"Expected $tm to be of type $ty.")
+  def (j: Term ∷ Type)check(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
+    j match {
+      case _ ∷ _A => _A.level match {
+        case Right(_) => ()
+        case Left(e) => return Left(e)
       }
     }
-  }
-  
-  extension checkTerms on (j: List[Term] ∷ Telescope) {
-    def check(using Γ: Context)(using Σ: Signature) : Result[Unit] = j match {
-      case Nil ∷ Nil => Right(())
-      case (x :: u̅) ∷ (_A :: _Δ) => for {
-        _ <- (x ∷ _A.ty).check
-        _Θ <- _Δ.substHead(x).toWhnfs
-        _ <- (u̅ ∷ _Θ).check(using Γ + _A)
+    j match {
+      // Types
+      case _A ∷ WType(l) => for {
+        wl <- l.toWhnf
+        lA <- _A.level
+        _ <- lA == wl match {
+          case true => Right(())
+          case false => typingError(e"Expect $_A to be at level $l, but it's at level $lA.")
+        }
       } yield ()
-      case tms ∷ tys => typingError(e"Mismatched length when checking types of $tms against $tys")
+      // Heads
+      case TWhnf(v@WVar(idx, Nil)) ∷ _A => 
+        if (Γ(idx).ty == _A) Right(())
+        else typingError(e"Variable $v is not of type $_A but of type ${Γ(idx).ty}.")
+      case TWhnf(WVar(idx, e̅)) ∷ _A => for {
+        _ <- (TWhnf(WVar(idx, Nil)) ∷ Γ(idx).ty |- e̅ ∷ _A).checkElim
+      } yield ()
+      case TRedux(fn, e̅) ∷ _A => for {
+        definition <- Σ getDefinition fn
+        _ <- (TRedux(fn, Nil) ∷ definition.ty |- e̅ ∷ _A).checkElim
+      } yield ()
+      // Values
+      case TWhnf(WCon(c, v̅)) ∷ WData(d, u̅) => for {
+        data <- Σ getData d
+        constructor <- data(c)     
+        _ <- (u̅ ∷ data.paramTys).checkTerms
+        _Δ <- constructor.argTys.substHead(v̅).toWhnfs
+        _ <- (v̅ ∷ _Δ).checkTerms
+      } yield ()
+      case TWhnf(WRefl) ∷ WId(_, _A, u, v) => for {
+        wA <- _A.toWhnf
+        _ <- (u ≡ v ∷ wA).checkEq
+      } yield ()
+      // Level
+      case TWhnf(l) ∷ WLevel => Right(())
+      case tm ∷ ty => typingError(e"Expected $tm to be of type $ty.")
     }
   }
   
-  extension checkElim on (j: Term ∷ Type |- List[Elimination] ∷ Type) {
-    def check(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
-      j match {
-        case u ∷ _A |- Nil ∷ _B  => for {
-          _ <- (_A ≡ _B).eqLevel
-        } yield ()
-        case u ∷ WFunction(_A, _B) |- (ETerm(v) :: e̅) ∷ _C => for {
-          wA <- _A.ty.toWhnf
-          _ <- (v ∷ wA).check
-          uv <- u.app(v)
-          _Bv = _B.substHead(v)
-          wBv <- _Bv.toWhnf
-          _ <- (uv ∷ wBv |- e̅ ∷ _C).check
-        } yield ()
-        case u ∷ WRecord(r, v̅) |- (EProj(π) :: e̅) ∷ _C => for {
-          record <- Σ getRecord r
-          field <- record(π) 
-          uπ <- u.app(π)
-          ft <- field.ty.substHead(v̅ :+ u).toWhnf
-          _ <- (uπ ∷ ft |- e̅ ∷ _C).check
-        } yield ()
-        case u ∷ _A |- elims ∷ _C => typingError(e"Invalid application of $elims to $u of type $_A.")
-      }
+  def (j: List[Term] ∷ Telescope)checkTerms(using Γ: Context)(using Σ: Signature) : Result[Unit] = j match {
+    case Nil ∷ Nil => Right(())
+    case (x :: u̅) ∷ (_A :: _Δ) => for {
+      _ <- (x ∷ _A.ty).check
+      _Θ <- _Δ.substHead(x).toWhnfs
+      _ <- (u̅ ∷ _Θ).checkTerms(using Γ + _A)
+    } yield ()
+    case tms ∷ tys => typingError(e"Mismatched length when checking types of $tms against $tys")
+  }
+  
+  def (j: Term ∷ Type |- List[Elimination] ∷ Type)checkElim(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
+    j match {
+      case u ∷ _A |- Nil ∷ _B  => for {
+        _ <- (_A ≡ _B).eqLevel
+      } yield ()
+      case u ∷ WFunction(_A, _B) |- (ETerm(v) :: e̅) ∷ _C => for {
+        wA <- _A.ty.toWhnf
+        _ <- (v ∷ wA).check
+        uv <- u.app(v)
+        _Bv = _B.substHead(v)
+        wBv <- _Bv.toWhnf
+        _ <- (uv ∷ wBv |- e̅ ∷ _C).checkElim
+      } yield ()
+      case u ∷ WRecord(r, v̅) |- (EProj(π) :: e̅) ∷ _C => for {
+        record <- Σ getRecord r
+        field <- record(π) 
+        uπ <- u.app(π)
+        ft <- field.ty.substHead(v̅ :+ u).toWhnf
+        _ <- (uπ ∷ ft |- e̅ ∷ _C).checkElim
+      } yield ()
+      case u ∷ _A |- elims ∷ _C => typingError(e"Invalid application of $elims to $u of type $_A.")
     }
   }
   
-  extension checkTermEq on (j: ≡[Term] ∷ Type) {
-    def check(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
-      j match {
-        case x ≡ y ∷ _A if x == y => (for{
-          _ <- _A.level
-          _ <- (x ∷ _A).check
-        } yield ()) match {
-          case Right(_) => return Right(())
-          case _ => ()
-        }
-        case x ≡ y ∷ _A => (for {
-          _ <- _A.level
-          _ <- (x ∷ _A).check
-          _ <- (y ∷ _A).check
-        } yield ()) match {
-          case Right(_) => Right(())
-          case Left(e) => return Left(e)
-        }
+  def (j: ≡[Term] ∷ Type)checkEq(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
+    j match {
+      case x ≡ y ∷ _A if x == y => (for{
+        _ <- _A.level
+        _ <- (x ∷ _A).check
+      } yield ()) match {
+        case Right(_) => return Right(())
+        case _ => ()
       }
-      j match {
-        case l1 ≡ l2 ∷ WLevel =>
-          for wl1 <- l1.toWhnf
-              wl2 <- l2.toWhnf
-              _ <- wl1 == wl2 match {
-                case true => Right(())
-                case false => typingError(e"Expected ${l1 ≡ l2} but they are not equal.")
-              }
-          yield ()
-        case TRedux(f1, e̅1) ≡ TRedux(f2, e̅2) ∷ _B if f1 == f2 => for {
-          fn <- Σ getDefinition f1
-          _ <- (TRedux(f1, Nil) ∷ fn.ty |- e̅1 ≡ e̅2 ∷ _B).check
-        } yield ()
-        // function eta rule
-        case f ≡ g ∷ WFunction(_A, _B) => for {
-          fx <- f.app(TWhnf(WVar(0, Nil)))
-          gx <- g.app(TWhnf(WVar(0, Nil)))
-          wA <- _A.ty.toWhnf
-          wB <- _B.toWhnf
-          _ <- (fx ≡ gx ∷ wB).check(using Γ + _A.name ∷ wA)
-        } yield ()
-        case x ≡ y ∷ _A => for {
-          wX <- x.toWhnf
-          wY <- y.toWhnf
-          _ <- wX ≡ wY ∷ _A match {
-            case x ≡ y ∷ _ if x == y => Right(())
-            case x ≡ y ∷ WType(l) => for {
-              inferredL <- (x ≡ y).eqLevel
-              wl <- l.toWhnf
-              _ <- inferredL == wl match {
-                case true => Right(())
-                case false => typingError(e"Expected ${x ≡ y} at level $l but it's at level $inferredL.")
-              }
-            } yield ()
-            case WVar(x, e̅1) ≡ WVar(y, e̅2) ∷ _A if x == y => (TWhnf(WVar(x, Nil)) ∷ Γ(x).ty |- e̅1 ≡ e̅2 ∷ _A).check
-            case WCon(c1, v̅1) ≡ WCon(c2, v̅2) ∷ WData(d, u̅) if c1 == c2 => for {
-              data <- Σ getData d
-              con <- data(c1)
-              _ <- (u̅ ∷ data.paramTys).check
-              _Δ <- con.argTys.substHead(u̅).toWhnfs
-              _ <- (v̅1 ≡ v̅2 ∷ _Δ).check
-            } yield ()
-            case _ => typingError(e"Cannot decide if $x and $y of type $_A are computationally equivalent.")
-          }
-        } yield ()  
+      case x ≡ y ∷ _A => (for {
+        _ <- _A.level
+        _ <- (x ∷ _A).check
+        _ <- (y ∷ _A).check
+      } yield ()) match {
+        case Right(_) => Right(())
+        case Left(e) => return Left(e)
       }
+    }
+    j match {
+      case l1 ≡ l2 ∷ WLevel =>
+        for wl1 <- l1.toWhnf
+            wl2 <- l2.toWhnf
+            _ <- wl1 == wl2 match {
+              case true => Right(())
+              case false => typingError(e"Expected ${l1 ≡ l2} but they are not equal.")
+            }
+        yield ()
+      case TRedux(f1, e̅1) ≡ TRedux(f2, e̅2) ∷ _B if f1 == f2 => for {
+        fn <- Σ getDefinition f1
+        _ <- (TRedux(f1, Nil) ∷ fn.ty |- e̅1 ≡ e̅2 ∷ _B).checkElimEq
+      } yield ()
+      // function eta rule
+      case f ≡ g ∷ WFunction(_A, _B) => for {
+        fx <- f.app(TWhnf(WVar(0, Nil)))
+        gx <- g.app(TWhnf(WVar(0, Nil)))
+        wA <- _A.ty.toWhnf
+        wB <- _B.toWhnf
+        _ <- (fx ≡ gx ∷ wB).checkEq(using Γ + _A.name ∷ wA)
+      } yield ()
+      case x ≡ y ∷ _A => for {
+        wX <- x.toWhnf
+        wY <- y.toWhnf
+        _ <- wX ≡ wY ∷ _A match {
+          case x ≡ y ∷ _ if x == y => Right(())
+          case x ≡ y ∷ WType(l) => for {
+            inferredL <- (x ≡ y).eqLevel
+            wl <- l.toWhnf
+            _ <- inferredL == wl match {
+              case true => Right(())
+              case false => typingError(e"Expected ${x ≡ y} at level $l but it's at level $inferredL.")
+            }
+          } yield ()
+          case WVar(x, e̅1) ≡ WVar(y, e̅2) ∷ _A if x == y => (TWhnf(WVar(x, Nil)) ∷ Γ(x).ty |- e̅1 ≡ e̅2 ∷ _A).checkElimEq
+          case WCon(c1, v̅1) ≡ WCon(c2, v̅2) ∷ WData(d, u̅) if c1 == c2 => for {
+            data <- Σ getData d
+            con <- data(c1)
+            _ <- (u̅ ∷ data.paramTys).checkTerms
+            _Δ <- con.argTys.substHead(u̅).toWhnfs
+            _ <- (v̅1 ≡ v̅2 ∷ _Δ).check
+          } yield ()
+          case _ => typingError(e"Cannot decide if $x and $y of type $_A are computationally equivalent.")
+        }
+      } yield ()  
     }
   }
   
@@ -358,7 +350,7 @@ object typing {
       j match {
         case Nil ≡ Nil ∷ Nil => Right(())
         case (u :: u̅) ≡ (v :: v̅) ∷ (_A :: _Δ) => for {
-          _ <- (u ≡ v ∷ _A.ty).check
+          _ <- (u ≡ v ∷ _A.ty).checkEq
           _Θ <- _Δ.substHead(u).toWhnfs
           _ <- (u̅ ≡ v̅ ∷ _Θ).check(using Γ + _A)
         } yield ()
@@ -366,35 +358,33 @@ object typing {
     }
   }
   
-  extension checkElimEq on (j: Term ∷ Type |- ≡[List[Elimination]] ∷ Type) {
-    def check(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
-      j match {
-        case x ∷ _A |- e̅1 ≡ e̅2 ∷ _C => (for {
-          _ <- (x ∷ _A).check
-          _ <- _C.level
-        } yield ()) match {
-          case Right(_) => ()
-          case Left(e) => return Left(e)
-        }
+  def (j: Term ∷ Type |- ≡[List[Elimination]] ∷ Type)checkElimEq(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
+    j match {
+      case x ∷ _A |- e̅1 ≡ e̅2 ∷ _C => (for {
+        _ <- (x ∷ _A).check
+        _ <- _C.level
+      } yield ()) match {
+        case Right(_) => ()
+        case Left(e) => return Left(e)
       }
-      j match {
-        case u ∷ _A |- Nil ≡ Nil ∷ _C => (_A ≡ _C).eqLevel.map(l => ())
-        case u ∷ WFunction(_A, _B) |- (ETerm(v1) :: e̅1) ≡ (ETerm(v2) :: e̅2) ∷ _C => for {
-          wA <- _A.ty.toWhnf
-          _ <- (v1 ≡ v2 ∷ wA).check
-          wB <- _B.substHead(v1).toWhnf
-          uv <- u.app(v1)
-          _ <- (uv ∷ wB |- e̅1 ≡ e̅2 ∷ _C).check
-        } yield ()
-        case u ∷ WRecord(r, v̅) |- (EProj(π) :: e̅1) ≡ (EProj(π1) :: e̅2) ∷ _C if π == π1 => for {
-          record <- Σ getRecord r
-          field <- record(π)
-          wA <- field.ty.substHead(v̅ :+ u).toWhnf
-          uπ <- u.app(π)
-          _ <- (uπ ∷ wA |- e̅1 ≡ e̅2 ∷ _C).check
-        } yield ()
-        case u ∷ _A |- elims1 ≡ elims2 ∷ _C => typingError(e"Cannot decide if applying $elims1 and $elims1 to $u of type $_A are computationally equivalent.")
-      }
+    }
+    j match {
+      case u ∷ _A |- Nil ≡ Nil ∷ _C => (_A ≡ _C).eqLevel.map(l => ())
+      case u ∷ WFunction(_A, _B) |- (ETerm(v1) :: e̅1) ≡ (ETerm(v2) :: e̅2) ∷ _C => for {
+        wA <- _A.ty.toWhnf
+        _ <- (v1 ≡ v2 ∷ wA).checkEq
+        wB <- _B.substHead(v1).toWhnf
+        uv <- u.app(v1)
+        _ <- (uv ∷ wB |- e̅1 ≡ e̅2 ∷ _C).checkElimEq
+      } yield ()
+      case u ∷ WRecord(r, v̅) |- (EProj(π) :: e̅1) ≡ (EProj(π1) :: e̅2) ∷ _C if π == π1 => for {
+        record <- Σ getRecord r
+        field <- record(π)
+        wA <- field.ty.substHead(v̅ :+ u).toWhnf
+        uπ <- u.app(π)
+        _ <- (uπ ∷ wA |- e̅1 ≡ e̅2 ∷ _C).checkElimEq
+      } yield ()
+      case u ∷ _A |- elims1 ≡ elims2 ∷ _C => typingError(e"Cannot decide if applying $elims1 and $elims1 to $u of type $_A are computationally equivalent.")
     }
   }
 }

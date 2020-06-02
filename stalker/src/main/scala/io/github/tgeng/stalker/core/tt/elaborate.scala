@@ -9,7 +9,7 @@ import io.github.tgeng.common.extraSetOps
 import io.github.tgeng.stalker.common._
 import io.github.tgeng.stalker.core.common.Error._
 import reduction._
-import typing.checkTerm
+import typing._
 import CaseTree._
 import CoPattern._
 import Pattern._
@@ -173,10 +173,9 @@ private def (_E: Set[(Term /? Pattern) ∷ Type]) solve(using Γ: Context)(using
       val ws = _ESeq.map{ case (w /? _) ∷ _ => w}
       val ps = _ESeq.map{ case (_ /? p) ∷ _ => p}
       val Δ = _ESeq.map{ case (_ /? _) ∷ _A => "" ∷ _A}
-      import typing.checkTermEq
       for {
         // Check again to ensure forced patterns are correct.
-        _ <- _E.liftMap{ case (w /? p) ∷ _A => (p.toTerm ≡ w ∷ _A).check }
+        _ <- _E.liftMap{ case (w /? p) ∷ _A => (p.toTerm ≡ w ∷ _A).checkEq }
       } yield σ
     }
     case _ => typingError(e"Mismatch")

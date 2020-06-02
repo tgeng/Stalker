@@ -10,9 +10,7 @@ import io.github.tgeng.stalker.core.common.Error._
 import io.github.tgeng.stalker.common.QualifiedName
 import reduction.toWhnfs
 import reduction.toWhnf
-import typing.level
-import typing.checkElim
-import typing.checkTerm
+import typing._
 import stringBindingOps._
 import userInputBarBarBar._
 import lhsOps._

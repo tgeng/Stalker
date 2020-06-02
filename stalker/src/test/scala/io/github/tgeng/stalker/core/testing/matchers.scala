@@ -15,13 +15,11 @@ import io.github.tgeng.stalker.core.fe.pprint._
 import io.github.tgeng.stalker.core.fe.ftConversion.{given _, _}
 import io.github.tgeng.stalker.core.fe.tfConversion.{given _, _}
 import io.github.tgeng.stalker.core.tt._
-import io.github.tgeng.stalker.core.tt.typingRelation
-import io.github.tgeng.stalker.core.tt.typing.checkTerm
-import io.github.tgeng.stalker.core.tt.typing.checkTermEq
-import io.github.tgeng.stalker.core.tt.reduction.toWhnf
 import io.github.tgeng.stalker.core.tt.eqTermTypingRelation
+import io.github.tgeng.stalker.core.tt.reduction.toWhnf
+import io.github.tgeng.stalker.core.tt.typingRelation
 import io.github.tgeng.stalker.testing.UnitSpec
-import io.github.tgeng.stalker.core.tt.typing.level
+import io.github.tgeng.stalker.core.tt.typing._
 import Term._
 
 object matchers extends Helpers {
@@ -52,7 +50,7 @@ object matchers extends Helpers {
 
   def holdUnderType(_A: Term)(using LocalIndices, LocalNames, Context, Signature, Namespace) = Matcher { (e: ≡[Term]) =>
     (for _ <- _A.level
-        r <- (e ∷ _A.whnf).check
+        r <- (e ∷ _A.whnf).checkEq
     yield r) match {
       case Right(_) => MatchResult(
         true,
