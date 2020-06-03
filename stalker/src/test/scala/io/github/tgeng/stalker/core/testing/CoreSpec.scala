@@ -6,7 +6,7 @@ import org.scalatest.Matchers
 import io.github.tgeng.stalker.testing.UnitSpec
 import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.core.common.Namespace
-import io.github.tgeng.stalker.core.common.InMemoryNamespace
+import io.github.tgeng.stalker.core.common.MutableNamespace
 import io.github.tgeng.parse._
 import io.github.tgeng.parse.string._
 import io.github.tgeng.stalker.core.fe._
@@ -24,7 +24,7 @@ import matchers._
 import Term._
 
 class CoreSpec extends UnitSpec with Helpers {
-  val ns = InMemoryNamespace.createWithBuiltins("stalker.unit-test")
+  val ns = MutableNamespace.createWithBuiltins("stalker.unit-test")
   given Namespace = ns
   val Σ = SignatureBuilder.create
   given Signature = Σ

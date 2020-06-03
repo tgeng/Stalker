@@ -11,7 +11,7 @@ import io.github.tgeng.stalker.core.common.InMemoryNamespace
 import QualifiedName.{_, given _}
 
 class NamespaceSpec extends UnitSpec {
-  val ns = InMemoryNamespace.createWithBuiltins("test.package")
+  val ns = MutableNamespace.createWithBuiltins("test.package")
 
   "builtins are present" in {
     assert(ns("Type").qn == qn("stalker.builtins.Type"))
@@ -23,7 +23,7 @@ class NamespaceSpec extends UnitSpec {
   }
 
   "constructor name check works" in {
-    assert(ns.constructors.contains("Refl"))
+    assert(ns("Refl").isConstructor)
   }
 
   "non-existent types indeed don't exist" in {
@@ -33,7 +33,7 @@ class NamespaceSpec extends UnitSpec {
   "read and write should work" in {
     ns("Foo") = "foo.Foo"
     assert(ns("Foo").qn == qn("foo.Foo"))
-    val fooNs = InMemoryNamespace.create("foo.Foo")
+    val fooNs = MutableNamespace.create("foo.Foo")
     ns("Foo") = fooNs
     assert(ns("Foo") == fooNs)
     fooNs("Bar") = "foo.Foo.Bar"
@@ -46,7 +46,7 @@ class NamespaceSpec extends UnitSpec {
   }
 
   "render should be concise for names in sub namespace" in {
-    val sub = InMemoryNamespace.create("foo.bar")
+    val sub = MutableNamespace.create("foo.bar")
     sub("Foo") = "foo.bar.Foo"
     ns("bar") = sub
     assert(ns.render("foo.bar.Foo") == ("bar", List("Foo")))
@@ -61,5 +61,5 @@ class NamespaceSpec extends UnitSpec {
     case Left(e) => throw IllegalArgumentException()
   }
 
-  private def (ns: InMemoryNamespace) update(name: String, qn: QualifiedName) = ns(name) = InMemoryNamespace.create(qn)
+  private def (ns: MutableNamespace) update(name: String, qn: QualifiedName) = ns(name) = MutableNamespace.create(qn)
 }
