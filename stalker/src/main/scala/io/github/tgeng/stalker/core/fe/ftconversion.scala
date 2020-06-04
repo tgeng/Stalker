@@ -74,7 +74,8 @@ object ftConversion {
         (for conNs <- ns.get(name)
              con <- conNs.getConstructorName
          yield PCon(con, Nil)) match {
-          case Left(_) => Right(PVar(ctx.getOrAddPVar(name))(name))
+          case Left(_) => for idx <- ctx.get(name)
+                          yield PVar(idx)(name)
           case r => r
         }
 
@@ -82,7 +83,10 @@ object ftConversion {
                                    conNs <- ns.get(con)
                                    con <- conNs.getConstructorName
                                yield PCon(con, args)
-      case FPForcedCon(con, args) => for args <- args.liftMap(_.toTt) yield PForcedCon(con, args)
+      case FPForcedCon(con, args) => for args <- args.liftMap(_.toTt) 
+                                   conNs <- ns.get(con)
+                                   con <- conNs.getConstructorName
+                               yield PForcedCon(con, args)
       case FPForced(t) => for t <- t.toTt yield PForced(t)
       case FPAbsurd => Right(PAbsurd)
     }
@@ -108,15 +112,6 @@ class LocalIndices(content: Map[String, Int] = Map.empty) {
     case None => noNameError(e"Cannot find local variable $name.")
   }
 
-  def getOrAddPVar(name: String) : Int = get(name) match {
-    case Right(idx) => idx
-    case Left(_) => {
-      val idx = size
-      add(name)
-      idx
-    }
-  }
-
   def add(name: String) = {
     size += 1
     val buffer = indices.getOrElseUpdate(name, ArrayBuffer())
@@ -134,6 +129,32 @@ class LocalIndices(content: Map[String, Int] = Map.empty) {
     }
     size -= 1
     t
+  }
+
+  def addAllFromCoPatterns(coPatterns: Seq[FCoPattern])(using ns: Namespace) : Unit = {
+    import FCoPattern._
+    addAllFromPatterns(for case FQPattern(p) <- coPatterns yield p)
+  }
+
+  def addAllFromPatterns(patterns: Seq[FPattern])(using ns: Namespace) : Unit = {
+    import FPattern._
+    patterns.foreach {
+      case FPVarCon(name) => {
+        get(name) match {
+          case Right(_) => ()
+          case _ => (for conNs <- ns.get(name)
+                         con <- conNs.getConstructorName
+                    yield ()) match {
+                      case Left(_) => add(name)
+                      case _ => ()
+                    }
+        }
+      }
+      case FPCon(_, args) => addAllFromPatterns(args)
+      case FPForcedCon(_, args) => addAllFromPatterns(args)
+      case FPForced(t: FTerm) => ()
+      case FPAbsurd => ()
+    }
   }
 
   override def toString = indices.view.mapValues(_.last).toMap.toString

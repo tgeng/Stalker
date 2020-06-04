@@ -90,7 +90,9 @@ class FSignature {
 
   def (c: FUncheckedClause) toTt (using ns: Namespace) : Result[PreClause] = c match {
     case FUncheckedClause(lhs, rhs) => {
-      given LocalIndices = LocalIndices()
+      val ctx = LocalIndices()
+      ctx.addAllFromCoPatterns(lhs)
+      given LocalIndices = ctx
       for lhs <- lhs.liftMap(_.toTt)
           rhs <- rhs.toTt
       yield ClauseT.UncheckedClause(lhs, rhs)
