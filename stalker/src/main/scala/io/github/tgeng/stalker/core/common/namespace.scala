@@ -12,7 +12,11 @@ trait Namespace extends Iterable[(String, Namespace)]{
   }
 
   def qn: QualifiedName
-  def isConstructor : Boolean
+  def constructorName : Option[String]
+  def getConstructorName : Result[String] = constructorName match {
+    case Some(con) => Right(con)
+    case None => noNameError(e"$qn is not a constructor.")
+  }
 
   def render(qn: QualifiedName): (String, List[String]) = render(qn, Nil) match {
     case head :: rest => (head, rest)
@@ -43,11 +47,11 @@ trait MutableNamespace extends Namespace {
   def addDeclaration(name: String, constructors: String*) : Unit = addDeclaration(name, constructors)
 
   def addDeclaration(name: String, constructors: Iterable[String]) : Unit = { 
-    if (constructors.isEmpty) this(name) = LeafNamespace(qn / name)
+    if (constructors.isEmpty) this(name) = LeafNamespace(qn / name, None)
     else {
       val ns = InMemoryNamespace(qn / name)
       for (child <- constructors) {
-        ns(child) = LeafNamespace(ns.qn / child)
+        ns(child) = LeafNamespace(ns.qn / child, Some(child))
       }
       this(name) = ns
     }
@@ -78,18 +82,18 @@ object MutableNamespace {
     val cons = d.cons
     if (cons != null) {
       for (con <- cons) {
-        r(con.name) = LeafNamespace(d.qn / con.name)
+        r(con.name) = LeafNamespace(d.qn / con.name, Some(con.name))
       }
     }
     r
   }
 
-  given recordToNamespace as Conversion[PreRecord, Namespace] = r => LeafNamespace(r.qn, false)
-  given definitionToNamespace as Conversion[PreDefinition, Namespace] = d => LeafNamespace(d.qn, false)
+  given recordToNamespace as Conversion[PreRecord, Namespace] = r => LeafNamespace(r.qn)
+  given definitionToNamespace as Conversion[PreDefinition, Namespace] = d => LeafNamespace(d.qn)
 
   val idTypeNs : Namespace = {
     val r = InMemoryNamespace(idType.qn)
-    r("Refl") = LeafNamespace(idType.qn / "Refl")
+    r("Refl") = LeafNamespace(idType.qn / "Refl", Some("Refl"))
     r
   }
 }
@@ -110,10 +114,10 @@ private case class InMemoryNamespace(override val qn: QualifiedName) extends Mut
 
   override def update(name: String, ns: Namespace) : Unit = content.update(name, ns)
   
-  override def isConstructor = false
+  override def constructorName = None
 }
 
-case class LeafNamespace(override val qn: QualifiedName, override val isConstructor: Boolean = true) extends Namespace {
+case class LeafNamespace(override val qn: QualifiedName, override val constructorName: Option[String] = None) extends Namespace {
   override def get(name: String) = noNameError(e"Cannot find $name in $qn.")
 
   override def iterator: Iterator[(String, Namespace)] = Iterator.empty

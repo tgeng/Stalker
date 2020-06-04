@@ -70,8 +70,18 @@ object ftConversion {
 
   given FT[FPattern, Pattern] {
     def (p: FPattern) toTt (using ctx:LocalIndices)(using ns: Namespace) : Result[Pattern] = p match {
-      case FPVar(name) => for idx <- ctx.get(name) yield PVar(idx)(name)
-      case FPCon(con, args) => for args <- args.liftMap(_.toTt) yield PCon(con, args)
+      case FPVarCon(name) => 
+        (for conNs <- ns.get(name)
+             con <- conNs.getConstructorName
+         yield PCon(con, Nil)) match {
+          case Left(_) => Right(PVar(ctx.getOrAddPVar(name))(name))
+          case r => r
+        }
+
+      case FPCon(con, args) => for args <- args.liftMap(_.toTt) 
+                                   conNs <- ns.get(con)
+                                   con <- conNs.getConstructorName
+                               yield PCon(con, args)
       case FPForcedCon(con, args) => for args <- args.liftMap(_.toTt) yield PForcedCon(con, args)
       case FPForced(t) => for t <- t.toTt yield PForced(t)
       case FPAbsurd => Right(PAbsurd)
@@ -96,6 +106,15 @@ class LocalIndices(content: Map[String, Int] = Map.empty) {
   def get(name: String) : Result[Int] = indices.get(name).flatMap(_.lastOption) match {
     case Some(i) => Right(size - i)
     case None => noNameError(e"Cannot find local variable $name.")
+  }
+
+  def getOrAddPVar(name: String) : Int = get(name) match {
+    case Right(idx) => idx
+    case Left(_) => {
+      val idx = size
+      add(name)
+      idx
+    }
   }
 
   def add(name: String) = {

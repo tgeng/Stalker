@@ -79,6 +79,10 @@ object parser {
 
   def term = P { termImpl(using ParsingOptions()) }
   def binding = P { bindingImpl(using ParsingOptions()) }
+
+  def patternImpl(using opt: ParsingOptions) = P {
+    ??? 
+  }
 }
 
 private case class ParsingOptions(val appDelimiter: Parser[?] = spaces)

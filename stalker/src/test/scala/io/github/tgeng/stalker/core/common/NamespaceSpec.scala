@@ -23,7 +23,7 @@ class NamespaceSpec extends UnitSpec {
   }
 
   "constructor name check works" in {
-    assert(ns("Refl").isConstructor)
+    assert(ns("Refl").getConstructorName == Right("Refl"))
   }
 
   "non-existent types indeed don't exist" in {
@@ -56,10 +56,7 @@ class NamespaceSpec extends UnitSpec {
     assert(ns.render("random.a.b.c") == ("random", List("a", "b", "c")))
   }
 
-  private def (ns: Namespace) apply(name: String) = ns.get(ArraySeq.unsafeWrapArray(name.split('.'))) match {
-    case Right(ns) => ns
-    case Left(e) => throw IllegalArgumentException()
-  }
+  private def (ns: Namespace) apply(name: String) = ns.get(ArraySeq.unsafeWrapArray(name.split('.'))).rightVal
 
   private def (ns: MutableNamespace) update(name: String, qn: QualifiedName) = ns(name) = MutableNamespace.create(qn)
 }
