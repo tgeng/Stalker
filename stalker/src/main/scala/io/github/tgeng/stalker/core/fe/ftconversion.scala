@@ -34,8 +34,26 @@ object ftConversion {
                            yield TWhnf(WVar(idx, names.map(EProj(_)) ++ elims))
         case _ => ns.get(head) match {
           case Right(ns) => resolveInNamespace(ns, names) match {
-            case (qn, names) => for elims <- elims.liftMap(_.toTt)
-                                yield TRedux(qn, names.map(EProj(_)) ++ elims)
+            case (ns, names) => (ns, ns.getConstructorName, names) match {
+              // TODO(tgeng): remove this special handling after implicit parameter
+              // is supported so that constructor can be normal functions.
+              case (ns, Right(con), names) => {
+                names match {
+                  case Nil =>
+                    for args <- elims.liftMap {
+                          case p : FEProj => typingError(e"Cannot apply projection $p to constructor ${ns.qn}.")
+                          case FETerm(t) => Right(t)
+                        }
+                        args <- args.liftMap(_.toTt)
+                    yield TWhnf(WCon(con, args))
+                  case name :: _ => typingError(e"Cannot apply projection ${FEProj(name)} to constructor ${ns.qn}.")
+                }
+              }
+              case (ns, _, names) =>
+                for elims <- elims.liftMap(_.toTt)
+                yield TRedux(ns.qn, names.map(EProj(_)) ++ elims)
+            }
+
           }
           case _ => noNameError(e"$head is not a local variable nor a name in the current scope.")
         }
@@ -43,11 +61,11 @@ object ftConversion {
     }
   }
 
-  private def resolveInNamespace(ns: Namespace, names: List[String]): (QualifiedName, List[String]) = names match {
-    case Nil => (ns.qn, Nil)
+  private def resolveInNamespace(ns: Namespace, names: List[String]): (Namespace, List[String]) = names match {
+    case Nil => (ns, Nil)
     case name :: rest => ns.get(name) match {
       case Right(ns) => resolveInNamespace(ns, rest)
-      case _ => (ns.qn, names)
+      case _ => (ns, names)
     }
   }
 

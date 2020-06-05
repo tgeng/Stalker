@@ -16,7 +16,7 @@ object parser {
   private val bodyInvalidChars = " \\r\\n\\t()\\[\\]{},."
   private val bodyPattern = s"[^${bodyInvalidChars}]"
   private val headPattern = s"""[^`'"0-9${bodyInvalidChars}]"""
-  private val name = P { s"$headPattern$bodyPattern*".rp.satisfying(!Set("->", ":", "=", "_").contains(_)) }
+  private val name = P { s"$headPattern$bodyPattern*".rp.withFilter(!Set("->", ":", "=", "_").contains(_)) }
   private val level = P { "[0-9]+".rp.map(s => FTLevel(Integer.parseInt(s))) << "lv" }
 
   private def con(using opt: ParsingOptions) : Parser[FTerm] = P {

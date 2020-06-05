@@ -48,6 +48,10 @@ class ConversionSpec extends CoreSpec {
             TWhnf(WFunction("A" ∷ TRedux("stalker.builtins.Type", List(ETerm(TWhnf(WLConst(0))))),
               TRedux("stalker.collection.Vector", List(ETerm(TWhnf(WVar(1, List()))), ETerm(TWhnf(WVar(0, List())))))))))))))
     }
+
+    "special handling of contsructors" in {
+      assert(ft"Refl".tt == t"Refl{}")
+    }
   }
 
   "Term -> FTerm" - {
