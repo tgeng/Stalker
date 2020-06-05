@@ -43,6 +43,13 @@ object builders {
     }
   }
 
+  inline def [T](ctx: StringContext) q() : List[FCoPattern] = q(ctx.parts(0))
+
+  def q(s: String) : List[FCoPattern] = (whitespaces >> coPatterns << whitespaces << eof).parse(s) match {
+    case Right(q) => q
+    case Left(e) => throw Exception(e.toString)
+  }
+
   def withBindings[T](bindings: (LocalIndices, LocalNames, Context) ?=> (Namespace, Signature) ?=> Binding[Type]*)(action: (LocalIndices, LocalNames, Context) ?=> T)(using Namespace, Signature) : T = {
     val localIndices = LocalIndices()
     val localNames = LocalNames()

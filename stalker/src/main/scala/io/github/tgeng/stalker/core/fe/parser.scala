@@ -18,6 +18,7 @@ object parser {
   private val headPattern = s"""[^`'"0-9${bodyInvalidChars}]"""
   private val name = P { s"$headPattern$bodyPattern*".rp.withFilter(!Set("->", ":", "=", "_").contains(_)) }
   private val level = P { "[0-9]+".rp.map(s => FTLevel(Integer.parseInt(s))) << "lv" }
+  private val qn = P { name sepBy1 '.' map (_.toList) }
 
   private def con(using opt: ParsingOptions) : Parser[FTerm] = P {
     for {
@@ -27,14 +28,15 @@ object parser {
   }
 
   private def ref(using opt: ParsingOptions) : Parser[FTerm] = P {
-    (name sepBy1 '.').map (names => names.toList match {
-      case head :: names => FTRedux(head, names, Nil)
-      case _ => throw IllegalStateException("sepBy1 must return non empty vector")
-    })
+    for qn <- qn
+    yield qn match {
+      case head :: tail => FTRedux(head, tail, Nil)
+      case _ => throw AssertionError()
+    }
   }
 
   private def atom(using opt: ParsingOptions) : Parser[FTerm] = P {
-    '(' >>! termImpl(using opt.copy(appDelimiter = whitespaces)) << ')' | con | ref | level
+    '(' >>! whitespaces >> termImpl(using opt.copy(appDelimiter = whitespaces)) << whitespaces << ')' | con | ref | level
   }
 
   private def proj = '.' >>! name
@@ -80,8 +82,47 @@ object parser {
   def term = P { termImpl(using ParsingOptions()) }
   def binding = P { bindingImpl(using ParsingOptions()) }
 
-  def patternImpl(using opt: ParsingOptions) = P {
-    ??? 
+  import FPattern._
+  import FCoPattern._
+
+  def pConWithArgs(using opt: ParsingOptions) : Parser[FPattern] = P {
+    for forced <- "..".?
+        qn <- qn << opt.appDelimiter
+        args <- patternImpl sepBy1 opt.appDelimiter
+    yield forced match {
+      case Some(_) => FPForcedCon(qn, args.toList)
+      case None => FPCon(qn, args.toList)
+    }
+  }
+
+  def patterns(using opt: ParsingOptions) : Parser[FPattern] = P {
+    pConWithArgs | patternImpl
+  }
+
+  def patternImpl(using opt: ParsingOptions) : Parser[FPattern] = P {
+    qn.map{ names =>
+      if (names.size == 1) {
+        FPVarCon(names(0))
+      } else {
+        FPCon(names, Nil)
+      }
+    } |
+    "()".as(FPAbsurd) |
+    '(' >>! whitespaces >> patterns(using opt.copy(appDelimiter = whitespaces)) << whitespaces << ')' |
+    ".." >>! atom.map(FPForced(_))
+  }
+
+  def qProj : Parser[FCoPattern] = P {
+    proj.map(FQProj(_))
+  }
+
+  def coPatternImpl(using opt: ParsingOptions) : Parser[FCoPattern] = P {
+    patternImpl.map(FQPattern(_)) | qProj
+  }
+
+  def coPatterns : Parser[List[FCoPattern]] = P {
+    given ParsingOptions = ParsingOptions()
+    coPatternImpl sepBy spaces map (_.toList)
   }
 }
 

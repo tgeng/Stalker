@@ -8,7 +8,7 @@ import io.github.tgeng.stalker.testing.UnitSpec
 
 class ParserSpec extends UnitSpec {
 
-  "round trips" in {
+  "Parsing Term round trips" in {
     roundTrip(
       "A",
       "fn a b c",
@@ -58,5 +58,36 @@ class ParserSpec extends UnitSpec {
         assert(t.toBlock.toString == stripped)
       }
     }
+  }
+
+  import io.github.tgeng.stalker.core.fe.builders.q
+
+  import FPattern._
+  import FCoPattern._
+  import FElimination._
+  import FTerm._
+
+  "Parsing Pattern" in {
+    assert(q"a b c" == List(FQPattern(FPVarCon("a")), FQPattern(FPVarCon("b")), FQPattern(FPVarCon("c"))))
+    assert(q"a .b .c d" == List(FQPattern(FPVarCon("a")), FQProj("b"), FQProj("c"), FQPattern(FPVarCon("d"))))
+    assert(q"(con a b)" == List(FQPattern(FPCon(List("con"), List(FPVarCon("a"), FPVarCon("b"))))))
+    assert(q"(con a b) .foobar" == List(FQPattern(FPCon(List("con"), List(FPVarCon("a"), FPVarCon("b")))), FQProj("foobar")))
+    assert(q"(con a b) (con c d)" ==
+      List(FQPattern(FPCon(List("con"), List(FPVarCon("a"), FPVarCon("b")))), FQPattern(FPCon(List("con"), List(FPVarCon("c"), FPVarCon("d"))))))
+    assert(q"foo.bar" ==
+      List(FQPattern(FPCon(List("foo", "bar"), List()))))
+    assert(q"foo.bar a b" ==
+      List(FQPattern(FPCon(List("foo", "bar"), List())), FQPattern(FPVarCon("a")), FQPattern(FPVarCon("b"))))
+    assert(q"(foo.bar a b)" ==
+      List(FQPattern(FPCon(List("foo", "bar"), List(FPVarCon("a"), FPVarCon("b"))))))
+
+    assert(q"..a" ==
+      List(FQPattern(FPForced(FTRedux("a",List(),List())))))
+    assert(q"a b ..c" ==
+      List(FQPattern(FPVarCon("a")), FQPattern(FPVarCon("b")), FQPattern(FPForced(FTRedux("c",List(),List())))))
+    assert(q"..(a b c)" ==
+      List(FQPattern(FPForced(FTRedux("a",List(),List(FETerm(FTRedux("b",List(),List())), FETerm(FTRedux("c",List(),List()))))))))
+    assert(q"a ..(b c) .d" ==
+      List(FQPattern(FPVarCon("a")), FQPattern(FPForced(FTRedux("b",List(),List(FETerm(FTRedux("c",List(),List())))))), FQProj("d")))
   }
 }
