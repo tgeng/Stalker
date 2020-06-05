@@ -35,12 +35,12 @@ class ConversionSpec extends CoreSpec {
           TWhnf(WFunction(
             "A" ∷ TRedux("stalker.builtins.Type", List(ETerm(TWhnf(WLConst(0))))),
             TRedux("stalker.collection.Vector", List(ETerm(TWhnf(WVar(1,List()))), ETerm(TWhnf(WVar(0,List()))))))))))
-      assert(ft"con{Nat, String, Integer}".tt == 
+      assert(ft"con{Nat String Integer}".tt == 
         TWhnf(WCon("con",List(
           TRedux("stalker.util.Nat", List()), 
           TRedux("stalker.util.String", List()), 
           TRedux("stalker.util.Integer", List())))))
-      assert(ft"con{Nat -> Nat, String -> String, (n : Nat) -> (A : Type 0lv) -> Vector n A}".tt == 
+      assert(ft"con{(Nat -> Nat) (String -> String) ((n : Nat) -> (A : Type 0lv) -> Vector n A)}".tt == 
         TWhnf(WCon("con", List(
           TWhnf(WFunction("" ∷ TRedux("stalker.util.Nat", List()), TRedux("stalker.util.Nat", List()))),
           TWhnf(WFunction("" ∷ TRedux("stalker.util.String", List()), TRedux("stalker.util.String", List()))),
@@ -77,14 +77,14 @@ class ConversionSpec extends CoreSpec {
           TRedux("stalker.util.Nat", List()), 
           TRedux("stalker.util.String", List()), 
           TRedux("stalker.util.Integer", List())))).fe ==
-        ft"con{Nat, String, Integer}")
+        ft"con{Nat String Integer}")
       assert(TWhnf(WCon("con", List(
           TWhnf(WFunction("" ∷ TRedux("stalker.util.Nat", List()), TRedux("stalker.util.Nat", List()))),
           TWhnf(WFunction("" ∷ TRedux("stalker.util.String", List()), TRedux("stalker.util.String", List()))),
           TWhnf(WFunction("n" ∷ TRedux("stalker.util.Nat", List()),
             TWhnf(WFunction("A" ∷ TRedux("stalker.builtins.Type", List(ETerm(TWhnf(WLConst(0))))),
               TRedux("stalker.collection.Vector", List(ETerm(TWhnf(WVar(1, List()))), ETerm(TWhnf(WVar(0, List())))))))))))).fe ==
-        ft"con{Nat -> Nat, String -> String, (n : Nat) -> (A : Type 0lv) -> Vector n A}")
+        ft"con{(Nat -> Nat) (String -> String) ((n : Nat) -> (A : Type 0lv) -> Vector n A)}")
     }
   }
 
@@ -107,7 +107,7 @@ class ConversionSpec extends CoreSpec {
         (b : Integer) ->
         (c : Nat -> Integer -> String) ->
         (d : (n : Nat) -> Integer -> Vector n String) ->
-        veryLongFn a b c d con1{a, b, c, d}
+        veryLongFn a b c d con1{a b c d}
         """,
         "(m : Nat) -> (f1 : Nat -> Nat) -> (f2 : Nat -> Type) -> f2 (f1 m) (f1 (f1 m))",
       )

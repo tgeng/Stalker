@@ -31,6 +31,8 @@ class PriorityContext(val priority: Double)
 object PriorityContext {
   val zero = PriorityContext(0)
   val ten = PriorityContext(10)
+  val app = PriorityContext(5)
+  val fn = PriorityContext(1)
 }
 
 object pprint {
@@ -39,20 +41,20 @@ object pprint {
 
   given PPrinter[FTerm] {
 
-    override def (t: FTerm) pctx = PriorityContext(t match {
-      case _ : FTFunction => 1
-      case _ : FTCon => 10
-      case _ : FTLevel => 10
-      case FTRedux(_, Nil, Nil) => 10
-      case FTRedux(_, _, _) => 5
-    })
+    override def (t: FTerm) pctx = t match {
+      case _ : FTFunction => PriorityContext.fn
+      case _ : FTCon => PriorityContext.ten
+      case _ : FTLevel => PriorityContext.ten
+      case FTRedux(_, Nil, Nil) => PriorityContext.ten
+      case FTRedux(_, _, _) => PriorityContext.app
+    }
 
     override def (t: FTerm) blockImpl : PriorityContext ?=> Block = t match {
       case FTCon(name, Nil) => Block(wrapPolicy = NoWrap)(name, "{", "}")
       case FTCon(name, args) => Block()(
         Block(wrapPolicy = NoWrap)(name, "{"),
         Block(wrapPolicy = ChopDown, indentPolicy = FixedIncrement(2), delimitPolicy = Whitespace)(
-          args.dropRight(1).map(arg => Block(wrapPolicy = NoWrap)(arg.block(using PriorityContext.zero), ",")) :+ args.last.block(using PriorityContext.zero) : _*
+          args.map(arg => (arg.block(using PriorityContext.app))) : _*
         ),
         "}"
       )

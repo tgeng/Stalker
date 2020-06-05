@@ -38,10 +38,10 @@ class ParserSpec extends UnitSpec {
       "con1{a, b, c}",
       """
       |con1{
-      |  a b c d e,
-      |  A -> B -> C -> D -> E,
-      |  con2{a b c d e, A -> B -> C -> D -> E, x y z},
-      |  con3{x y z}
+      |  (a b c d e)
+      |  (A -> B -> C -> D -> E)
+      |  con2{(a b c d e) (A -> B -> C -> D -> E) (x y z)}
+      |  con3{(x y z)}
       |}
       """,
       "(a : Nat) -> (f : Nat -> Nat) -> (g : Nat -> Nat -> Nat) -> f (f (f a))",

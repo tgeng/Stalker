@@ -13,7 +13,7 @@ object parser {
   import FTerm._
   import FElimination._
 
-  private val bodyInvalidChars = " \\r\\n\\t()\\[\\]{},."
+  private val bodyInvalidChars = " \\r\\n\\t()\\[\\]{}."
   private val bodyPattern = s"[^${bodyInvalidChars}]"
   private val headPattern = s"""[^`'"0-9${bodyInvalidChars}]"""
   private val name = P { s"$headPattern$bodyPattern*".rp.withFilter(!Set("->", ":", "=", "_").contains(_)) }
@@ -22,7 +22,7 @@ object parser {
   private def con(using opt: ParsingOptions) : Parser[FTerm] = P {
     for {
       n <- name
-      args <- '{' >> whitespaces >> (termImpl sepBy (whitespaces >> ',' << whitespaces)) << whitespaces << '}'
+      args <- '{' >> whitespaces >> (atom sepBy whitespaces) << whitespaces << '}'
     } yield FTCon(n, args.toList)
   }
 
