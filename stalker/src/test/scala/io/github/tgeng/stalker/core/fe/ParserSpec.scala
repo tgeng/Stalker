@@ -70,16 +70,16 @@ class ParserSpec extends UnitSpec {
   "Parsing Pattern" in {
     assert(q"a b c" == List(FQPattern(FPVarCon("a")), FQPattern(FPVarCon("b")), FQPattern(FPVarCon("c"))))
     assert(q"a .b .c d" == List(FQPattern(FPVarCon("a")), FQProj("b"), FQProj("c"), FQPattern(FPVarCon("d"))))
-    assert(q"(con a b)" == List(FQPattern(FPCon(List("con"), List(FPVarCon("a"), FPVarCon("b"))))))
-    assert(q"(con a b) .foobar" == List(FQPattern(FPCon(List("con"), List(FPVarCon("a"), FPVarCon("b")))), FQProj("foobar")))
+    assert(q"(con a b)" == List(FQPattern(FPCon(List("con"), List(FPVarCon("a"), FPVarCon("b")), false))))
+    assert(q"(con a b) .foobar" == List(FQPattern(FPCon(List("con"), List(FPVarCon("a"), FPVarCon("b")), false)), FQProj("foobar")))
     assert(q"(con a b) (con c d)" ==
-      List(FQPattern(FPCon(List("con"), List(FPVarCon("a"), FPVarCon("b")))), FQPattern(FPCon(List("con"), List(FPVarCon("c"), FPVarCon("d"))))))
+      List(FQPattern(FPCon(List("con"), List(FPVarCon("a"), FPVarCon("b")), false)), FQPattern(FPCon(List("con"), List(FPVarCon("c"), FPVarCon("d")), false))))
     assert(q"foo.bar" ==
-      List(FQPattern(FPCon(List("foo", "bar"), List()))))
+      List(FQPattern(FPCon(List("foo", "bar"), List(), false))))
     assert(q"foo.bar a b" ==
-      List(FQPattern(FPCon(List("foo", "bar"), List())), FQPattern(FPVarCon("a")), FQPattern(FPVarCon("b"))))
+      List(FQPattern(FPCon(List("foo", "bar"), List(), false)), FQPattern(FPVarCon("a")), FQPattern(FPVarCon("b"))))
     assert(q"(foo.bar a b)" ==
-      List(FQPattern(FPCon(List("foo", "bar"), List(FPVarCon("a"), FPVarCon("b"))))))
+      List(FQPattern(FPCon(List("foo", "bar"), List(FPVarCon("a"), FPVarCon("b")), false))))
 
     assert(q"..a" ==
       List(FQPattern(FPForced(FTRedux("a",List(),List())))))
@@ -89,5 +89,14 @@ class ParserSpec extends UnitSpec {
       List(FQPattern(FPForced(FTRedux("a",List(),List(FETerm(FTRedux("b",List(),List())), FETerm(FTRedux("c",List(),List()))))))))
     assert(q"a ..(b c) .d" ==
       List(FQPattern(FPVarCon("a")), FQPattern(FPForced(FTRedux("b",List(),List(FETerm(FTRedux("c",List(),List())))))), FQProj("d")))
+    assert(q"(..a b c) " ==
+      List(FQPattern(FPCon(List("a"), List(FPVarCon("b"), FPVarCon("c")), true))))
+
+    assert(q"a{}" == List(FQPattern(FPCon("a", List(), false))))
+    assert(q"a{b c}" == List(FQPattern(FPCon("a", List(FPVarCon("b"), FPVarCon("c")), false))))
+    assert(q"a{..b c}" == List(FQPattern(FPCon("a", List(FPForced(FTRedux("b",List(),List())), FPVarCon("c")), false))))
+    assert(q"..a{b c}" == List(FQPattern(FPCon("a", List(FPVarCon("b"), FPVarCon("c")), true))))
+    assert(q"x ..a{b c} y" == List(FQPattern(FPVarCon("x")), FQPattern(FPCon("a", List(FPVarCon("b"), FPVarCon("c")), true)), FQPattern(FPVarCon("y"))))
+    assert(q"a{b{} c}" == List(FQPattern(FPCon("a", List(FPCon("b", List(), false), FPVarCon("c")), false))))
   }
 }

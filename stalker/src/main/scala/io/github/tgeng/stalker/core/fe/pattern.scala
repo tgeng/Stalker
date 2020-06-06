@@ -6,15 +6,18 @@ import io.github.tgeng.stalker.core.common.Error._
 
 enum FPattern {
   case FPVarCon(name: String)
-  case FPCon(con: Seq[String], args: List[FPattern])
-  case FPForcedCon(con: Seq[String], args: List[FPattern])
+  case FPCon(con: Seq[String] | String, args: List[FPattern], forced: Boolean)
   case FPForced(t: FTerm)
   case FPAbsurd
 
   override def toString = this match {
     case FPVarCon(name) => s"""FPVarCon("$name")"""
-    case FPCon(con, args) => s"""FPCon(${con.map{ c => '"' + c + '"'}}, $args)"""
-    case FPForcedCon(con, args) => s"""FPForcedCon(${con.map{ c => '"' + c + '"'}}, $args)"""
+    case FPCon(con, args, forced) => s"""FPCon(${
+      con match {
+        case con : Seq[String] => con.map{ c => s""""$c""""}
+        case con : String => s""""$con""""
+      }
+    }, $args, $forced)"""
     case FPForced(t) => s"FPForced($t)"
     case FPAbsurd => s"FPAbsurd"
   }

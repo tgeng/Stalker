@@ -97,14 +97,20 @@ object ftConversion {
           case r => r
         }
 
-      case FPCon(con, args) => for args <- args.liftMap(_.toTt) 
-                                   conNs <- ns.get(con)
-                                   con <- conNs.getConstructorName
-                               yield PCon(con, args)
-      case FPForcedCon(con, args) => for args <- args.liftMap(_.toTt) 
-                                   conNs <- ns.get(con)
-                                   con <- conNs.getConstructorName
-                               yield PForcedCon(con, args)
+      case FPCon(con: Seq[String], args, forced) => 
+        for args <- args.liftMap(_.toTt) 
+            conNs <- ns.get(con)
+            con <- conNs.getConstructorName
+        yield forced match {
+          case true => PCon(con, args)
+          case false => PForcedCon(con, args)
+        }
+      case FPCon(con: String, args, forced) =>
+        for args <- args.liftMap(_.toTt) 
+        yield forced match {
+          case true => PCon(con, args)
+          case false => PForcedCon(con, args)
+        }
       case FPForced(t) => for t <- t.toTt yield PForced(t)
       case FPAbsurd => Right(PAbsurd)
     }
@@ -168,8 +174,7 @@ class LocalIndices(content: Map[String, Int] = Map.empty) {
                     }
         }
       }
-      case FPCon(_, args) => addAllFromPatterns(args)
-      case FPForcedCon(_, args) => addAllFromPatterns(args)
+      case FPCon(_, args, _) => addAllFromPatterns(args)
       case FPForced(t: FTerm) => ()
       case FPAbsurd => ()
     }

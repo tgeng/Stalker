@@ -85,30 +85,35 @@ object parser {
   import FPattern._
   import FCoPattern._
 
-  def pConWithArgs(using opt: ParsingOptions) : Parser[FPattern] = P {
+  def pConApp(using opt: ParsingOptions) : Parser[FPattern] = P {
     for forced <- "..".?
         qn <- qn << opt.appDelimiter
-        args <- patternImpl sepBy1 opt.appDelimiter
-    yield forced match {
-      case Some(_) => FPForcedCon(qn, args.toList)
-      case None => FPCon(qn, args.toList)
-    }
+        args <- pAtom sepBy1 opt.appDelimiter
+    yield FPCon(qn, args.toList, forced.isDefined)
   }
 
-  def patterns(using opt: ParsingOptions) : Parser[FPattern] = P {
-    pConWithArgs | patternImpl
+  def pConRaw(using opt: ParsingOptions) : Parser[FPattern] = P {
+    for forced <- "..".?
+        con <- name
+        args <- '{' >>! whitespaces >> (pAtom sepBy whitespaces) << whitespaces << '}'
+    yield FPCon(con, args.toList, forced.isDefined)
   }
 
-  def patternImpl(using opt: ParsingOptions) : Parser[FPattern] = P {
+  def pattern(using opt: ParsingOptions) : Parser[FPattern] = P {
+    pConApp | pAtom
+  }
+
+  def pAtom(using opt: ParsingOptions) : Parser[FPattern] = P {
+    pConRaw |
     qn.map{ names =>
       if (names.size == 1) {
         FPVarCon(names(0))
       } else {
-        FPCon(names, Nil)
+        FPCon(names, Nil, false)
       }
     } |
     "()".as(FPAbsurd) |
-    '(' >>! whitespaces >> patterns(using opt.copy(appDelimiter = whitespaces)) << whitespaces << ')' |
+    '(' >>! whitespaces >> pattern(using opt.copy(appDelimiter = whitespaces)) << whitespaces << ')' |
     ".." >>! atom.map(FPForced(_))
   }
 
@@ -116,13 +121,13 @@ object parser {
     proj.map(FQProj(_))
   }
 
-  def coPatternImpl(using opt: ParsingOptions) : Parser[FCoPattern] = P {
-    patternImpl.map(FQPattern(_)) | qProj
+  def qAtom(using opt: ParsingOptions) : Parser[FCoPattern] = P {
+    pAtom.map(FQPattern(_)) | qProj
   }
 
   def coPatterns : Parser[List[FCoPattern]] = P {
     given ParsingOptions = ParsingOptions()
-    coPatternImpl sepBy spaces map (_.toList)
+    qAtom sepBy spaces map (_.toList)
   }
 }
 
