@@ -25,8 +25,8 @@ import Term._
 
 class CoreSpec extends UnitSpec with Helpers {
   val ns = MutableNamespace.createWithBuiltins("stalker.unit-test")
-  given Namespace = ns
-  val Σ = SignatureBuilder.create
+  given MutableNamespace = ns
+  val Σ = FSignatureBuilder.create
   given Signature = Σ
   given Context = Context.empty
   given LocalIndices = LocalIndices()

@@ -1,20 +1,23 @@
 package io.github.tgeng.stalker.core.fe
 
+import scala.language.implicitConversions
 import scala.collection.Seq
 import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.stalker.common.QualifiedName
+import io.github.tgeng.stalker.common.QualifiedName._
 import io.github.tgeng.stalker.core.common.Error._
 import io.github.tgeng.stalker.core.common.Namespace
+import io.github.tgeng.stalker.core.common.MutableNamespace
 import io.github.tgeng.stalker.core.tt._
 
-enum FDeclaration {
-  case FDataDecl(qn: QualifiedName, paramTys: FTelescope, ty: FTerm)
-  case FDataDef(qn: QualifiedName, cons: Seq[FConstructor])
-  case FRecordDecl(qn: QualifiedName, paramTys: FTelescope, ty: FTerm)
-  case FRecordDef(qn: QualifiedName, fields: Seq[FField])
-  case FDefinition(qn: QualifiedName, ty: FTerm, clauses: Seq[FUncheckedClause])
+import MutableNamespace.{_, given _}
 
-  def qn: QualifiedName
+enum FDeclaration {
+  case FDataDecl(name: String, paramTys: FTelescope, level: FTerm)
+  case FDataDef(name: String, cons: Seq[FConstructor])
+  case FRecordDecl(name: String, paramTys: FTelescope, level: FTerm)
+  case FRecordDef(name: String, fields: Seq[FField])
+  case FDefinition(name: String, ty: FTerm, clauses: Seq[FUncheckedClause])
 }
 
 case class FConstructor(name: String, argTys: FTelescope)
@@ -32,36 +35,45 @@ import FDeclaration._
 import FUncheckedRhs._
 import UncheckedRhs._
 
-class FSignature {
+object FSignatureBuilder {
+  def create = FSignatureBuilder()
+}
+
+class FSignatureBuilder extends Signature {
   import ftConversion.{given _, _}
   private val sb = SignatureBuilder.create
 
-  def += (d: FDeclaration)(using ns: Namespace) : Result[Unit] = {
+  export sb.getData
+  export sb.getRecord
+  export sb.getDefinition
+
+  def += (d: FDeclaration)(using ns: MutableNamespace) : Result[Unit] = {
     given LocalIndices = LocalIndices()
     d match {
-      case FDataDecl(qn, paramTys, ty) =>
+      case FDataDecl(name, paramTys, level) =>
         for paramTys <- paramTys.liftMap(_.toTt)
-            ty <- ty.toTt
-            _ <- sb += PreData(qn)(paramTys, ty, null)
-        yield ()
-      case FDataDef(qn, cons) =>
+            level <- level.toTt
+            _ <- sb += PreData(ns.qn / name)(paramTys, level, null)
+        yield ns.addDeclaration(name)
+      case FDataDef(name, cons) =>
         for cons <- cons.liftMap(_.toTt)
-            _ <- sb.updateData(qn, cons)
-        yield ()
-      case FRecordDecl(qn, paramTys, ty) =>
+            _ <- sb.updateData(ns.qn / name, cons)
+        yield ns.addDeclaration(name, cons.map(_.name))
+      case FRecordDecl(name, paramTys, level) =>
         for paramTys <- paramTys.liftMap(_.toTt)
-            ty <- ty.toTt
-            _ <- sb += PreRecord(qn)(paramTys, ty, null)
-        yield ()
-      case FRecordDef(qn, fields) =>
+            level <- level.toTt
+            _ <- sb += PreRecord(ns.qn / name)(paramTys, level, null)
+        yield ns.addDeclaration(name)
+      case FRecordDef(name, fields) =>
         for fields <- fields.liftMap(_.toTt)
-            _ <- sb.updateRecord(qn, fields)
+            _ <- sb.updateRecord(ns.qn / name, fields)
         yield ()
-      case FDefinition(qn, ty, clauses) =>
+      case FDefinition(name, ty, clauses) =>
         for ty <- ty.toTt
             clauses <- clauses.liftMap(_.toTt)
-            _ <- sb += PreDefinition(qn)(ty, clauses, null)
-        yield ()
+            d = PreDefinition(ns.qn / name)(ty, clauses, null)
+            _ <- sb += d
+        yield ns.importNs(d)
     }
   }
 

@@ -2,6 +2,7 @@ package io.github.tgeng.stalker.core.tt
 
 import scala.collection.Map
 import scala.collection.Seq
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
 import io.github.tgeng.common._
@@ -58,7 +59,18 @@ type Constructor = ConstructorT[Type]
 type Field = FieldT[Type]
 type Clause = ClauseT[Checked, Type]
 
-class Signature(val data: Map[QualifiedName, Data], val records: Map[QualifiedName, Record], val definitions: Map[QualifiedName, Definition]) {
+trait Signature {
+  def getData(qn: QualifiedName) : Result[Data]
+  def getRecord(qn: QualifiedName) : Result[Record]
+  def getDefinition(qn: QualifiedName) : Result[Definition]
+}
+
+trait MapBasedSignature (
+  val data: Map[QualifiedName, Data],
+  val records: Map[QualifiedName, Record],
+  val definitions: Map[QualifiedName, Definition]
+  ) extends Signature {
+
   def getData(qn: QualifiedName) : Result[Data] = data get qn match {
     case Some(d) => Right(d)
     case _ => typingError(e"No data schema found for $qn")
@@ -73,7 +85,6 @@ class Signature(val data: Map[QualifiedName, Data], val records: Map[QualifiedNa
     case Some(d) => Right(d)
     case _ => typingError(e"No definition found for $qn")
   }
-
 }
 
 extension dataTypingOps on (self: Data) {
@@ -130,10 +141,10 @@ object SignatureBuilder {
 }
 
 class SignatureBuilder(
-  val mData: HashMap[QualifiedName, Data],
-  val mRecords: HashMap[QualifiedName, Record],
-  val mDefinitions: HashMap[QualifiedName, Definition],
-) extends Signature(mData, mRecords, mDefinitions) {
+  val mData: mutable.Map[QualifiedName, Data],
+  val mRecords: mutable.Map[QualifiedName, Record],
+  val mDefinitions: mutable.Map[QualifiedName, Definition],
+) extends MapBasedSignature(mData, mRecords, mDefinitions) {
   given Signature = this
   given Context = Context.empty
 
@@ -149,7 +160,7 @@ class SignatureBuilder(
         level <- d.paramTys.level
         _Δ <- d.paramTys.toWhnfs
         cons <- d.cons match {
-          case _ : Null => Right(null)
+          case null => Right(null)
           case cons : Seq[PreConstructor] => cons.reduceCons(using Context.empty + _Δ)
         }
         _ = mData(qn) = new Data(qn)(_Δ, level, cons)
@@ -166,7 +177,7 @@ class SignatureBuilder(
         level <- r.paramTys.level
         _Δ <- r.paramTys.toWhnfs
         fields <- r.fields match {
-          case _ : Null => Right(null)
+          case null => Right(null)
           case fields: Seq[PreField] => fields.reduceFields(using Context.empty + _Δ + ("self" ∷ Whnf.WRecord(qn, _Δ.vars.toList)))
         }
         _ = mRecords(qn) = new Record(qn)(_Δ, level, fields)
