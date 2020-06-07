@@ -60,7 +60,7 @@ class ParserSpec extends UnitSpec {
     }
   }
 
-  import io.github.tgeng.stalker.core.fe.builders.q
+  import io.github.tgeng.stalker.core.fe.builders._
 
   import FPattern._
   import FCoPattern._
@@ -98,5 +98,13 @@ class ParserSpec extends UnitSpec {
     assert(q"..a{b c}" == List(FQPattern(FPCon("a", List(FPVarCon("b"), FPVarCon("c")), true))))
     assert(q"x ..a{b c} y" == List(FQPattern(FPVarCon("x")), FQPattern(FPCon("a", List(FPVarCon("b"), FPVarCon("c")), true)), FQPattern(FPVarCon("y"))))
     assert(q"a{b{} c}" == List(FQPattern(FPCon("a", List(FPCon("b", List(), false), FPVarCon("c")), false))))
+  }
+
+  "data declaration" in {
+    decl"""
+      |data Nat : Type 0lv where
+      |  Zero : Nat
+      |  Suc : Nat -> Nat
+    """
   }
 }

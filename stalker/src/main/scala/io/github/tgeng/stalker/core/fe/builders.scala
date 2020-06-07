@@ -21,7 +21,7 @@ object builders {
 
   def ft(s: String) : FTerm = (whitespaces >> term << whitespaces << eof).parse(s) match {
     case Right(t) => t
-    case Left(e) => throw Exception(e.toString)
+    case Left(e) => throw Exception("Parsing FTerm failed:\n" + e.toStringWithInput(s))
   }
 
   def t(s: String)(using LocalIndices, LocalNames)(using Namespace) : Term = ft(s).toTt match {
@@ -39,7 +39,7 @@ object builders {
           case Right(b) => b
           case Left(e) => throw Exception(e.toBlock.toString)
         }
-      case Left(e) => throw Exception(e.toString)
+      case Left(e) => throw Exception("Parsing binding failed:\n" + e.toStringWithInput(s))
     }
   }
 
@@ -47,7 +47,14 @@ object builders {
 
   def q(s: String) : List[FCoPattern] = (whitespaces >> coPatterns << whitespaces << eof).parse(s) match {
     case Right(q) => q
-    case Left(e) => throw Exception(e.toString)
+    case Left(e) => throw Exception("Parsing copatterns failed:\n" + e.toStringWithInput(s))
+  }
+
+  inline def [T](ctx: StringContext) decl() : FDeclaration = decl(ctx.parts(0).trim.asInstanceOf[String].stripMargin)
+
+  def decl(s: String) : FDeclaration = (declaration ).parse(s) match {
+    case Right(d) => d
+    case Left(e) => throw Exception("Parsing declaration failed:\n" + e.toStringWithInput(s))
   }
 
   def withBindings[T](bindings: (LocalIndices, LocalNames, Context) ?=> (Namespace, Signature) ?=> Binding[Type]*)(action: (LocalIndices, LocalNames, Context) ?=> T)(using Namespace, Signature) : T = {

@@ -13,10 +13,10 @@ import io.github.tgeng.stalker.core.tt._
 import MutableNamespace.{_, given _}
 
 enum FDeclaration {
-  case FData(name: String, paramTys: FTelescope, level: FTerm, cons: Seq[FConstructor] | Null)
+  case FData(name: String, paramTys: FTelescope, ty: FTerm, cons: Seq[FConstructor] | Null)
   case FDataDef(name: String, cons: Seq[FConstructor])
 
-  case FRecord(name: String, paramTys: FTelescope, level: FTerm, fields: Seq[FField] | Null)
+  case FRecord(name: String, paramTys: FTelescope, ty: FTerm, fields: Seq[FField] | Null)
   case FRecordDef(name: String, fields: Seq[FField])
 
   case FDefinition(name: String, ty: FTerm, clauses: Seq[FUncheckedClause])
