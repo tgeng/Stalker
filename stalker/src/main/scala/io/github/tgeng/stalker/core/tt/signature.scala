@@ -159,12 +159,8 @@ class SignatureBuilder(
       case d@DataT(qn) => for {
         level <- d.paramTys.level
         _Δ <- d.paramTys.toWhnfs
-        cons <- d.cons match {
-          case null => Right(null)
-          case cons : Seq[PreConstructor] => cons.reduceCons(using Context.empty + _Δ)
-        }
         ty = WType(TWhnf(level))
-        _ = mData(qn) = new Data(qn)(_Δ, ty, cons)
+        _ = mData(qn) = new Data(qn)(_Δ, ty, null)
         _ <- this += DefinitionT(qn)(
           _Δ.foldRight(TWhnf(ty))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
           Seq(UncheckedClause(
@@ -173,16 +169,17 @@ class SignatureBuilder(
           )),
           null
         )
+        cons <- d.cons match {
+          case null => Right(null)
+          case cons : Seq[PreConstructor] => cons.reduceCons(using Context.empty + _Δ)
+        }
+        _ = mData(qn) = new Data(qn)(_Δ, ty, cons)
       } yield ()
       case r@RecordT(qn) => for {
         level <- r.paramTys.level
         _Δ <- r.paramTys.toWhnfs
-        fields <- r.fields match {
-          case null => Right(null)
-          case fields: Seq[PreField] => fields.reduceFields(using Context.empty + _Δ + ("self" ∷ Whnf.WRecord(qn, _Δ.vars.toList)))
-        }
         ty = WType(TWhnf(level))
-        _ = mRecords(qn) = new Record(qn)(_Δ, ty, fields)
+        _ = mRecords(qn) = new Record(qn)(_Δ, ty, null)
         _ <- this += DefinitionT(qn)(
           _Δ.foldRight(TWhnf(ty))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
           Seq( UncheckedClause(
@@ -191,6 +188,11 @@ class SignatureBuilder(
           )),
           null
         )
+        fields <- r.fields match {
+          case null => Right(null)
+          case fields: Seq[PreField] => fields.reduceFields(using Context.empty + _Δ + ("self" ∷ Whnf.WRecord(qn, _Δ.vars.toList)))
+        }
+        _ = mRecords(qn) = new Record(qn)(_Δ, ty, fields)
       } yield ()
       case d@DefinitionT(qn) => {
         val clauses = ArrayBuffer[Clause]()

@@ -13,10 +13,12 @@ import io.github.tgeng.stalker.core.tt._
 import MutableNamespace.{_, given _}
 
 enum FDeclaration {
-  case FDataDecl(name: String, paramTys: FTelescope, level: FTerm)
+  case FData(name: String, paramTys: FTelescope, level: FTerm, cons: Seq[FConstructor] | Null)
   case FDataDef(name: String, cons: Seq[FConstructor])
-  case FRecordDecl(name: String, paramTys: FTelescope, level: FTerm)
+
+  case FRecord(name: String, paramTys: FTelescope, level: FTerm, fields: Seq[FField] | Null)
   case FRecordDef(name: String, fields: Seq[FField])
+
   case FDefinition(name: String, ty: FTerm, clauses: Seq[FUncheckedClause])
 }
 
@@ -50,20 +52,35 @@ class FSignatureBuilder extends Signature {
   def += (d: FDeclaration)(using ns: MutableNamespace) : Result[Unit] = {
     given LocalIndices = LocalIndices()
     d match {
-      case FDataDecl(name, paramTys, ty) =>
+      case FData(name, paramTys, ty, cons) =>
         for paramTys <- paramTys.liftMap(_.toTt)
             ty <- ty.toTt
-            _ <- sb += PreData(ns.qn / name)(paramTys, ty, null)
-        yield ns.addDeclaration(name)
+            _ = ns.addDeclaration(name)
+            cons <- cons match {
+              case null => Right(null)
+              case cons : Seq[FConstructor] => {
+                ns.addDeclaration(name, cons.map(_.name))
+                cons.liftMap(_.toTt)
+              }
+            }
+            _ <- sb += PreData(ns.qn / name)(paramTys, ty, cons)
+        yield ()
       case FDataDef(name, cons) =>
         for cons <- cons.liftMap(_.toTt)
             _ <- sb.updateData(ns.qn / name, cons)
         yield ns.addDeclaration(name, cons.map(_.name))
-      case FRecordDecl(name, paramTys, ty) =>
+      case FRecord(name, paramTys, ty, fields) =>
         for paramTys <- paramTys.liftMap(_.toTt)
             ty <- ty.toTt
-            _ <- sb += PreRecord(ns.qn / name)(paramTys, ty, null)
-        yield ns.addDeclaration(name)
+            _ = ns.addDeclaration(name)
+            fields <- fields match {
+              case null => Right(null)
+              case fields : Seq[FField] => {
+                fields.liftMap(_.toTt)
+              }
+            }
+            _ <- sb += PreRecord(ns.qn / name)(paramTys, ty, fields)
+        yield ()
       case FRecordDef(name, fields) =>
         for fields <- fields.liftMap(_.toTt)
             _ <- sb.updateRecord(ns.qn / name, fields)
