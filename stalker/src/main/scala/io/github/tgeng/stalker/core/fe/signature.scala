@@ -50,19 +50,19 @@ class FSignatureBuilder extends Signature {
   def += (d: FDeclaration)(using ns: MutableNamespace) : Result[Unit] = {
     given LocalIndices = LocalIndices()
     d match {
-      case FDataDecl(name, paramTys, level) =>
+      case FDataDecl(name, paramTys, ty) =>
         for paramTys <- paramTys.liftMap(_.toTt)
-            level <- level.toTt
-            _ <- sb += PreData(ns.qn / name)(paramTys, level, null)
+            ty <- ty.toTt
+            _ <- sb += PreData(ns.qn / name)(paramTys, ty, null)
         yield ns.addDeclaration(name)
       case FDataDef(name, cons) =>
         for cons <- cons.liftMap(_.toTt)
             _ <- sb.updateData(ns.qn / name, cons)
         yield ns.addDeclaration(name, cons.map(_.name))
-      case FRecordDecl(name, paramTys, level) =>
+      case FRecordDecl(name, paramTys, ty) =>
         for paramTys <- paramTys.liftMap(_.toTt)
-            level <- level.toTt
-            _ <- sb += PreRecord(ns.qn / name)(paramTys, level, null)
+            ty <- ty.toTt
+            _ <- sb += PreRecord(ns.qn / name)(paramTys, ty, null)
         yield ns.addDeclaration(name)
       case FRecordDef(name, fields) =>
         for fields <- fields.liftMap(_.toTt)
@@ -75,6 +75,10 @@ class FSignatureBuilder extends Signature {
             _ <- sb += d
         yield ns.importNs(d)
     }
+  }
+
+  def +=! (d: FDeclaration)(using ns: MutableNamespace) = {
+    assertResult(this += d)
   }
 
   private given FT[FConstructor, PreConstructor] {

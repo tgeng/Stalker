@@ -24,8 +24,8 @@ enum Status {
 import Status._
 
 enum DeclarationT[+S <: Status, +T] {
-  case DataT(val qn: QualifiedName)(val paramTys: List[Binding[T]], val level: T, val cons: Seq[ConstructorT[T]] | Null)
-  case RecordT(val qn: QualifiedName)(val paramTys: List[Binding[T]], val level: T, val fields: Seq[FieldT[T]] | Null)
+  case DataT(val qn: QualifiedName)(val paramTys: List[Binding[T]], val ty: T, val cons: Seq[ConstructorT[T]] | Null)
+  case RecordT(val qn: QualifiedName)(val paramTys: List[Binding[T]], val ty: T, val fields: Seq[FieldT[T]] | Null)
   case DefinitionT(val qn: QualifiedName)(val ty: T, val clauses: Seq[ClauseT[S, T]], val ct: CaseTree | Null)
 
   def qn: QualifiedName
@@ -163,9 +163,10 @@ class SignatureBuilder(
           case null => Right(null)
           case cons : Seq[PreConstructor] => cons.reduceCons(using Context.empty + _Δ)
         }
-        _ = mData(qn) = new Data(qn)(_Δ, level, cons)
+        ty = WType(TWhnf(level))
+        _ = mData(qn) = new Data(qn)(_Δ, ty, cons)
         _ <- this += DefinitionT(qn)(
-          _Δ.foldRight(TWhnf(WType(TWhnf(level))))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
+          _Δ.foldRight(TWhnf(ty))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
           Seq(UncheckedClause(
             _Δ.pvars.map(QPattern(_)).toList,
             UTerm(TWhnf(WData(qn, _Δ.vars.toList)))
@@ -180,9 +181,10 @@ class SignatureBuilder(
           case null => Right(null)
           case fields: Seq[PreField] => fields.reduceFields(using Context.empty + _Δ + ("self" ∷ Whnf.WRecord(qn, _Δ.vars.toList)))
         }
-        _ = mRecords(qn) = new Record(qn)(_Δ, level, fields)
+        ty = WType(TWhnf(level))
+        _ = mRecords(qn) = new Record(qn)(_Δ, ty, fields)
         _ <- this += DefinitionT(qn)(
-          _Δ.foldRight(TWhnf(WType(TWhnf(level))))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
+          _Δ.foldRight(TWhnf(ty))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
           Seq( UncheckedClause(
             _Δ.pvars.map(QPattern(_)).toList,
             UTerm(TWhnf(WData(qn, _Δ.vars.toList)))
@@ -215,7 +217,7 @@ class SignatureBuilder(
         case false => typingError(e"Data $qn already has constructors.")
       }
       cons <- cons.reduceCons(using Context.empty + data.paramTys)
-    } yield mData(qn) = new DataT(qn)(data.paramTys, data.level, cons)
+    } yield mData(qn) = new DataT(qn)(data.paramTys, data.ty, cons)
   }
 
   def updateRecord(qn: QualifiedName, fields: Seq[PreField]) : Result[Unit] = {
@@ -226,7 +228,7 @@ class SignatureBuilder(
         case false => typingError(e"Record $qn already has fields.")
       }
       fields <- fields.reduceFields(using Context.empty + record.paramTys + ("self" ∷ Whnf.WRecord(qn, record.paramTys.vars.toList)))
-    } yield mRecords(qn) = new RecordT(qn)(record.paramTys, record.level, fields)
+    } yield mRecords(qn) = new RecordT(qn)(record.paramTys, record.ty, fields)
   }
 
   private def (cons: Seq[PreConstructor]) reduceCons(using Γ: Context)(using Σ: Signature) : Result[Seq[Constructor]] = 

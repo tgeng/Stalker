@@ -53,11 +53,13 @@ object typing {
     case WData(qn, u) => for {
       data <- Σ getData qn
       _ <- (u ∷ data.paramTys).checkTerms
-    } yield data.level
+      l <- extractLevel(data.ty)
+    } yield l
     case WRecord(qn, u) => for {
       record <- Σ getRecord qn
       _ <- (u ∷ record.paramTys).checkTerms
-    } yield record.level
+      l <- extractLevel(record.ty)
+    } yield l
     case WId(l, _A, x, y) => {
       for {
         wl <- l.toWhnf
@@ -123,11 +125,13 @@ object typing {
     case WData(d1, u̅1) ≡ WData(d2, u̅2) if d1 == d2 => for {
       data <- Σ getData d1
       _ <- (u̅1 ≡ u̅2 ∷ data.paramTys).check
-    } yield data.level
+      l <- extractLevel(data.ty)
+    } yield l
     case WRecord(r1, u̅1) ≡ WRecord(r2, u̅2) if r1 == r2 => for {
       record <- Σ getRecord r1
       _ <- (u̅1 ≡ u̅2 ∷ record.paramTys).check
-    } yield record.level
+      l <- extractLevel(record.ty)
+    } yield l
     case WType(l1) ≡ WType(l2) => 
       for wl1 <- l1.toWhnf
           wl2 <- l2.toWhnf
@@ -387,6 +391,13 @@ object typing {
       case u ∷ _A |- elims1 ≡ elims2 ∷ _C => typingError(e"Cannot decide if applying $elims1 and $elims1 to $u of type $_A are computationally equivalent.")
     }
   }
+
+  private def extractLevel(ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Type] =
+    for r <- ty match {
+      case WType(l) => for l <- l.toWhnf yield l
+      case _ => typingError(e"$ty should be equivalent to a type at some level.")
+    } 
+    yield r
 }
 
 case class ∷[X, Y](x: X, y: Y) {

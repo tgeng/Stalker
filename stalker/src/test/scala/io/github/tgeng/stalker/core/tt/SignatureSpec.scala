@@ -10,7 +10,7 @@ import FDeclaration._
 class SignatureSpec extends CoreSpec {
 
   "simple data schema" in {
-    Σ += FDataDecl("Nat", Nil, ft"0lv")
+    Σ +=! FDataDecl("Nat", Nil, ft"Type 0lv")
     t"Nat" ∷ t"Type 0lv"
     Σ += FDataDef("Nat", Seq(FConstructor("Zero", Nil), FConstructor("Suc", List(FBinding("", ft"Nat")))))
     ns.merge(ns.get("Nat").rightVal)
