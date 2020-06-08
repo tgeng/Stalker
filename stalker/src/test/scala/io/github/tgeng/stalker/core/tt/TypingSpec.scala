@@ -66,4 +66,31 @@ class TypingSpec extends CoreSpec {
       t"Refl{}" !∷ t"Id 1lv X x y"
     }
   }
+
+  "with data schema" - {
+
+    Σ +=! decl"""
+    |data Nat : Type 0lv where
+    |  Zero : Nat
+    |  Suc : Nat -> Nat
+    """
+
+    // Σ +=! decl"""
+    // |data Foo (l1 : Level) (A : Type 0lv) (l2 : Level) : Type 0lv where
+    // |  blah : whatever
+    // """
+
+
+    // Σ +=! decl"""
+    // |data Vector (n : Nat)(A : Type 0lv) : Type 0lv where
+    // |  Nil : Id 0lv n Nat.Zero -> Vector n A
+    // |  Cons : (m : Nat) -> A -> Vector m A -> Id 0lv (Nat.Suc m) n -> Vector n A
+    // """
+
+    "simple data type" in {
+      t"Nat" ∷ t"Type 0lv"
+      t"Nat.Zero" ∷ t"Nat"
+      t"Nat.Suc Nat.Zero" ∷ t"Nat"
+    }
+  }
 }

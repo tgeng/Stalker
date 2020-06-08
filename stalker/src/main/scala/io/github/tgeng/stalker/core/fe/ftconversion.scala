@@ -83,7 +83,14 @@ object ftConversion {
   }
 
   given FT[FTelescope, List[Binding[Term]]] {
-    def (ts: FTelescope) toTt (using ctx: LocalIndices)(using ns: Namespace) : Result[List[Binding[Term]]] = ts.liftMap(_.toTt)
+    def (ts: FTelescope) toTt (using ctx: LocalIndices)(using ns: Namespace) : Result[List[Binding[Term]]] = ts match {
+      case Nil => Right(Nil)
+      case b :: rest => ctx.withName(b.name) {
+        for b <- b.toTt
+            rest <- rest.toTt
+        yield b :: rest
+      }
+    }
   }
 
   given FT[FPattern, Pattern] {
@@ -153,6 +160,15 @@ class LocalIndices(content: Map[String, Int] = Map.empty) {
     }
     size -= 1
     t
+  }
+
+  def withNames[T](names: List[String])(action: => T) : T = names match {
+    case Nil => action
+    case name :: rest => withName(name) {
+      withNames(rest) {
+        action
+      }
+    }
   }
 
   def addAllFromCoPatterns(coPatterns: Seq[FCoPattern])(using ns: Namespace) : Unit = {

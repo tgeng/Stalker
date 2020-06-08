@@ -141,7 +141,7 @@ class ParserSpec extends UnitSpec {
     assert(
       decl"""
       |data Vector (n : Nat)(A : Type 0lv) : Type 0lv where
-      |  Nil : (m : Nat) -> Id 0lv m Zero -> Vector n A
+      |  Nil : Id 0lv n Zero -> Vector n A
       |  Cons : (m : Nat) -> A -> Vector m A -> Id 0lv (Suc m) n -> Vector n A
       """ ==
         FData(
@@ -152,8 +152,7 @@ class ParserSpec extends UnitSpec {
             FConstructor(
               "Nil", 
               List(
-                FBinding("m", FTRedux("Nat", List(), List())),
-                FBinding("", FTRedux("Id", List(), List(FETerm(FTLevel(0)), FETerm(FTRedux("m", List(), List())), FETerm(FTRedux("Zero", List(), List()))))))),
+                FBinding("", FTRedux("Id", List(), List(FETerm(FTLevel(0)), FETerm(FTRedux("n", List(), List())), FETerm(FTRedux("Zero", List(), List()))))))),
             FConstructor(
               "Cons",
               List(

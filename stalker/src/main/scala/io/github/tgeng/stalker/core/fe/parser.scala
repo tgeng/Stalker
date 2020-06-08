@@ -22,7 +22,7 @@ object parser {
     {
       var p = s"$headPattern$bodyPattern*".rp
       if (opt.skipWhereAtLineEnd) {
-        p = p & not("where" << spaces << newline)
+        p = p & not("where" << spaces << (newline | eof))
       }
       p
     }.withFilter(!Set("->", ":", "=", "_").contains(_)) 
@@ -195,8 +195,8 @@ object parser {
   }
 
   private def whereSomething[T](something: Parser[T]) : Parser[Seq[T]] = {
-    for _ <- "where" <<! someLines << spaces
-        s <- something sepBy (someLines << spaces)
+    for _ <- commitAfter("where")
+        s <- (spaces >> someLines >> spaces >> something).*
     yield s
   }
 

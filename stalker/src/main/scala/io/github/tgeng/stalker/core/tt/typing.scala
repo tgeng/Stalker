@@ -73,7 +73,9 @@ object typing {
     }
     case WVar(idx, Nil) => Γ(idx).ty match {
       case WType(l) => l.toWhnf
-      case t => typingError(e"${Γ(idx).name} is not a type but a $t.")
+      case t => {
+        typingError(e"${Γ(idx).name} is not a type but a $t.")
+      }
     }
     case WVar(idx, e̅) => (TWhnf(WVar(idx, Nil)) ∷ Γ(idx).ty |- e̅).elimLevel
     case _ => typingError(e"$tm is not a type.")
