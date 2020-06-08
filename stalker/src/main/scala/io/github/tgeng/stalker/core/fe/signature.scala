@@ -20,11 +20,25 @@ enum FDeclaration {
   case FRecordDef(name: String, fields: Seq[FField])
 
   case FDefinition(name: String, ty: FTerm, clauses: Seq[FUncheckedClause])
+
+  override def toString = this match {
+    case FData(name, paramTys ,ty, cons) => s"""FData("$name", $paramTys, $ty, $cons)"""
+    case FDataDef(name, cons) => s"""FDataDef("$name", $cons)"""
+
+    case FRecord(name, paramTys ,ty, fields) => s"""FRecord("$name", $paramTys, $ty, $fields)"""
+    case FRecordDef(name, fields) => s"""FRecordDef("$name", $fields)"""
+
+    case FDefinition(name, ty, clauses) => s"""FDefinition("$name", $ty, $clauses)"""
+  }
 }
 
-case class FConstructor(name: String, argTys: FTelescope)
+case class FConstructor(name: String, argTys: FTelescope) {
+  override def toString = s"""FConstructor("$name", $argTys)"""
+}
 
-case class FField(name: String, ty: FTerm)
+case class FField(name: String, ty: FTerm) {
+  override def toString = s"""FField("$name", $ty)"""
+}
 
 case class FUncheckedClause(lhs: List[FCoPattern], rhs: FUncheckedRhs)
 
@@ -76,13 +90,17 @@ class FSignatureBuilder extends Signature {
             fields <- fields match {
               case null => Right(null)
               case fields : Seq[FField] => {
-                fields.liftMap(_.toTt)
+                summon[LocalIndices].withName("self") {
+                  fields.liftMap(_.toTt)
+                }
               }
             }
             _ <- sb += PreRecord(ns.qn / name)(paramTys, ty, fields)
         yield ()
       case FRecordDef(name, fields) =>
-        for fields <- fields.liftMap(_.toTt)
+        for fields <- summon[LocalIndices].withName("self") {
+                        fields.liftMap(_.toTt)
+                      }
             _ <- sb.updateRecord(ns.qn / name, fields)
         yield ()
       case FDefinition(name, ty, clauses) =>

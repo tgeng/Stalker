@@ -74,9 +74,12 @@ object parser {
     lift(name << whitespaces, ':' >>! whitespaces >> termImpl).map((x, ty) => FBinding(x, ty))
   }
 
+  private def namedArgTy(using opt: ParsingOptions)(using IndentRequirement) : Parser[FBinding] = P {
+    '(' >> whitespaces >> bindingImpl << whitespaces << ')'
+  }
+
   private def argTy(using opt: ParsingOptions)(using IndentRequirement) : Parser[FBinding] = P {
-    '(' >> whitespaces >> bindingImpl << whitespaces << ')' | 
-    app.map(FBinding("", _))
+    namedArgTy | app.map(FBinding("", _))
   }
 
   private def termImpl(using opt: ParsingOptions)(using IndentRequirement) : Parser[FTerm] = P {
@@ -95,25 +98,25 @@ object parser {
   import FPattern._
   import FCoPattern._
 
-  def pConApp(using opt: ParsingOptions)(using IndentRequirement) : Parser[FPattern] = P {
+  private def pConApp(using opt: ParsingOptions)(using IndentRequirement) : Parser[FPattern] = P {
     for forced <- "..".?
         qn <- qn << opt.appDelimiter
         args <- pAtom sepBy1 opt.appDelimiter
     yield FPCon(qn, args.toList, forced.isDefined)
   }
 
-  def pConRaw(using opt: ParsingOptions)(using IndentRequirement) : Parser[FPattern] = P {
+  private def pConRaw(using opt: ParsingOptions)(using IndentRequirement) : Parser[FPattern] = P {
     for forced <- "..".?
         con <- name
         args <- '{' >>! whitespaces >> (pAtom sepBy whitespaces) << whitespaces << '}'
     yield FPCon(con, args.toList, forced.isDefined)
   }
 
-  def pattern(using opt: ParsingOptions)(using IndentRequirement) : Parser[FPattern] = P {
+  private def pattern(using opt: ParsingOptions)(using IndentRequirement) : Parser[FPattern] = P {
     pConApp | pAtom
   }
 
-  def pAtom(using opt: ParsingOptions)(using IndentRequirement) : Parser[FPattern] = P {
+  private def pAtom(using opt: ParsingOptions)(using IndentRequirement) : Parser[FPattern] = P {
     pConRaw |
     qn.map{ names =>
       if (names.size == 1) {
@@ -127,11 +130,11 @@ object parser {
     ".." >>! atom.map(FPForced(_))
   }
 
-  def qProj(using opt: ParsingOptions) : Parser[FCoPattern] = P {
+  private def qProj(using opt: ParsingOptions) : Parser[FCoPattern] = P {
     proj.map(FQProj(_))
   }
 
-  def qAtom(using opt: ParsingOptions)(using IndentRequirement) : Parser[FCoPattern] = P {
+  private def qAtom(using opt: ParsingOptions)(using IndentRequirement) : Parser[FCoPattern] = P {
     pAtom.map(FQPattern(_)) | qProj
   }
 
@@ -141,7 +144,9 @@ object parser {
     qAtom sepBy spaces map (_.toList)
   }
 
-  def constructor(using opt: ParsingOptions)(using IndentRequirement) : Parser[FConstructor] = P {
+  import FDeclaration._
+
+  private def constructor(using opt: ParsingOptions)(using IndentRequirement) : Parser[FConstructor] = P {
     for n <- name
         _ <- spaces >> ':' <<! spaces
         argTys <- aligned {
@@ -151,29 +156,56 @@ object parser {
     yield FConstructor(n, argTys.toList)
   }
 
-  def constructors(using opt: ParsingOptions)(using IndentRequirement) : Parser[Seq[FConstructor]] = P {
-    for _ <- "where" << someLines << spaces
-        cons <- constructor sepBy (someLines << spaces)
-    yield cons
+  private def schemaType(using opt: ParsingOptions)(using IndentRequirement) : Parser[(Seq[FBinding], FTerm)] = P {
+    for argTys <- namedArgTy sepBy whitespaces
+        _ <- spaces >> ':' <<! spaces
+        ty <- termImpl(using ParsingOptions(skipWhereAtLineEnd = true))
+    yield (argTys, ty)
   }
 
-  import FDeclaration._
-  def data : Parser[FData] = P { 
+  private def data(using opt: ParsingOptions)(using IndentRequirement) : Parser[FDeclaration] = P { 
+    for n <- "data" >>! spaces >> name << spaces
+        st <- schemaType.?
+        cons <- (spaces >> whereSomething(constructor)).?
+        r <- (st, cons) match {
+          case (Some(argTys, ty), cons) => pure(FData(n, argTys.toList, ty, cons.orNull))
+          case (None, Some(cons)) => pure(FDataDef(n, cons))
+          case (None, None) => fail("A data declaration must have at least a type declaration or constructor declarations.")
+        }
+    yield r
+  }
+
+  private def field(using opt: ParsingOptions)(using IndentRequirement) : Parser[FField] = P {
+    for n <- name
+        _ <- spaces >> ':' <<! spaces
+        ty <- termImpl 
+    yield FField(n, ty)
+  }
+
+  private def record(using opt: ParsingOptions)(using IndentRequirement) : Parser[FDeclaration] = P { 
+    for n <- "record" >>! spaces >> name << spaces
+        st <- schemaType.?
+        fields <- (spaces >> whereSomething(field)).?
+        r <- (st, fields) match {
+          case (Some(argTys, ty), fields) => pure(FRecord(n, argTys.toList, ty, fields.orNull))
+          case (None, Some(fields)) => pure(FRecordDef(n, fields))
+          case (None, None) => fail("A record declaration must have at least a type declaration or field declarations.")
+        }
+    yield r
+  }
+
+  private def whereSomething[T](something: Parser[T]) : Parser[Seq[T]] = {
+    for _ <- "where" <<! someLines << spaces
+        s <- something sepBy (someLines << spaces)
+    yield s
+  }
+
+  def declaration : Parser[FDeclaration] = P { 
     given ParsingOptions = ParsingOptions()
     alignedWithIndent(1) {
-      for n <- "data" >> spaces >> name
-          _ <- spaces >> ':' <<! spaces
-          argTys <- aligned {
-            (argTy << whitespaces << "->" << whitespaces).*
-          }
-          ty <- termImpl(using ParsingOptions(skipWhereAtLineEnd = true))
-          cons <- (spaces >> constructors).?
-      yield new FData(n, argTys.toList, ty, cons.orNull)
+      data | record
     }
   }
-
-  def declaration : Parser[FDeclaration] = P { data }
-
 }
 
 private case class ParsingOptions(val appDelimiter: Parser[?] = spaces, val skipWhereAtLineEnd: Boolean = false)

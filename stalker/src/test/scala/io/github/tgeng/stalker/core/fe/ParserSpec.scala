@@ -5,6 +5,7 @@ import io.github.tgeng.parse._
 import io.github.tgeng.stalker.core.fe.parser._
 import io.github.tgeng.stalker.core.fe.pprint.{given _, _}
 import io.github.tgeng.stalker.testing.UnitSpec
+import io.github.tgeng.parse.string.toStringWithInput
 
 class ParserSpec extends UnitSpec {
 
@@ -53,7 +54,7 @@ class ParserSpec extends UnitSpec {
   private def roundTrip(inputs: String*) = for (input <- inputs) {
     val stripped = input.stripMargin.trim.asInstanceOf[String]
     (term << eof).parse(stripped) match {
-      case Left(e) => fail(s"When parsing:\n$stripped\nit failed with error:\n$e")
+      case Left(e) => fail(s"When parsing:\n$stripped\nit failed with error:\n${e.toStringWithInput(input)}")
       case Right(t) => {
         assert(t.toBlock.toString == stripped)
       }
@@ -100,11 +101,122 @@ class ParserSpec extends UnitSpec {
     assert(q"a{b{} c}" == List(FQPattern(FPCon("a", List(FPCon("b", List(), false), FPVarCon("c")), false))))
   }
 
+  import FDeclaration._
+
   "data declaration" in {
-    decl"""
+    assert(
+      decl"""
       |data Nat : Type 0lv where
       |  Zero : Nat
       |  Suc : Nat -> Nat
-    """
+      """ ==
+        FData(
+          "Nat",
+          List(),
+          FTRedux("Type",List(),List(FETerm(FTLevel(0)))),
+          Vector(
+            FConstructor("Zero",List()),
+            FConstructor("Suc",List(FBinding("",FTRedux("Nat",List(),List()))))))
+    )
+
+    assert(
+      decl"""
+      |data Nat : Type 0lv
+      """ == FData("Nat", List(), FTRedux("Type", List(), List(FETerm(FTLevel(0)))), null)
+    )
+
+    assert(
+      decl"""
+      |data Nat where
+      |  Zero : Nat
+      |  Suc : Nat -> Nat
+      """ ==
+        FDataDef(
+          "Nat",
+          Vector(
+            FConstructor("Zero", List()),
+            FConstructor("Suc", List(FBinding("", FTRedux("Nat", List(), List()))))))
+    )
+
+    assert(
+      decl"""
+      |data Vector (n : Nat)(A : Type 0lv) : Type 0lv where
+      |  Nil : (m : Nat) -> Id 0lv m Zero -> Vector n A
+      |  Cons : (m : Nat) -> A -> Vector m A -> Id 0lv (Suc m) n -> Vector n A
+      """ ==
+        FData(
+          "Vector",
+          List(FBinding("n", FTRedux("Nat", List(), List())), FBinding("A", FTRedux("Type", List(), List(FETerm(FTLevel(0)))))),
+          FTRedux("Type", List(), List(FETerm(FTLevel(0)))),
+          Vector(
+            FConstructor(
+              "Nil", 
+              List(
+                FBinding("m", FTRedux("Nat", List(), List())),
+                FBinding("", FTRedux("Id", List(), List(FETerm(FTLevel(0)), FETerm(FTRedux("m", List(), List())), FETerm(FTRedux("Zero", List(), List()))))))),
+            FConstructor(
+              "Cons",
+              List(
+                FBinding("m", FTRedux("Nat", List(), List())),
+                FBinding("", FTRedux("A", List(), List())),
+                FBinding("", FTRedux("Vector", List(), List(FETerm(FTRedux("m", List(), List())), FETerm(FTRedux("A", List(), List()))))),
+                FBinding("", FTRedux("Id", List(), List(FETerm(FTLevel(0)), FETerm(FTRedux("Suc", List(), List(FETerm(FTRedux("m", List(), List()))))), FETerm(FTRedux("n", List(), List())))))))))
+    )
+  }
+
+  "record declaration" in {
+    assert(
+      decl"""
+      |record NatStream : Type 0lv where
+      |  head : Nat
+      |  tail : NatStream
+      """ == FRecord(
+        "NatStream",
+        List(),
+        FTRedux("Type", List(), List(FETerm(FTLevel(0)))),
+        Vector(
+          FField("head", FTRedux("Nat", List(), List())),
+          FField("tail", FTRedux("NatStream", List(), List()))))
+    )
+
+    assert(
+      decl"""
+      |record NatStream : Type 0lv
+      """ == FRecord(
+        "NatStream",
+        List(),
+        FTRedux("Type", List(), List(FETerm(FTLevel(0)))),
+        null)
+    )
+
+    assert(
+      decl"""
+      |record NatStream where
+      |  head : Nat
+      |  tail : NatStream
+      """ == FRecordDef(
+        "NatStream",
+        Vector(
+          FField("head", FTRedux("Nat", List(), List())),
+          FField("tail", FTRedux("NatStream", List(), List()))))
+    )
+
+    assert(
+      decl"""
+      |record CoNat where
+      |  izZero : Boolean
+      |  tail : Id 0lv Boolean (self .izZero) true -> CoNat
+      """ == FRecordDef(
+        "CoNat",
+        Vector(
+          FField("izZero", FTRedux("Boolean", List(), List())),
+          FField(
+            "tail",
+            FTFunction(
+              FBinding(
+                "", 
+                FTRedux("Id", List(), List(FETerm(FTLevel(0)), FETerm(FTRedux("Boolean", List(), List())), FETerm(FTRedux("self", List(), List(FEProj("izZero")))), FETerm(FTRedux("true", List(), List()))))),
+              FTRedux("CoNat", List(), List())))))
+    )
   }
 }

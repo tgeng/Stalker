@@ -52,7 +52,7 @@ object builders {
 
   inline def [T](ctx: StringContext) decl() : FDeclaration = decl(ctx.parts(0).trim.asInstanceOf[String].stripMargin)
 
-  def decl(s: String) : FDeclaration = (declaration ).parse(s) match {
+  def decl(s: String) : FDeclaration = (declaration << eof).parse(s) match {
     case Right(d) => d
     case Left(e) => throw Exception("Parsing declaration failed:\n" + e.toStringWithInput(s))
   }
