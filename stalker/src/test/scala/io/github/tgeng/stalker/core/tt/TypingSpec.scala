@@ -75,17 +75,11 @@ class TypingSpec extends CoreSpec {
     |  Suc : Nat -> Nat
     """
 
-    // Σ +=! decl"""
-    // |data Foo (l1 : Level) (A : Type 0lv) (l2 : Level) : Type 0lv where
-    // |  blah : whatever
-    // """
-
-
-    // Σ +=! decl"""
-    // |data Vector (n : Nat)(A : Type 0lv) : Type 0lv where
-    // |  Nil : Id 0lv n Nat.Zero -> Vector n A
-    // |  Cons : (m : Nat) -> A -> Vector m A -> Id 0lv (Nat.Suc m) n -> Vector n A
-    // """
+    Σ +=! decl"""
+    |data Vector (n : Nat)(A : Type 0lv) : Type 0lv where
+    |  Nil : Id 0lv Nat n Nat.Zero -> Vector n A
+    |  Cons : (m : Nat) -> A -> Vector m A -> Id 0lv Nat (Nat.Suc m) n -> Vector n A
+    """
 
     "simple data type" in {
       t"Nat" ∷ t"Type 0lv"

@@ -74,6 +74,7 @@ object typing {
     case WVar(idx, Nil) => Γ(idx).ty match {
       case WType(l) => l.toWhnf
       case t => {
+        println(Γ)
         typingError(e"${Γ(idx).name} is not a type but a $t.")
       }
     }
@@ -250,7 +251,7 @@ object typing {
     case (x :: u̅) ∷ (_A :: _Δ) => for {
       _ <- (x ∷ _A.ty).check
       _Θ <- _Δ.substHead(x).toWhnfs
-      _ <- (u̅ ∷ _Θ).checkTerms(using Γ + _A)
+      _ <- (u̅ ∷ _Θ).checkTerms
     } yield ()
     case tms ∷ tys => typingError(e"Mismatched length when checking types of $tms against $tys")
   }

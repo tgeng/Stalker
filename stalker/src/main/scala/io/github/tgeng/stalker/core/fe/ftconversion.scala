@@ -85,11 +85,10 @@ object ftConversion {
   given FT[FTelescope, List[Binding[Term]]] {
     def (ts: FTelescope) toTt (using ctx: LocalIndices)(using ns: Namespace) : Result[List[Binding[Term]]] = ts match {
       case Nil => Right(Nil)
-      case b :: rest => ctx.withName(b.name) {
+      case b :: rest => 
         for b <- b.toTt
-            rest <- rest.toTt
+          rest <- ctx.withName(b.name) { rest.toTt }
         yield b :: rest
-      }
     }
   }
 

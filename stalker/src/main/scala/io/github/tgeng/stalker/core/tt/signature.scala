@@ -16,6 +16,8 @@ import stringBindingOps._
 import userInputBarBarBar._
 import lhsOps._
 
+import io.github.tgeng.common.debug._
+
 enum Status {
   case Unchecked()
   case Checked()
