@@ -73,6 +73,20 @@ object reduction {
     case w => Right(w)
   }
 
+  def (l1: Term) <= (l2: Term)(using Γ: Context)(using Σ: Signature) : Result[Boolean] = {
+    for maxL1L2 <- lmax(l1, l2).reduceLevel
+        l1 <- l1.toWhnf
+        l2 <- l2.toWhnf
+        r <- if (maxL1L2 == l2) {
+          Right(true)
+        } else if (maxL1L2 == l1) {
+          Right(false)
+        } else {
+          typingError(e"Cannot determine if $l1 <= $l2.")
+        }
+    yield r
+  }
+
   private def evalClauses(cs: scala.collection.Seq[Clause], e̅: List[Elimination], d: Definition)(using Γ: Context)(using Σ: Signature) : Result[Term] = returning[Result[Term]] {
     for (c <- cs) {
       c match {

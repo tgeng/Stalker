@@ -11,6 +11,7 @@ import io.github.tgeng.stalker.core.common.Error._
 import io.github.tgeng.stalker.common.QualifiedName
 import reduction.toWhnfs
 import reduction.toWhnf
+import reduction.<=
 import typing._
 import stringBindingOps._
 import userInputBarBarBar._
@@ -161,8 +162,15 @@ class SignatureBuilder(
       case d@DataT(qn) => for {
         _ <- d.paramTys.level
         _Δ <- d.paramTys.toWhnfs
+        _ <- d.ty.level
         ty <- d.ty.toWhnf
-        _ = mData(qn) = new Data(qn)(_Δ, ty, null)
+        levelBound <- ty match {
+          case WType(l) =>
+            for l <- l.toWhnf
+            yield l
+          case _ => typingError(e"Cannot reduce ${d.ty} to a Type at some level.")
+        }
+        _ = mData(qn) = new Data(qn)(_Δ, WType(TWhnf(levelBound)), null)
         _ <- this += DefinitionT(qn)(
           _Δ.foldRight(TWhnf(ty))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
           Seq(UncheckedClause(
@@ -173,15 +181,22 @@ class SignatureBuilder(
         )
         cons <- d.cons match {
           case null => Right(null)
-          case cons : Seq[PreConstructor] => cons.reduceCons(using Context.empty + _Δ)
+          case cons : Seq[PreConstructor] => cons.reduceCons(d.qn, ty)(using Context.empty + _Δ)
         }
         _ = mData(qn) = new Data(qn)(_Δ, ty, cons)
       } yield ()
       case r@RecordT(qn) => for {
         level <- r.paramTys.level
         _Δ <- r.paramTys.toWhnfs
+        _ <- r.ty.level
         ty <- r.ty.toWhnf
-        _ = mRecords(qn) = new Record(qn)(_Δ, ty, null)
+        levelBound <- ty match {
+          case WType(l) =>
+            for l <- l.toWhnf
+            yield l
+          case _ => typingError(e"Cannot reduce ${r.ty} to a Type at some level.")
+        }
+        _ = mRecords(qn) = new Record(qn)(_Δ, WType(TWhnf(levelBound)), null)
         _ <- this += DefinitionT(qn)(
           _Δ.foldRight(TWhnf(ty))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
           Seq( UncheckedClause(
@@ -192,7 +207,7 @@ class SignatureBuilder(
         )
         fields <- r.fields match {
           case null => Right(null)
-          case fields: Seq[PreField] => fields.reduceFields(using Context.empty + _Δ + ("self" ∷ Whnf.WRecord(qn, _Δ.vars.toList)))
+          case fields: Seq[PreField] => fields.reduceFields(r.qn, ty)(using Context.empty + _Δ + ("self" ∷ Whnf.WRecord(qn, _Δ.vars.toList)))
         }
         _ = mRecords(qn) = new Record(qn)(_Δ, ty, fields)
       } yield ()
@@ -220,7 +235,7 @@ class SignatureBuilder(
         case true => Right(())
         case false => typingError(e"Data $qn already has constructors.")
       }
-      cons <- cons.reduceCons(using Context.empty + data.paramTys)
+      cons <- cons.reduceCons(data.qn, data.ty)(using Context.empty + data.paramTys)
     } yield mData(qn) = new DataT(qn)(data.paramTys, data.ty, cons)
   }
 
@@ -231,20 +246,43 @@ class SignatureBuilder(
         case true => Right(())
         case false => typingError(e"Record $qn already has fields.")
       }
-      fields <- fields.reduceFields(using Context.empty + record.paramTys + ("self" ∷ Whnf.WRecord(qn, record.paramTys.vars.toList)))
+      fields <- fields.reduceFields(record.qn, record.ty)(using Context.empty + record.paramTys + ("self" ∷ Whnf.WRecord(qn, record.paramTys.vars.toList)))
     } yield mRecords(qn) = new RecordT(qn)(record.paramTys, record.ty, fields)
   }
 
-  private def (cons: Seq[PreConstructor]) reduceCons(using Γ: Context)(using Σ: Signature) : Result[Seq[Constructor]] = 
-    cons.liftMap{
-      con => for _ <- con.argTys.level
-                 wArgTys <- con.argTys.toWhnfs
-             yield ConstructorT(con.name, wArgTys)
+  import Term._
+  import Whnf._
+
+  private def (cons: Seq[PreConstructor]) reduceCons(qn: QualifiedName, dataTy: Whnf)(using Γ: Context)(using Σ: Signature) : Result[Seq[Constructor]] = 
+    dataTy match {
+      case WType(levelBound) => {
+        cons.liftMap{
+          con => for l <- con.argTys.level
+                     _ <- (TWhnf(l) <= levelBound) match {
+                      case Right(true) => Right(())
+                      case Right(false) => typingError(e"Arguments to constructor ${con.name} is not within the specified level bound $levelBound of data schema $qn.")
+                      case _ => typingError(e"Cannot determine if arguments to constructor ${con.name} is within the specified level bound $levelBound of data schema $qn.")
+                     }
+                     wArgTys <- con.argTys.toWhnfs
+                 yield ConstructorT(con.name, wArgTys)
+        }
+      }
+      case _ => throw AssertionError("This case should have been prevented when adding this data schema to the signature.")
     }
-  private def (fields: Seq[PreField]) reduceFields(using Γ: Context)(using Σ: Signature) : Result[Seq[Field]] = 
-    fields.liftMap{
-      f => for _ <- f.ty.level
-              wTy <- f.ty.toWhnf
-           yield FieldT(f.name, wTy)
+  private def (fields: Seq[PreField]) reduceFields(qn: QualifiedName, recordTy: Whnf)(using Γ: Context)(using Σ: Signature) : Result[Seq[Field]] = 
+    recordTy match {
+      case WType(levelBound) => {
+        fields.liftMap{
+          field => for l <- field.ty.level
+                     _ <- (TWhnf(l) <= levelBound) match {
+                      case Right(true) => Right(())
+                      case Right(false) => typingError(e"Field ${field.name} is not within the specified level bound $levelBound of record schema $qn.")
+                      case _ => typingError(e"Cannot determine if field ${field.name} is within the specified level bound $levelBound of record schema $qn.")
+                     }
+                     fieldTy <- field.ty.toWhnf
+                 yield FieldT(field.name, fieldTy)
+        }
+      }
+      case _ => throw AssertionError("This case should have been prevented when adding this data schema to the signature.")
     }
 }

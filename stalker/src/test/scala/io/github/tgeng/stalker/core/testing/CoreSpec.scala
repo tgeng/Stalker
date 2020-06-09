@@ -45,4 +45,6 @@ class CoreSpec extends UnitSpec with Helpers {
     case (e, true) => e should holdUnderType(ty)
     case (e, false) => e shouldNot holdUnderType(ty)
   }
+
+  inline def (l1: Term) <= (l2: Term)(using LocalIndices, LocalNames, Context) = l1 should beALowerOrEqualLevelThan(l2)
 }

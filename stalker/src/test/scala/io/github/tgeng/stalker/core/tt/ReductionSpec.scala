@@ -41,4 +41,22 @@ class ReductionSpec extends CoreSpec {
     // Whnf should not reduce under the current head
     t"Type (lsuc 0lv)" !~> ft"Type 1lv "
   }
+
+  "level comparison" in {
+    t"0lv" <= t"0lv"
+    t"0lv" <= t"1lv"
+    t"lsuc 0lv" <= t"lsuc 0lv"
+    withBindings(
+      b"m : Level",
+      b"n : Level",
+    ) {
+      t"m" <= t"m"
+      t"m" <= t"lsuc m"
+      t"m" <= t"lsuc m"
+      t"lmax m n" <= t"lmax n m"
+      t"lmax (lsuc m) n" <= t"lmax n (lsuc m)"
+      t"lmax m n" <= t"lmax n (lsuc m)"
+      t"lmax m 0lv" <= t"lmax m 1lv"
+    }
+  }
 }

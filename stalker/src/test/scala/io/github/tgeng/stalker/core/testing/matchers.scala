@@ -7,8 +7,8 @@ import io.github.tgeng.stalker.testing.UnitSpec
 import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.core.common.Namespace
 import io.github.tgeng.stalker.core.common.InMemoryNamespace
-import io.github.tgeng.parse._
-import io.github.tgeng.parse.string._
+// import io.github.tgeng.parse._
+// import io.github.tgeng.parse.string._
 import io.github.tgeng.stalker.core.fe._
 import io.github.tgeng.stalker.core.fe.builders._
 import io.github.tgeng.stalker.core.fe.pprint._
@@ -17,6 +17,7 @@ import io.github.tgeng.stalker.core.fe.tfConversion.{given _, _}
 import io.github.tgeng.stalker.core.tt._
 import io.github.tgeng.stalker.core.tt.eqTermTypingRelation
 import io.github.tgeng.stalker.core.tt.reduction.toWhnf
+import io.github.tgeng.stalker.core.tt.reduction.<=
 import io.github.tgeng.stalker.core.tt.typingRelation
 import io.github.tgeng.stalker.testing.UnitSpec
 import io.github.tgeng.stalker.core.tt.typing._
@@ -62,6 +63,17 @@ object matchers extends Helpers {
         pp"$e did not hold under type $t because $err",
         ""
       )
+    }
+  }
+
+  def beALowerOrEqualLevelThan(l2: Term)(using LocalIndices, LocalNames, Context, Signature, Namespace) = Matcher { (l1: Term) =>
+    (l1 <= l2) match {
+      case Right(r) => MatchResult(
+        r,
+        pp"$l1 is not a lower or equal level to $l2.",
+        pp"$l1 is a lower or equal level to $l2."
+      )
+      case Left(e) => throw Exception(pp"$e")
     }
   }
 }
