@@ -82,9 +82,13 @@ class TypingSpec extends CoreSpec {
     """
 
     "simple data type" in {
-      t"Nat" ∷ t"Type 0lv"
-      t"Nat.Zero" ∷ t"Nat"
-      t"Nat.Suc Nat.Zero" ∷ t"Nat"
+      // t"Nat" ∷ t"Type 0lv"
+      // t"Nat.Zero" ∷ t"Nat"
+      // t"Nat.Suc Nat.Zero" ∷ t"Nat"
+
+      t"Vector.Nil Refl" ∷ t"Vector Nat.Zero Level"
+      t"Vector.Cons Nat.Zero 1lv (Vector.Nil Refl) Refl" ∷ t"Vector (Nat.Suc Nat.Zero) Level"
+      t"Vector.Cons Nat.Zero 1lv (Vector.Nil Refl) Refl" !∷ t"Vector Nat.Zero Level"
     }
   }
 }

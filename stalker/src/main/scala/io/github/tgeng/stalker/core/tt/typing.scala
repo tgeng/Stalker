@@ -233,7 +233,7 @@ object typing {
         data <- Σ getData d
         constructor <- data(c)     
         _ <- (u̅ ∷ data.paramTys).checkTerms
-        _Δ <- constructor.argTys.substHead(v̅).toWhnfs
+        _Δ <- constructor.argTys.substHead(u̅).toWhnfs
         _ <- (v̅ ∷ _Δ).checkTerms
       } yield ()
       case TWhnf(WRefl) ∷ WId(_, _A, u, v) => for {
