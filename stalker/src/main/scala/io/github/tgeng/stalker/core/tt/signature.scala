@@ -159,9 +159,9 @@ class SignatureBuilder(
     }
     d match {
       case d@DataT(qn) => for {
-        level <- d.paramTys.level
+        _ <- d.paramTys.level
         _Δ <- d.paramTys.toWhnfs
-        ty = WType(TWhnf(level))
+        ty <- d.ty.toWhnf
         _ = mData(qn) = new Data(qn)(_Δ, ty, null)
         _ <- this += DefinitionT(qn)(
           _Δ.foldRight(TWhnf(ty))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
@@ -180,7 +180,7 @@ class SignatureBuilder(
       case r@RecordT(qn) => for {
         level <- r.paramTys.level
         _Δ <- r.paramTys.toWhnfs
-        ty = WType(TWhnf(level))
+        ty <- r.ty.toWhnf
         _ = mRecords(qn) = new Record(qn)(_Δ, ty, null)
         _ <- this += DefinitionT(qn)(
           _Δ.foldRight(TWhnf(ty))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
