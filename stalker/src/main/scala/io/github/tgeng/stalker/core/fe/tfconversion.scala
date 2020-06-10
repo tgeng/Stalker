@@ -2,6 +2,7 @@ package io.github.tgeng.stalker.core.fe
 
 import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.core.common.Namespace
+import io.github.tgeng.stalker.core.common.LocalNames
 import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.stalker.core.common.Error._
 import io.github.tgeng.stalker.core.tt._
@@ -67,26 +68,4 @@ object tfConversion {
   private def ftRedux(qn: QualifiedName, elims: FElimination*)(using ns: Namespace) : FTerm = ns.render(qn) match {
     case (head, names) => FTRedux(head, names, elims.toList)
   }
-}
-
-class LocalNames {
-  import scala.collection.mutable.ArrayBuffer
-
-  val names = ArrayBuffer[String]()
-
-  def get(idx: Int) : String = {
-    if (names.isEmpty) {
-      Exception().printStackTrace
-    }
-    names(idx)
-  }
-  def add(name: String) = names.prepend(name)
-  def withName[T](name: String)(action: => T) : T = {
-    names.prepend(name)
-    val r = action
-    names.dropInPlace(1)
-    r
-  }
-
-  override def toString = names.toString
 }

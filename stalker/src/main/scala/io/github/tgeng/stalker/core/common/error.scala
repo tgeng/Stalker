@@ -3,11 +3,12 @@ package io.github.tgeng.stalker.core.common
 import scala.collection.Seq
 
 enum Error {
-  case TypingError(msg: Seq[Any])
+  case TypingError(msg: Seq[Any], override val localNames: Option[LocalNames])
   case NoNameError(msg: Seq[Any])
   case DuplicatedDefinitionError(msg: Seq[Any])
 
   def msg: Seq[Any]
+  def localNames: Option[LocalNames] = None
   val trace: Exception = Exception(msg.toString)
 }
 
@@ -16,8 +17,10 @@ object Error {
   type Result = Either[Error, *]
 
   def typingError(msg: Seq[Any]) = {
-    Left(TypingError(msg))
+    Left(TypingError(msg, None))
   }
+
+  def typingErrorWithNames(msg: Seq[Any])(using localNames: LocalNames) = Left(TypingError(msg, Some(localNames)))
 
   def noNameError(msg: Seq[Any]) = Left(NoNameError(msg))
 

@@ -16,6 +16,7 @@ import typing._
 import stringBindingOps._
 import userInputBarBarBar._
 import lhsOps._
+import utils._
 
 import io.github.tgeng.common.debug._
 
@@ -156,7 +157,7 @@ class SignatureBuilder(
     import Whnf._
     import CoPattern._
     if (mDefinitions.contains(d.qn)) {
-      return duplicatedDefinitionError(s"${d.qn} has been defined already.")
+      return duplicatedDefinitionError(e"${d.qn} has been defined already.")
     }
     d match {
       case d@DataT(qn) => for {
@@ -169,7 +170,7 @@ class SignatureBuilder(
                 case WType(l) =>
                   for l <- l.toWhnf
                   yield l
-                case _ => typingError(e"Cannot reduce ${d.ty} to a Type at some level.")
+                case _ => typingErrorWithCtx(e"Cannot reduce ${d.ty} to a Type at some level.")
               }
               _ = mData(qn) = new Data(qn)(_Δ, WType(TWhnf(levelBound)), null)
               _ <- this += DefinitionT(qn)(
@@ -198,7 +199,7 @@ class SignatureBuilder(
                 case WType(l) =>
                   for l <- l.toWhnf
                   yield l
-                case _ => typingError(e"Cannot reduce ${r.ty} to a Type at some level.")
+                case _ => typingErrorWithCtx(e"Cannot reduce ${r.ty} to a Type at some level.")
               }
               _ = mRecords(qn) = new Record(qn)(_Δ, WType(TWhnf(levelBound)), null)
               _ <- this += DefinitionT(qn)(
@@ -239,7 +240,7 @@ class SignatureBuilder(
       data <- getData(qn)
       _ = data.cons == null match {
         case true => Right(())
-        case false => typingError(e"Data $qn already has constructors.")
+        case false => typingErrorWithCtx(e"Data $qn already has constructors.")
       }
       cons <- cons.reduceCons(data.qn, data.ty)(using Context.empty + data.paramTys)
     } yield mData(qn) = new DataT(qn)(data.paramTys, data.ty, cons)
@@ -250,7 +251,7 @@ class SignatureBuilder(
       record <- getRecord(qn)
       _ = record.fields == null match {
         case true => Right(())
-        case false => typingError(e"Record $qn already has fields.")
+        case false => typingErrorWithCtx(e"Record $qn already has fields.")
       }
       fields <- fields.reduceFields(record.qn, record.ty)(using Context.empty + record.paramTys + ("self" ∷ Whnf.WRecord(qn, record.paramTys.vars.toList)))
     } yield mRecords(qn) = new RecordT(qn)(record.paramTys, record.ty, fields)
@@ -268,12 +269,12 @@ class SignatureBuilder(
                        case Some(l) => for {
                          _ <- (TWhnf(l) <= levelBound) match {
                           case Right(true) => Right(())
-                          case Right(false) => typingError(e"Arguments to constructor ${con.name} at level $l is not within the specified level bound $levelBound of data schema $qn.")
-                          case _ => typingError(e"Cannot determine if arguments to constructor ${con.name} at level $l is within the specified level bound $levelBound of data schema $qn.")
+                          case Right(false) => typingErrorWithCtx(e"Arguments to constructor ${con.name} at level $l is not within the specified level bound $levelBound of data schema $qn.")
+                          case _ => typingErrorWithCtx(e"Cannot determine if arguments to constructor ${con.name} at level $l is within the specified level bound $levelBound of data schema $qn.")
                          }
                          wArgTys <- con.argTys.toWhnfs
                        } yield ConstructorT(con.name, wArgTys)
-                       case None => typingError(e"Arguments to constructor ${con.name} is potentially unbound and hence is not within the specified level bound $levelBound of data schema $qn.")
+                       case None => typingErrorWithCtx(e"Arguments to constructor ${con.name} is potentially unbound and hence is not within the specified level bound $levelBound of data schema $qn.")
                      }
                  yield r
         }
@@ -287,8 +288,8 @@ class SignatureBuilder(
           field => for l <- field.ty.level
                      _ <- (TWhnf(l) <= levelBound) match {
                       case Right(true) => Right(())
-                      case Right(false) => typingError(e"Field ${field.name} at level $l is not within the specified level bound $levelBound of record schema $qn.")
-                      case _ => typingError(e"Cannot determine if field ${field.name} at level $l is within the specified level bound $levelBound of record schema $qn.")
+                      case Right(false) => typingErrorWithCtx(e"Field ${field.name} at level $l is not within the specified level bound $levelBound of record schema $qn.")
+                      case _ => typingErrorWithCtx(e"Cannot determine if field ${field.name} at level $l is within the specified level bound $levelBound of record schema $qn.")
                      }
                      fieldTy <- field.ty.toWhnf
                  yield FieldT(field.name, fieldTy)

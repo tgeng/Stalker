@@ -99,7 +99,9 @@ class TypingSpec extends CoreSpec {
     }
 
     "polymorphic level" in {
-
+      t"List 0lv Nat" ∷ t"Type 0lv"
+      t"List 1lv (Type 0lv)" ∷ t"Type 1lv"
+      t"List.Nil" ∷ t"List 0lv Nat"
     }
   }
 }

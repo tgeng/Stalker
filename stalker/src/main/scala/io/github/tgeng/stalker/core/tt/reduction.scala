@@ -10,6 +10,7 @@ import Elimination._
 import ClauseT._
 import Pattern._
 import CoPattern._
+import utils._
 
 object reduction {
   def (tms: List[Binding[Term]]) toWhnfs(using Γ: Context)(using Σ: Signature) : Result[Telescope] = tms match {
@@ -87,7 +88,7 @@ object reduction {
         } else if (maxL1L2 == l1 || l2 == WLConst(0)) {
           Right(false)
         } else {
-          typingError(e"Cannot determine if $l1 <= $l2.")
+          typingErrorWithCtx(e"Cannot determine if $l1 <= $l2.")
         }
     yield r
   }
@@ -102,7 +103,7 @@ object reduction {
         }
       }
     }
-    throwReturn[Result[Term]](typingError(e"No matched clause found with eliminators ${e̅}. Is definition ${d.qn} exhaustive?"))
+    throwReturn[Result[Term]](typingErrorWithCtx(e"No matched clause found with eliminators ${e̅}. Is definition ${d.qn} exhaustive?"))
   }
   
   def (v: Term) / (p: Pattern)(using Γ: Context)(using Σ: Signature) : MatchResult = p match {
@@ -114,11 +115,11 @@ object reduction {
       } else {
         mismatch(v, p)
       }
-      case _ => typingError(e"stuck when reducing $v")
+      case _ => typingErrorWithCtx(e"stuck when reducing $v")
     }
     case PForcedCon(_, p̅) => v.toWhnf match {
       case Right(WCon(_, v̅)) => v̅.map(ETerm(_)) / p̅.map(QPattern(_))
-      case _ => typingError(e"stuck when reducing $v")
+      case _ => typingErrorWithCtx(e"stuck when reducing $v")
     }
     case PAbsurd => throw IllegalStateException("Checked pattern should not contain absurd pattern.")
   }
@@ -145,18 +146,18 @@ object reduction {
     // * extra arguments: type error indeed
     // * wrong number of args for constructor: type error indeed
     // * mismatched field: this would have resulted an earlier mismatch instead.
-    case _ => typingError(e"stuck when matching ${e̅} with ${q̅}")
+    case _ => typingErrorWithCtx(e"stuck when matching ${e̅} with ${q̅}")
   }
   def matched(s: Map[Int, Term]) : MatchResult = Right(Right(s))
   private def mismatch(e: Elimination, q: CoPattern) : MatchResult = Right(Left(Mismatch(e, q)))
   private def mismatch(t: Term, p: Pattern) : MatchResult = mismatch(ETerm(t), QPattern(p))
-  def (s1e: Either[Mismatch, Map[Int, Term]]) ⊎ (s2e: Either[Mismatch, Map[Int, Term]]) : MatchResult = (for {
+  def (s1e: Either[Mismatch, Map[Int, Term]]) ⊎ (s2e: Either[Mismatch, Map[Int, Term]])(using Γ: Context) : MatchResult = (for {
     s1 <- s1e
     s2 <- s2e
   } yield (s1, s2)) match {
     case Right(s1, s2) => (s1.keySet intersect s2.keySet) match {
       case s if s.forall(k => s1(k) == s2(k)) => matched(s1 ++ s2)
-      case _ => typingError(e"Nonlinear patterns.")
+      case _ => typingErrorWithCtx(e"Nonlinear patterns.")
     }
     case Left(l) => Right(Left(l))
   }
@@ -166,7 +167,7 @@ object reduction {
   import Term._
   import Whnf._
 
-  private def evalCaseTree(Q: CaseTree, σ: Substitution[Term], e̅: List[Elimination])(using Σ: Signature): Result[Term] = {
+  private def evalCaseTree(Q: CaseTree, σ: Substitution[Term], e̅: List[Elimination])(using Γ: Context)(using Σ: Signature): Result[Term] = {
     given Context = Context.empty
     (Q, e̅) match {
       case (CTerm(t), _) => t.subst(σ).app(e̅)
@@ -180,7 +181,7 @@ object reduction {
         case WRefl <- σ(x).toWhnf
         r <- evalCaseTree(_Q, τ ∘ σ, e̅)
       } yield r
-      case _ => typingError(e"Stuck while evaluating case tree $Q with substitution $σ and eliminations ${e̅}")
+      case _ => typingErrorWithCtx(e"Stuck while evaluating case tree $Q with substitution $σ and eliminations ${e̅}")
     }
   }
 } 

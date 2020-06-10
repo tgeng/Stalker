@@ -17,6 +17,7 @@ import CoPattern._
 import reduction.toWhnfs
 import reduction.toWhnf
 import reduction.reduceLevel
+import utils._
 
 import io.github.tgeng.common.debug._
 
@@ -27,7 +28,7 @@ object typing {
       for definition <- Σ getDefinition qn
           r <- definition.ty match {
             case WType(l) => l.toWhnf
-            case w => typingError(e"Expect type of $qn to be a type but it's $w.")
+            case w => typingErrorWithCtx(e"Expect type of $qn to be a type but it's $w.")
           }
       yield r
     case TRedux(qn, e̅) => 
@@ -66,23 +67,23 @@ object typing {
         lA <- _A.level
         wA <- _A.toWhnf
         _ <- if (wl == lA) Right(())
-             else typingError(e"Expect $_A to be at level $l but it's at level $lA")
+             else typingErrorWithCtx(e"Expect $_A to be at level $l but it's at level $lA")
         _ <- (x ∷ wA).check
         _ <- (y ∷ wA).check
       } yield lA
     }
     case WVar(idx, Nil) => Γ(idx).ty match {
       case WType(l) => l.toWhnf
-      case t => {
-        println(Γ)
-        typingError(e"${Γ(idx).name} is not a type but a $t.")
-      }
+      case t => typingErrorWithCtx(e"${Γ(idx).name} is not a type but a $t.")
     }
     case WVar(idx, e̅) => (TWhnf(WVar(idx, Nil)) ∷ Γ(idx).ty |- e̅).elimLevel
-    case _ => typingError(e"$tm is not a type.")
+    case _ => typingErrorWithCtx(e"$tm is not a type.")
   } flatMap { _.reduceLevel }
 
-  def (Δ: List[Binding[Term]])levelBound(using Γ: Context)(using Σ: Signature) : Result[Option[Whnf]] = promoteLevelBound(Δ.levelBoundImpl)
+  def (Δ: List[Binding[Term]])levelBound(using Γ: Context)(using Σ: Signature) : Result[Option[Whnf]] = {
+    val r = promoteLevelBound(Δ.levelBoundImpl, Δ.size)
+    r
+  }
 
   private def (Δ: List[Binding[Term]])levelBoundImpl(using Γ: Context)(using Σ: Signature) : Result[Whnf] = Δ match {
     case Nil => Right(lconst(0))
@@ -90,27 +91,27 @@ object typing {
       lA <- _A.ty.level
       wA <- _A.ty.toWhnf
       lΔ <- _Δ.levelBoundImpl(using Γ + _A.name ∷ wA)
-    } yield lmax(TWhnf(lA.raise(_Δ.size)), TWhnf(lΔ))
+    } yield lmax(TWhnf(lA.raise(Δ.size)), TWhnf(lΔ))
   } flatMap { _.reduceLevel }
 
-  def (Δ: Telescope)teleLevelBound(using Γ: Context)(using Σ: Signature) : Result[Option[Whnf]] = promoteLevelBound(Δ.teleLevelBoundImpl)
+  def (Δ: Telescope)teleLevelBound(using Γ: Context)(using Σ: Signature) : Result[Option[Whnf]] = promoteLevelBound(Δ.teleLevelBoundImpl, Δ.size)
 
   def (Δ: Telescope)teleLevelBoundImpl(using Γ: Context)(using Σ: Signature) : Result[Whnf] = Δ match {
     case Nil => Right(lconst(0))
     case _A :: _Δ => for {
       lA <- _A.ty.level
       lΔ <- _Δ.teleLevelBoundImpl(using Γ + _A)
-    } yield lmax(TWhnf(lA.raise(_Δ.size)), TWhnf(lΔ))
+    } yield lmax(TWhnf(lA.raise(Δ.size)), TWhnf(lΔ))
   } flatMap { _.reduceLevel }
 
-  private def promoteLevelBound(l : Result[Whnf])(using Γ: Context) : Result[Option[Whnf]] = {
+  private def promoteLevelBound(l : Result[Whnf], ΔSize: Int) : Result[Option[Whnf]] = {
     for lb <- l
         r <- {
           val freeVars = lb.freeVars
-          if ((0 until Γ.size - 1).exists(freeVars.contains(_))) {
+          if ((0 until ΔSize).exists(freeVars.contains(_))) {
             Right(None)
           } else {
-            Right(Some(lb.raise(-Γ.size + 1)))
+            Right(Some(lb.raise(-ΔSize)))
           }
         }
     yield r
@@ -158,17 +159,17 @@ object typing {
           wl2 <- l2.toWhnf
           r <- wl1 == wl2 match {
             case true => Right(wl1)
-            case false => typingError(e"Expected ${l1 ≡ l2} but they are not equal.")
+            case false => typingErrorWithCtx(e"Expected ${l1 ≡ l2} but they are not equal.")
           }
       yield r
-    case _ => typingError(e"Cannot infer level of $eq")
+    case _ => typingErrorWithCtx(e"Cannot infer level of $eq")
   } flatMap { _.reduceLevel }
 
   def (j: Term ∷ Type |- List[Elimination])elimLevel(using Γ: Context)(using Σ: Signature) : Result[Whnf] = {
     j match {
       case u ∷ _A |- Nil  => _A match {
         case WType(l) => l.toWhnf
-        case _ => typingError(e"Expected $u to be a type (whose type would be a Type at some level), but its type is $_A.")
+        case _ => typingErrorWithCtx(e"Expected $u to be a type (whose type would be a Type at some level), but its type is $_A.")
       }
       case u ∷ WFunction(_A, _B) |- (ETerm(v) :: e̅) => for {
         wA <- _A.ty.toWhnf
@@ -185,7 +186,7 @@ object typing {
         ft <- field.ty.substHead(v̅ :+ u).toWhnf
         r <- (uπ ∷ ft |- e̅).elimLevel
       } yield r
-      case u ∷ _A |- elims => typingError(e"Invalid application of $elims to $u of type $_A.")
+      case u ∷ _A |- elims => typingErrorWithCtx(e"Invalid application of $elims to $u of type $_A.")
     }
   }
 
@@ -214,7 +215,7 @@ object typing {
         uπ <- u.app(π)
         l <- (uπ ∷ wA |- e̅1 ≡ e̅2).elimEqLevel
       } yield l
-      case _ => typingError(e"Cannot infer level of $elim")
+      case _ => typingErrorWithCtx(e"Cannot infer level of $elim")
     }
   } flatMap { _.reduceLevel }
   
@@ -232,13 +233,13 @@ object typing {
         lA <- _A.level
         _ <- lA == wl match {
           case true => Right(())
-          case false => typingError(e"Expect $_A to be at level $l, but it's at level $lA.")
+          case false => typingErrorWithCtx(e"Expect $_A to be at level $l, but it's at level $lA.")
         }
       } yield ()
       // Heads
       case TWhnf(v@WVar(idx, Nil)) ∷ _A => 
         if (Γ(idx).ty == _A) Right(())
-        else typingError(e"Variable $v is not of type $_A but of type ${Γ(idx).ty}.")
+        else typingErrorWithCtx(e"Variable $v is not of type $_A but of type ${Γ(idx).ty}.")
       case TWhnf(WVar(idx, e̅)) ∷ _A => for {
         _ <- (TWhnf(WVar(idx, Nil)) ∷ Γ(idx).ty |- e̅ ∷ _A).checkElim
       } yield ()
@@ -260,7 +261,7 @@ object typing {
       } yield ()
       // Level
       case TWhnf(l) ∷ WLevel => Right(())
-      case tm ∷ ty => typingError(e"Expected $tm to be of type $ty.")
+      case tm ∷ ty => typingErrorWithCtx(e"Expected $tm to be of type $ty.")
     }
   }
   
@@ -271,7 +272,7 @@ object typing {
       _Θ <- _Δ.substHead(x).toWhnfs
       _ <- (u̅ ∷ _Θ).checkTerms
     } yield ()
-    case tms ∷ tys => typingError(e"Mismatched length when checking types of $tms against $tys")
+    case tms ∷ tys => typingErrorWithCtx(e"Mismatched length when checking types of $tms against $tys")
   }
   
   def (j: Term ∷ Type |- List[Elimination] ∷ Type)checkElim(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
@@ -294,7 +295,7 @@ object typing {
         ft <- field.ty.substHead(v̅ :+ u).toWhnf
         _ <- (uπ ∷ ft |- e̅ ∷ _C).checkElim
       } yield ()
-      case u ∷ _A |- elims ∷ _C => typingError(e"Invalid application of $elims to $u of type $_A.")
+      case u ∷ _A |- elims ∷ _C => typingErrorWithCtx(e"Invalid application of $elims to $u of type $_A.")
     }
   }
   
@@ -322,7 +323,7 @@ object typing {
             wl2 <- l2.toWhnf
             _ <- wl1 == wl2 match {
               case true => Right(())
-              case false => typingError(e"Expected ${l1 ≡ l2} but they are not equal.")
+              case false => typingErrorWithCtx(e"Expected ${l1 ≡ l2} but they are not equal.")
             }
         yield ()
       case TRedux(f1, e̅1) ≡ TRedux(f2, e̅2) ∷ _B if f1 == f2 => for {
@@ -347,7 +348,7 @@ object typing {
             wl <- l.toWhnf
             _ <- inferredL == wl match {
               case true => Right(())
-              case false => typingError(e"Expected ${x ≡ y} at level $l but it's at level $inferredL.")
+              case false => typingErrorWithCtx(e"Expected ${x ≡ y} at level $l but it's at level $inferredL.")
             }
           } yield ()
           case WVar(x, e̅1) ≡ WVar(y, e̅2) ∷ _A if x == y => (TWhnf(WVar(x, Nil)) ∷ Γ(x).ty |- e̅1 ≡ e̅2 ∷ _A).checkElimEq
@@ -358,7 +359,7 @@ object typing {
             _Δ <- con.argTys.substHead(u̅).toWhnfs
             _ <- (v̅1 ≡ v̅2 ∷ _Δ).check
           } yield ()
-          case _ => typingError(e"Cannot decide if $x and $y of type $_A are computationally equivalent.")
+          case _ => typingErrorWithCtx(e"Cannot decide if $x and $y of type $_A are computationally equivalent.")
         }
       } yield ()  
     }
@@ -409,14 +410,14 @@ object typing {
         uπ <- u.app(π)
         _ <- (uπ ∷ wA |- e̅1 ≡ e̅2 ∷ _C).checkElimEq
       } yield ()
-      case u ∷ _A |- elims1 ≡ elims2 ∷ _C => typingError(e"Cannot decide if applying $elims1 and $elims1 to $u of type $_A are computationally equivalent.")
+      case u ∷ _A |- elims1 ≡ elims2 ∷ _C => typingErrorWithCtx(e"Cannot decide if applying $elims1 and $elims1 to $u of type $_A are computationally equivalent.")
     }
   }
 
   private def extractLevel(ty: Type)(using Γ: Context)(using Σ: Signature) : Result[Type] =
     for r <- ty match {
       case WType(l) => for l <- l.toWhnf yield l
-      case _ => typingError(e"$ty should be equivalent to a type at some level.")
+      case _ => typingErrorWithCtx(e"$ty should be equivalent to a type at some level.")
     } 
     yield r
 }
@@ -490,9 +491,9 @@ extension derivationRelation on [X, Y](x: X) {
 }
 
 extension resultFilter on [T](r: Result[T]) {
-  def withFilter(p : T => Boolean) : Result[T] = r match {
+  def withFilter(p : T => Boolean)(using ctx: Context) : Result[T] = r match {
     case Right(t) if (p(t)) => Right(t)
-    case Right(t) => typingError(e"Result $t does not satisfy predicate $p")
+    case Right(t) => typingErrorWithCtx(e"Result $t does not satisfy predicate $p")
     case e => e
   }
 }

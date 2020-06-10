@@ -3,6 +3,7 @@ package io.github.tgeng.stalker.core.tt
 import scala.collection.mutable.ArrayBuffer
 import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.core.common.Error._
+import io.github.tgeng.stalker.core.common.LocalNames
 
 type Type = Whnf
 
@@ -26,17 +27,6 @@ enum Term {
     case TWhnf(whnf) => whnf.freeVars
     case TRedux(fn, elims) => elims.flatMap(_.freeVars).toSet
   }
-
-  def app(t: Term): Result[Term] = app(Elimination.ETerm(t))
-  def app(f: String): Result[Term] = app(Elimination.EProj(f))
-  
-  def app(e: Elimination) : Result[Term] = this match {
-    case TRedux(fn, elims) => Right(TRedux(fn, elims :+ e))
-    case TWhnf(Whnf.WVar(idx, elims)) => Right(TWhnf(Whnf.WVar(idx, elims :+ e)))
-    case _ => typingError(s"Cannot apply $e to $this.")
-  }
-
-  def app(e̅: Seq[Elimination]) : Result[Term] = e̅.foldLeft[Result[Term]](Right(this))((acc, e) => acc.flatMap(_.app(e)))
 
   override def toString : String = this match {
     case TWhnf(whnf) => s"""TWhnf($whnf)"""
@@ -83,7 +73,7 @@ enum Whnf {
     case WData(data, params) => params.flatMap(_.freeVars).toSet
     case WRecord(record, params) => params.flatMap(_.freeVars).toSet
     case WId(level, ty, left, right) => level.freeVars | ty.freeVars | left.freeVars | right.freeVars
-    case WVar(idx, elims) => elims.flatMap(_.freeVars).toSet
+    case WVar(idx, elims) => Set(idx) | elims.flatMap(_.freeVars).toSet
     case WCon(con, args) => args.flatMap(_.freeVars).toSet
   }
 

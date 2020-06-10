@@ -2,6 +2,7 @@ package io.github.tgeng.stalker.core.fe
 
 import io.github.tgeng.common._
 import io.github.tgeng.stalker.core.common.Namespace
+import io.github.tgeng.stalker.core.common.LocalNames
 import io.github.tgeng.stalker.core.common.Error
 import io.github.tgeng.stalker.core.tt._
 import io.github.tgeng.stalker.core.fe.tfConversion.{given _, _}
@@ -106,7 +107,10 @@ object pprint {
     resultSeq.toBlock.toString
   }
 
-  def (e: Error) toBlock (using LocalNames)(using Namespace): Block = e.msg.toBlock
+  def (e: Error) toBlock (using LocalNames)(using Namespace): Block = e.localNames match {
+    case Some(ln) => e.msg.toBlock(using ln)
+    case None => e.msg.toBlock 
+  }
 
   private def (seq: scala.collection.Seq[Any]) toBlock (using LocalNames)(using Namespace): Block = {
     val children = scala.collection.mutable.ArrayBuffer[Block | String]()

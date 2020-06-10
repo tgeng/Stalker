@@ -1,6 +1,8 @@
 package io.github.tgeng.stalker.core.tt
 
 import scala.language.implicitConversions
+import io.github.tgeng.stalker.core.common.LocalNames
+import scala.collection.mutable.ArrayBuffer
 
 /** First element on the right. */
 opaque type Context = List[Binding[Type]]
@@ -22,4 +24,6 @@ extension contextOps on (self: Context) {
   def size = self.size
 
   def toClosedTelescope : List[Binding[Type]] = self.reverse
+
+  def toLocalNames = LocalNames(ArrayBuffer[String](self.map(_.name) : _*))
 }

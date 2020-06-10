@@ -1,6 +1,7 @@
 package io.github.tgeng.stalker.core.fe
 
 import io.github.tgeng.stalker.core.common.Namespace
+import io.github.tgeng.stalker.core.common.LocalNames
 import io.github.tgeng.stalker.core.fe.ftConversion.{given _, _}
 import io.github.tgeng.stalker.core.fe.pprint.toBlock
 import io.github.tgeng.stalker.core.tt.contextOps
@@ -41,6 +42,21 @@ object builders {
         }
       case Left(e) => throw Exception("Parsing binding failed:\n" + e.toStringWithInput(s))
     }
+  }
+
+  def tele(bindings: (LocalIndices, LocalNames, Context) ?=> (Namespace, Signature) ?=> Binding[Type]*)(using Namespace, Signature) : Telescope = {
+    val localIndices = LocalIndices()
+    val localNames = LocalNames()
+    var context = Context.empty
+    var result : Telescope = Nil
+    for (b <- bindings) {
+      val binding = b(using localIndices, localNames, context)
+      result = binding :: result
+      localIndices.add(binding.name)
+      localNames.add(binding.name)
+      context += binding
+    }
+    result
   }
 
   inline def [T](ctx: StringContext) q() : List[FCoPattern] = q(ctx.parts(0))
