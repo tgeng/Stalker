@@ -47,4 +47,11 @@ class CoreSpec extends UnitSpec with Helpers {
   }
 
   inline def (l1: Term) <= (l2: Term)(using LocalIndices, LocalNames, Context) = l1 should beALowerOrEqualLevelThan(l2)
+  
+  inline def (sb: FSignatureBuilder) +=! (d: FDeclaration)(using LocalIndices, LocalNames, Context) = {
+    sb += d match {
+      case Right(()) => ()
+      case Left(e) => throw e.trace
+    }
+  }
 }

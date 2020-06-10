@@ -160,56 +160,62 @@ class SignatureBuilder(
     }
     d match {
       case d@DataT(qn) => for {
-        _ <- d.paramTys.level
+        _ <- d.paramTys.levelBound
         _Δ <- d.paramTys.toWhnfs
-        _ <- d.ty.level
-        ty <- d.ty.toWhnf
-        levelBound <- ty match {
-          case WType(l) =>
-            for l <- l.toWhnf
-            yield l
-          case _ => typingError(e"Cannot reduce ${d.ty} to a Type at some level.")
+        _ <- withCtxExtendedBy(_Δ) {
+          for _ <- d.ty.level
+              ty <- d.ty.toWhnf
+              levelBound <- ty match {
+                case WType(l) =>
+                  for l <- l.toWhnf
+                  yield l
+                case _ => typingError(e"Cannot reduce ${d.ty} to a Type at some level.")
+              }
+              _ = mData(qn) = new Data(qn)(_Δ, WType(TWhnf(levelBound)), null)
+              _ <- this += DefinitionT(qn)(
+                _Δ.foldRight(TWhnf(ty))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
+                Seq(UncheckedClause(
+                  _Δ.pvars.map(QPattern(_)).toList,
+                  UTerm(TWhnf(WData(qn, _Δ.vars.toList)))
+                )),
+                null
+              )
+              cons <- d.cons match {
+                case null => Right(null)
+                case cons : Seq[PreConstructor] => cons.reduceCons(d.qn, ty)
+              }
+              _ = mData(qn) = new Data(qn)(_Δ, ty, cons)
+          yield ()
         }
-        _ = mData(qn) = new Data(qn)(_Δ, WType(TWhnf(levelBound)), null)
-        _ <- this += DefinitionT(qn)(
-          _Δ.foldRight(TWhnf(ty))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
-          Seq(UncheckedClause(
-            _Δ.pvars.map(QPattern(_)).toList,
-            UTerm(TWhnf(WData(qn, _Δ.vars.toList)))
-          )),
-          null
-        )
-        cons <- d.cons match {
-          case null => Right(null)
-          case cons : Seq[PreConstructor] => cons.reduceCons(d.qn, ty)(using Context.empty + _Δ)
-        }
-        _ = mData(qn) = new Data(qn)(_Δ, ty, cons)
       } yield ()
       case r@RecordT(qn) => for {
-        level <- r.paramTys.level
+        _ <- r.paramTys.levelBound
         _Δ <- r.paramTys.toWhnfs
-        _ <- r.ty.level
-        ty <- r.ty.toWhnf
-        levelBound <- ty match {
-          case WType(l) =>
-            for l <- l.toWhnf
-            yield l
-          case _ => typingError(e"Cannot reduce ${r.ty} to a Type at some level.")
+        _ <- withCtxExtendedBy(_Δ) {
+          for _ <- r.ty.level
+              ty <- r.ty.toWhnf
+              levelBound <- ty match {
+                case WType(l) =>
+                  for l <- l.toWhnf
+                  yield l
+                case _ => typingError(e"Cannot reduce ${r.ty} to a Type at some level.")
+              }
+              _ = mRecords(qn) = new Record(qn)(_Δ, WType(TWhnf(levelBound)), null)
+              _ <- this += DefinitionT(qn)(
+                _Δ.foldRight(TWhnf(ty))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
+                Seq( UncheckedClause(
+                  _Δ.pvars.map(QPattern(_)).toList,
+                  UTerm(TWhnf(WData(qn, _Δ.vars.toList)))
+                )),
+                null
+              )
+              fields <- r.fields match {
+                case null => Right(null)
+                case fields: Seq[PreField] => fields.reduceFields(r.qn, ty)(using Context.empty + _Δ + ("self" ∷ Whnf.WRecord(qn, _Δ.vars.toList)))
+              }
+              _ = mRecords(qn) = new Record(qn)(_Δ, ty, fields)
+          yield ()
         }
-        _ = mRecords(qn) = new Record(qn)(_Δ, WType(TWhnf(levelBound)), null)
-        _ <- this += DefinitionT(qn)(
-          _Δ.foldRight(TWhnf(ty))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
-          Seq( UncheckedClause(
-            _Δ.pvars.map(QPattern(_)).toList,
-            UTerm(TWhnf(WData(qn, _Δ.vars.toList)))
-          )),
-          null
-        )
-        fields <- r.fields match {
-          case null => Right(null)
-          case fields: Seq[PreField] => fields.reduceFields(r.qn, ty)(using Context.empty + _Δ + ("self" ∷ Whnf.WRecord(qn, _Δ.vars.toList)))
-        }
-        _ = mRecords(qn) = new Record(qn)(_Δ, ty, fields)
       } yield ()
       case d@DefinitionT(qn) => {
         val clauses = ArrayBuffer[Clause]()
@@ -257,14 +263,19 @@ class SignatureBuilder(
     dataTy match {
       case WType(levelBound) => {
         cons.liftMap{
-          con => for l <- con.argTys.level
-                     _ <- (TWhnf(l) <= levelBound) match {
-                      case Right(true) => Right(())
-                      case Right(false) => typingError(e"Arguments to constructor ${con.name} is not within the specified level bound $levelBound of data schema $qn.")
-                      case _ => typingError(e"Cannot determine if arguments to constructor ${con.name} is within the specified level bound $levelBound of data schema $qn.")
+          con => for l <- con.argTys.levelBound
+                     r <- l match {
+                       case Some(l) => for {
+                         _ <- (TWhnf(l) <= levelBound) match {
+                          case Right(true) => Right(())
+                          case Right(false) => typingError(e"Arguments to constructor ${con.name} at level $l is not within the specified level bound $levelBound of data schema $qn.")
+                          case _ => typingError(e"Cannot determine if arguments to constructor ${con.name} at level $l is within the specified level bound $levelBound of data schema $qn.")
+                         }
+                         wArgTys <- con.argTys.toWhnfs
+                       } yield ConstructorT(con.name, wArgTys)
+                       case None => typingError(e"Arguments to constructor ${con.name} is potentially unbound and hence is not within the specified level bound $levelBound of data schema $qn.")
                      }
-                     wArgTys <- con.argTys.toWhnfs
-                 yield ConstructorT(con.name, wArgTys)
+                 yield r
         }
       }
       case _ => throw AssertionError("This case should have been prevented when adding this data schema to the signature.")
@@ -276,8 +287,8 @@ class SignatureBuilder(
           field => for l <- field.ty.level
                      _ <- (TWhnf(l) <= levelBound) match {
                       case Right(true) => Right(())
-                      case Right(false) => typingError(e"Field ${field.name} is not within the specified level bound $levelBound of record schema $qn.")
-                      case _ => typingError(e"Cannot determine if field ${field.name} is within the specified level bound $levelBound of record schema $qn.")
+                      case Right(false) => typingError(e"Field ${field.name} at level $l is not within the specified level bound $levelBound of record schema $qn.")
+                      case _ => typingError(e"Cannot determine if field ${field.name} at level $l is within the specified level bound $levelBound of record schema $qn.")
                      }
                      fieldTy <- field.ty.toWhnf
                  yield FieldT(field.name, fieldTy)

@@ -81,6 +81,12 @@ class TypingSpec extends CoreSpec {
     |  Cons : (m : Nat) -> A -> Vector m A -> Id 0lv Nat (Nat.Suc m) n -> Vector n A
     """
 
+    Σ +=! decl"""
+    |data List (l : Level)(A : Type l) : Type l where
+    |  Nil : List l A
+    |  Cons : A -> List l A -> List l A
+    """
+
     "simple data type" in {
       t"Nat" ∷ t"Type 0lv"
       t"Nat.Zero" ∷ t"Nat"
@@ -90,6 +96,10 @@ class TypingSpec extends CoreSpec {
       t"Vector.Nil Refl" ∷ t"Vector Nat.Zero Level"
       t"Vector.Cons Nat.Zero 1lv (Vector.Nil Refl) Refl" ∷ t"Vector (Nat.Suc Nat.Zero) Level"
       t"Vector.Cons Nat.Zero 1lv (Vector.Nil Refl) Refl" !∷ t"Vector Nat.Zero Level"
+    }
+
+    "polymorphic level" in {
+
     }
   }
 }

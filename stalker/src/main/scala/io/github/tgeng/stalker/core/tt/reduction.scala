@@ -32,7 +32,8 @@ object reduction {
 
   def (w: Whnf) reduceLevel(using Γ: Context)(using Σ: Signature) : Result[Whnf] = w match {
     case WLMax(lsucs) => {
-      var lconst = -1
+      var lconst = 0
+      var minLsuc = Integer.MAX_VALUE
       (for {
         lsucTuples <- lsucs.liftMap { case LSuc(n, t) => t.toWhnf.map((n, _)) }
         newLsucs = lsucTuples.flatMap{
@@ -60,12 +61,16 @@ object reduction {
           case (n, w) => Set(LSuc(n, TWhnf(w)))
         }.groupBy{
           case LSuc (_, w) => w
-        }.view.mapValues(lsucs => lsucs.maxBy{case LSuc(n, _) => n}).values
+        }.values.map{lsucs =>
+          val lsuc = lsucs.maxBy{ case LSuc(n, _) => n }
+          minLsuc = scala.math.min(minLsuc, lsuc.amount)
+          lsuc
+        }
       } yield (lconst, newLsucs.toList)) match {
-        case Right(-1, Nil) => throw IllegalStateException("Encountered empty WLMax.")
+        case Right(0, Nil) => throw IllegalStateException("Encountered empty WLMax.")
         case Right(l, Nil) => Right(WLConst(lconst))
-        case Right(-1, LSuc(0, t) :: Nil) => t.toWhnf
-        case Right(-1, lsucs) => Right(WLMax(lsucs.toSet))
+        case Right(0, LSuc(0, t) :: Nil) => t.toWhnf
+        case Right(l, lsucs) if l <= minLsuc => Right(WLMax(lsucs.toSet))
         case Right(l, lsucs) => Right(WLMax((LSuc(0, TWhnf(WLConst(l))) :: lsucs).toSet))
         case Left(e) => Left(e)
       }
@@ -77,9 +82,9 @@ object reduction {
     for maxL1L2 <- lmax(l1, l2).reduceLevel
         l1 <- l1.toWhnf
         l2 <- l2.toWhnf
-        r <- if (maxL1L2 == l2) {
+        r <- if (maxL1L2 == l2 || l1 == WLConst(0)) {
           Right(true)
-        } else if (maxL1L2 == l1) {
+        } else if (maxL1L2 == l1 || l2 == WLConst(0)) {
           Right(false)
         } else {
           typingError(e"Cannot determine if $l1 <= $l2.")

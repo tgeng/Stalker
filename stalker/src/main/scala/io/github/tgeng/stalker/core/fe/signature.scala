@@ -67,19 +67,20 @@ class FSignatureBuilder extends Signature {
     given LocalIndices = LocalIndices()
     d match {
       case FData(name, paramTys, ty, cons) =>
-        for paramTys <- paramTys.liftMap(_.toTt)
-            ty <- ty.toTt
-            _ = ns.addDeclaration(name)
-            cons <- cons match {
-              case null => Right(null)
-              case cons : Seq[FConstructor] => {
-                ns.addDeclaration(name, cons.map(_.name))
-                summon[LocalIndices].withNames(paramTys.map(_.name)) {
-                  cons.liftMap(_.toTt)
-                }
-              }
+        for paramTys <- paramTys.toTt
+            _ <- summon[LocalIndices].withNames(paramTys.map(_.name)) {
+              for ty <- ty.toTt
+                  _ = ns.addDeclaration(name)
+                  cons <- cons match {
+                    case null => Right(null)
+                    case cons : Seq[FConstructor] => {
+                      ns.addDeclaration(name, cons.map(_.name))
+                      cons.liftMap(_.toTt)
+                    }
+                  }
+                  _ <- sb += PreData(ns.qn / name)(paramTys, ty, cons)
+              yield ()
             }
-            _ <- sb += PreData(ns.qn / name)(paramTys, ty, cons)
         yield ()
       case FDataDef(name, cons) =>
         for data <- sb.getData(ns.qn / name)
@@ -89,18 +90,17 @@ class FSignatureBuilder extends Signature {
             _ <- sb.updateData(ns.qn / name, cons)
         yield ns.addDeclaration(name, cons.map(_.name))
       case FRecord(name, paramTys, ty, fields) =>
-        for paramTys <- paramTys.liftMap(_.toTt)
-            ty <- ty.toTt
-            _ = ns.addDeclaration(name)
-            fields <- fields match {
-              case null => Right(null)
-              case fields : Seq[FField] => {
-                summon[LocalIndices].withNames(paramTys.map(_.name) :+ "self") {
-                  fields.liftMap(_.toTt)
-                }
-              }
+        for paramTys <- paramTys.toTt
+            _ <- summon[LocalIndices].withNames(paramTys.map(_.name) :+ "self") {
+              for ty <- ty.toTt
+                  _ = ns.addDeclaration(name)
+                  fields <- fields match {
+                    case null => Right(null)
+                    case fields : Seq[FField] => fields.liftMap(_.toTt)
+                  }
+                  _ <- sb += PreRecord(ns.qn / name)(paramTys, ty, fields)
+              yield ()
             }
-            _ <- sb += PreRecord(ns.qn / name)(paramTys, ty, fields)
         yield ()
       case FRecordDef(name, fields) =>
         for record <- sb.getRecord(ns.qn / name)
@@ -116,10 +116,6 @@ class FSignatureBuilder extends Signature {
             _ <- sb += d
         yield ns.importNs(d)
     }
-  }
-
-  def +=! (d: FDeclaration)(using ns: MutableNamespace) = {
-    assertResult(this += d)
   }
 
   private given FT[FConstructor, PreConstructor] {

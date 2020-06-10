@@ -33,6 +33,10 @@ class ReductionSpec extends CoreSpec {
       t"lmax (lsuc m) m" ~> ft"lsuc m"
       t"lmax (lmax (lsuc m) n) m" ~> ft"lmax (lsuc m) n"
       t"lmax (lmax (lsuc (lsuc m)) (lmax n (lsuc n))) m" ~> ft"lmax (lsuc (lsuc m)) (lsuc n)"
+      t"lmax 0lv m" ~> ft"m"
+      t"lsuc (lmax 0lv m)" ~> ft"lsuc m"
+      t"lmax 1lv (lsuc m)" ~> ft"lsuc m"
+      t"lmax 2lv (lsuc m)" ~> ft"lmax (lsuc m) 2lv"
     }
   }
 
@@ -57,6 +61,7 @@ class ReductionSpec extends CoreSpec {
       t"lmax (lsuc m) n" <= t"lmax n (lsuc m)"
       t"lmax m n" <= t"lmax n (lsuc m)"
       t"lmax m 0lv" <= t"lmax m 1lv"
+      t"0lv" <= t"m" // 0lv is the smallest
     }
   }
 }

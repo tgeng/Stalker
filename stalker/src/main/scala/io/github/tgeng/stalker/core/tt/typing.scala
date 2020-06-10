@@ -82,22 +82,40 @@ object typing {
     case _ => typingError(e"$tm is not a type.")
   } flatMap { _.reduceLevel }
 
-  def (Δ: List[Binding[Term]])level(using Γ: Context)(using Σ: Signature) : Result[Whnf] = Δ match {
+  def (Δ: List[Binding[Term]])levelBound(using Γ: Context)(using Σ: Signature) : Result[Option[Whnf]] = promoteLevelBound(Δ.levelBoundImpl)
+
+  private def (Δ: List[Binding[Term]])levelBoundImpl(using Γ: Context)(using Σ: Signature) : Result[Whnf] = Δ match {
     case Nil => Right(lconst(0))
     case _A :: _Δ => for {
       lA <- _A.ty.level
       wA <- _A.ty.toWhnf
-      lΔ <- _Δ.level(using Γ + _A.name ∷ wA)
-    } yield lmax(TWhnf(lA), TWhnf(lΔ))
+      lΔ <- _Δ.levelBoundImpl(using Γ + _A.name ∷ wA)
+    } yield lmax(TWhnf(lA.raise(_Δ.size)), TWhnf(lΔ))
   } flatMap { _.reduceLevel }
 
-  def (Δ: Telescope)teleLevel(using Γ: Context)(using Σ: Signature) : Result[Whnf] = Δ match {
+  def (Δ: Telescope)teleLevelBound(using Γ: Context)(using Σ: Signature) : Result[Option[Whnf]] = promoteLevelBound(Δ.teleLevelBoundImpl)
+
+  def (Δ: Telescope)teleLevelBoundImpl(using Γ: Context)(using Σ: Signature) : Result[Whnf] = Δ match {
     case Nil => Right(lconst(0))
     case _A :: _Δ => for {
       lA <- _A.ty.level
-      lΔ <- _Δ.teleLevel(using Γ + _A)
-    } yield lmax(TWhnf(lA), TWhnf(lΔ))
+      lΔ <- _Δ.teleLevelBoundImpl(using Γ + _A)
+    } yield lmax(TWhnf(lA.raise(_Δ.size)), TWhnf(lΔ))
   } flatMap { _.reduceLevel }
+
+  private def promoteLevelBound(l : Result[Whnf])(using Γ: Context) : Result[Option[Whnf]] = {
+    for lb <- l
+        r <- {
+          val freeVars = lb.freeVars
+          if ((0 until Γ.size - 1).exists(freeVars.contains(_))) {
+            Right(None)
+          } else {
+            Right(Some(lb.raise(-Γ.size + 1)))
+          }
+        }
+    yield r
+  }
+
 
   def (eq: ≡[Type])eqLevel(using Γ: Context)(using Σ: Signature) : Result[Whnf] = eq match {
     case _A ≡ _B if _A == _B => _A.level
@@ -349,7 +367,7 @@ object typing {
   extension checkTermsEq on (j: ≡[List[Term]] ∷ Telescope) {
     def check(using Γ: Context)(using Σ: Signature) : Result[Unit] = {
       j match {
-        case _ ≡ _ ∷ _Δ => _Δ.teleLevel match {
+        case _ ≡ _ ∷ _Δ => _Δ.teleLevelBound match {
           case Right(_) => ()
           case Left(e) => return Left(e)
         }
