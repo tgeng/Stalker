@@ -16,7 +16,14 @@ object parser {
   private val bodyInvalidChars = " \\r\\n\\t()\\[\\]{}."
   private val bodyPattern = s"[^${bodyInvalidChars}]"
   private val headPattern = s"""[^`'"0-9${bodyInvalidChars}]"""
-  private val level = P { "[0-9]+".rp.map(s => FTLevel(Integer.parseInt(s))) << "lv" }
+  private val num : Parser[FTerm] = P { 
+    for i <- "[0-9]+".rp.map(s => Integer.parseInt(s))
+        levelSuffix <- "lv".?
+    yield levelSuffix match {
+      case Some(_) => FTLevel(i)
+      case None => FTNat(i)
+    }
+  }
 
   private def name(using opt: ParsingOptions) = P { 
     {
@@ -46,7 +53,7 @@ object parser {
   }
 
   private def atom(using opt: ParsingOptions)(using IndentRequirement) : Parser[FTerm] = P {
-    '(' >>! whitespaces >> termImpl(using opt.copy(appDelimiter = whitespaces)) << whitespaces << ')' | con | ref | level
+    '(' >>! whitespaces >> termImpl(using opt.copy(appDelimiter = whitespaces)) << whitespaces << ')' | con | ref | num
   }
 
   private def proj(using opt: ParsingOptions) = '.' >>! name
@@ -65,6 +72,7 @@ object parser {
           case (FTFunction(_, _), _) => fail("Cannot apply to function type.")
           case (FTLevel(_), _) => fail("Cannot apply to a level.")
           case (FTCon(_, _), _) => fail("Cannot apply to a constructed value.")
+          case (FTNat(_), _) => fail("Cannot apply to a Nat.")
         }
       }
     }

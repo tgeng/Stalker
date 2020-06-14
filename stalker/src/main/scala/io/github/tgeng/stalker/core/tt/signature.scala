@@ -67,6 +67,7 @@ trait Signature {
   def getData(qn: QualifiedName) : Result[Data]
   def getRecord(qn: QualifiedName) : Result[Record]
   def getDefinition(qn: QualifiedName) : Result[Definition]
+  def allDeclarations : Seq[Declaration]
 }
 
 trait MapBasedSignature (
@@ -89,6 +90,8 @@ trait MapBasedSignature (
     case Some(d) => Right(d)
     case _ => typingError(e"No definition found for $qn")
   }
+
+  def allDeclarations = data.values.asInstanceOf[Seq[Declaration]] ++ records.values ++ definitions.values
 }
 
 extension dataTypingOps on (self: Data) {
@@ -152,6 +155,39 @@ class SignatureBuilder(
   given Signature = this
   given Context = Context.empty
 
+  def importDecl (d: Declaration) : Result[Unit] = d match {
+    case d : Data => getData(d.qn) match {
+      case Right(existingD) => {
+        if (existingD.paramTys != d.paramTys || existingD.ty != d.ty || existingD.cons != d.cons) {
+          duplicatedDefinitionError(e"Data schema ${d.qn} is already defined.")
+        } else {
+          Right(())
+        }
+      }
+      case _ => Right(mData(d.qn) = d)
+    }
+    case r : Record => getRecord(r.qn) match {
+      case Right(existingR) => {
+        if (existingR.paramTys != r.paramTys || existingR.ty != r.ty || existingR.fields != r.fields) {
+          duplicatedDefinitionError(e"Record schema ${r.qn} is already defined.")
+        } else {
+          Right(())
+        }
+      }
+      case _ => Right(mRecords(r.qn) = r)
+    }
+    case d : Definition => getDefinition(d.qn) match {
+      case Right(existingD) => {
+        if (existingD.ty != d.ty || existingD.clauses != d.clauses || existingD.ct != d.ct) {
+          duplicatedDefinitionError(e"Definition ${d.qn} is already defined.")
+        } else {
+          Right(())
+        }
+      }
+      case _ => Right(mDefinitions(d.qn) = d)
+    }
+  }
+
   def += (d: PreDeclaration) : Result[Unit] = {
     import Term._
     import Whnf._
@@ -173,7 +209,7 @@ class SignatureBuilder(
                 case _ => typingErrorWithCtx(e"Cannot reduce ${d.ty} to a Type at some level.")
               }
               _ = mData(qn) = new Data(qn)(_Δ, WType(TWhnf(levelBound)), null)
-              _ <- this += DefinitionT(qn)(
+              _ <- this += PreDefinition(qn)(
                 _Δ.foldRight(TWhnf(ty))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
                 Seq(UncheckedClause(
                   _Δ.pvars.map(QPattern(_)).toList,
@@ -202,7 +238,7 @@ class SignatureBuilder(
                 case _ => typingErrorWithCtx(e"Cannot reduce ${r.ty} to a Type at some level.")
               }
               _ = mRecords(qn) = new Record(qn)(_Δ, WType(TWhnf(levelBound)), null)
-              _ <- this += DefinitionT(qn)(
+              _ <- this += PreDefinition(qn)(
                 _Δ.foldRight(TWhnf(ty))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
                 Seq( UncheckedClause(
                   _Δ.pvars.map(QPattern(_)).toList,

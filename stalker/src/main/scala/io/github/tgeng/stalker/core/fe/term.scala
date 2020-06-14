@@ -15,12 +15,14 @@ enum FTerm {
   case FTCon(name: String, args: List[FTerm])
   case FTLevel(level: Int)
   case FTRedux(head: String, names: List[String], elims: List[FElimination])
+  case FTNat(n: Int)
 
   override def toString = this match {
     case FTFunction(arg, bodyTy) => s"FTFunction($arg, $bodyTy)"
     case FTCon(name, args) => s"""FTCon("$name", $args)"""
     case FTLevel(level) => s"""FTLevel($level)"""
     case FTRedux(head, names, elims) => s"""FTRedux("$head", ${names.map(name => s""""$name"""")}, $elims)"""
+    case FTNat(n) => s"FTNat($n)"
   }
 }
 

@@ -50,6 +50,7 @@ class ElaborationSpec extends CoreSpec {
 
     "plus" in {
       t"plus _1 _1" ≡ t"_2" ∷ t"Nat"
+      t"plus _1 _2" ≡ t"_3" ∷ t"Nat"
       t"plus _2 _2" ≡ t"_4" ∷ t"Nat"
     }
 }

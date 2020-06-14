@@ -1,5 +1,6 @@
 package io.github.tgeng.stalker.core.fe
 
+import scala.language.implicitConversions
 import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.core.common.Namespace
 import io.github.tgeng.common.extraSeqOps
@@ -29,6 +30,7 @@ object ftConversion {
       case FTCon(name, args) => for args <- args.liftMap(_.toTt)
                                 yield TWhnf(WCon(name, args))
       case FTLevel(level) => Right(TWhnf(WLConst(level)))
+      case FTNat(n) => Right((0 until n).foldLeft(TRedux("stalker.data.Nat.Zero", Nil))((acc, _) => TRedux("stalker.data.Nat.Suc", List(ETerm(acc)))))
       case FTRedux(head, names, elims) => ctx.get(head) match {
         case Right(idx) => for elims <- elims.liftMap(_.toTt)
                            yield TWhnf(WVar(idx, names.map(EProj(_)) ++ elims))
@@ -126,6 +128,49 @@ object ftConversion {
     def (q: FCoPattern) toTt (using ctx:LocalIndices)(using ns: Namespace) : Result[CoPattern] = q match {
       case FQPattern(p) => for p <- p.toTt yield QPattern(p)
       case FQProj(p) => Right(QProj(p))
+    }
+  }
+
+  import FDeclaration._
+  import FUncheckedRhs._
+  import UncheckedRhs._
+
+  given FT[FConstructor, PreConstructor] {
+    def (c: FConstructor) toTt (using ctx: LocalIndices)(using ns: Namespace) : Result[PreConstructor] = c match {
+      case FConstructor(name, argTys) =>
+        for argTys <- argTys.toTt
+        yield PreConstructor(name, argTys)
+    }
+  }
+
+  given FT[FField, PreField] {
+    def (c: FField) toTt (using ctx: LocalIndices)(using ns: Namespace) : Result[PreField] = c match {
+      case FField(name, ty) =>
+        for ty <- ty.toTt
+        yield PreField(name, ty)
+    }
+  }
+
+  given FT[FUncheckedRhs, UncheckedRhs] {
+    def (c: FUncheckedRhs) toTt (using ctx: LocalIndices)(using ns: Namespace) : Result[UncheckedRhs] = c match {
+      case FUTerm(t) => for t <- t.toTt yield UTerm(t)
+      case FUImpossible => Right(UImpossible)
+    }
+  }
+
+  given FT[FUncheckedClause, PreClause] {
+    def (c: FUncheckedClause) toTt (using ctx: LocalIndices)(using ns: Namespace) : Result[PreClause] = {
+      assert(ctx.size == 0)
+      c match {
+        case FUncheckedClause(lhs, rhs) => {
+          val ctx = LocalIndices()
+          ctx.addAllFromCoPatterns(lhs)
+          given LocalIndices = ctx
+          for lhs <- lhs.liftMap(_.toTt)
+              rhs <- rhs.toTt
+          yield ClauseT.UncheckedClause(lhs, rhs)
+        }
+      }
     }
   }
 }

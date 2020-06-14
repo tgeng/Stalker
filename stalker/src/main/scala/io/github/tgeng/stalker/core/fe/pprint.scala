@@ -46,6 +46,7 @@ object pprint {
       case _ : FTFunction => PriorityContext.fn
       case _ : FTCon => PriorityContext.ten
       case _ : FTLevel => PriorityContext.ten
+      case _ : FTNat => PriorityContext.ten
       case FTRedux(_, Nil, Nil) => PriorityContext.ten
       case FTRedux(_, _, _) => PriorityContext.app
     }
@@ -60,6 +61,7 @@ object pprint {
         "}"
       )
       case FTLevel(l) => Block(wrapPolicy = NoWrap)(l.toString, "lv")
+      case FTNat(l) => Block(wrapPolicy = NoWrap)(l.toString)
       case FTRedux(head, names, elims) => Block(wrapPolicy = NoWrap, delimitPolicy = Whitespace)(head) ++ names ++ elims.map(_.block(using t.pctx))
       case t => unnestFn(t) match {
         case (bindings, bodyTy) => Block(wrapPolicy = ChopDown, indentPolicy = Aligned, delimitPolicy = Whitespace)(
