@@ -55,11 +55,11 @@ object matchers extends Helpers {
       case Right(_) => MatchResult(
         true,
         "",
-        pp"$e held under type $t."
+        pp"$e held under type $_A."
       )
       case Left(err) => MatchResult(
         false,
-        pp"$e did not hold under type $t because $err",
+        pp"$e did not hold under type $_A because $err",
         ""
       )
     }

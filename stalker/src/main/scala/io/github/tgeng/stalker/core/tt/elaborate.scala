@@ -76,7 +76,7 @@ extension elaboration on (p: Problem) {
           case WData(qn, v̅) => for {
             data <- Σ getData qn
             (_Γ1 : Context /* required due to dotc bug */, _A1, _Γ2) = Γ.splitAt(x)
-            _ = assert(_A1 == _A.raise(-(_Γ2.size + 1)))
+            _ = assert(_A1.ty == _A.raise(-(_Γ2.size + 1)))
             cons <- data.getCons
             r <- withCtx(_Γ1) {
               cons.liftMap { con =>

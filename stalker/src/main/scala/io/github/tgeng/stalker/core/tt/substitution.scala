@@ -95,7 +95,7 @@ extension patternSubstitutionOps on (s: Substitution[Pattern]) {
   def \ = s.delete(i => Pattern.PVar(i)("_" + i.sub))
   def ⊎(other: Substitution[Pattern]) = s.unionSum(i => Pattern.PVar(i)("_" + i.sub))(other)
   def ⊎(p: Pattern) : Substitution[Pattern] = s ⊎ Substitution(s.sourceContextSize, 1, IndexedSeq(p))
-  def ⊎(ps: Seq[Pattern]) : Substitution[Pattern] = s ⊎ Substitution(s.sourceContextSize, 1, ps.toIndexedSeq.reverse)
+  def ⊎(ps: Seq[Pattern]) : Substitution[Pattern] = s ⊎ Substitution(s.sourceContextSize, ps.size, ps.toIndexedSeq.reverse)
   def extendBy(Δ: Telescope) = s.extendBy(i => Pattern.PVar(i)("_" + i.sub))(Δ)
   def ∘(other: Substitution[Pattern]) : Substitution[Pattern] = s.comp(i => Pattern.PVar(i)("_" + i.sub))(other)
 }
@@ -105,7 +105,7 @@ extension termSubstitutionOps on (s: Substitution[Term]) {
   def \ = s.delete(i => Term.TWhnf(Whnf.WVar(i, Nil)))
   def ⊎(other: Substitution[Term]) = s.unionSum(i => Term.TWhnf(Whnf.WVar(i, Nil)))(other)
   def ⊎(t: Term) : Substitution[Term] = s ⊎ Substitution(s.sourceContextSize, 1, IndexedSeq(t))
-  def ⊎(ts: Seq[Term]) : Substitution[Term] = s ⊎ Substitution(s.sourceContextSize, 1, ts.toIndexedSeq.reverse)
+  def ⊎(ts: Seq[Term]) : Substitution[Term] = s ⊎ Substitution(s.sourceContextSize, ts.size, ts.toIndexedSeq.reverse)
   def extendBy(Δ: Telescope) = s.extendBy(i => Term.TWhnf(Whnf.WVar(i, Nil)))(Δ)
   def ∘(other: Substitution[Term]) : Substitution[Term] = s.comp(i => Term.TWhnf(Whnf.WVar(i, Nil)))(other)
 }

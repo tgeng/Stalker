@@ -138,10 +138,14 @@ object parser {
     pAtom.map(FQPattern(_)) | qProj
   }
 
+  private def coPatternsImpl(using opt: ParsingOptions)(using IndentRequirement) : Parser[List[FCoPattern]] = P {
+    qAtom sepBy spaces map (_.toList)
+  }
+
   def coPatterns : Parser[List[FCoPattern]] = P {
     given ParsingOptions = ParsingOptions()
     given IndentRequirement = IndentRequirement(0)
-    qAtom sepBy spaces map (_.toList)
+    coPatternsImpl
   }
 
   import FDeclaration._
@@ -164,7 +168,7 @@ object parser {
   }
 
   private def data(using opt: ParsingOptions)(using IndentRequirement) : Parser[FDeclaration] = P { 
-    for n <- "data" >>! spaces >> name << spaces
+    for n <- "data " >>! spaces >> name << spaces
         st <- schemaType.?
         cons <- (spaces >> whereSomething(constructor)).?
         r <- (st, cons) match {
@@ -183,7 +187,7 @@ object parser {
   }
 
   private def record(using opt: ParsingOptions)(using IndentRequirement) : Parser[FDeclaration] = P { 
-    for n <- "record" >>! spaces >> name << spaces
+    for n <- "record " >>! spaces >> name << spaces
         st <- schemaType.?
         fields <- (spaces >> whereSomething(field)).?
         r <- (st, fields) match {
@@ -200,10 +204,28 @@ object parser {
     yield s
   }
 
+  import FUncheckedRhs._
+
+  private def clause(using opt: ParsingOptions)(using IndentRequirement) : Parser[FUncheckedClause] = P {
+    for lhs <- coPatternsImpl
+        rhs <- (spaces >> "=" >>! spaces >> termImpl).?
+    yield rhs match {
+      case Some(rhs) => FUncheckedClause(lhs, FUTerm(rhs))
+      case None => FUncheckedClause(lhs, FUImpossible)
+    }
+  }
+
+  private def definition(using opt: ParsingOptions)(using IndentRequirement) : Parser[FDeclaration] = P {
+    for n <- "def " >>! spaces >> name << spaces << ":" <<! spaces
+        ty <- termImpl
+        clauses <- (spaces >> someLines >> spaces >> clause).*
+    yield FDefinition(n, ty, clauses)
+  }
+
   def declaration : Parser[FDeclaration] = P { 
     given ParsingOptions = ParsingOptions()
     alignedWithIndent(1) {
-      data | record
+      data | record | definition
     }
   }
 }

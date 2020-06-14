@@ -67,6 +67,8 @@ class ParserSpec extends UnitSpec {
   import FCoPattern._
   import FElimination._
   import FTerm._
+  import FDeclaration._
+  import FUncheckedRhs._
 
   "Parsing Pattern" in {
     assert(q"a b c" == List(FQPattern(FPVarCon("a")), FQPattern(FPVarCon("b")), FQPattern(FPVarCon("c"))))
@@ -100,8 +102,6 @@ class ParserSpec extends UnitSpec {
     assert(q"x ..a{b c} y" == List(FQPattern(FPVarCon("x")), FQPattern(FPCon("a", List(FPVarCon("b"), FPVarCon("c")), true)), FQPattern(FPVarCon("y"))))
     assert(q"a{b{} c}" == List(FQPattern(FPCon("a", List(FPCon("b", List(), false), FPVarCon("c")), false))))
   }
-
-  import FDeclaration._
 
   "data declaration" in {
     assert(
@@ -216,6 +216,49 @@ class ParserSpec extends UnitSpec {
                 "", 
                 FTRedux("Id", List(), List(FETerm(FTLevel(0)), FETerm(FTRedux("Boolean", List(), List())), FETerm(FTRedux("self", List(), List(FEProj("izZero")))), FETerm(FTRedux("true", List(), List()))))),
               FTRedux("CoNat", List(), List())))))
+    )
+
+    assert(
+      decl"""
+      |def one : Nat
+      |  = Nat.Suc Nat.Zero
+      """ == FDefinition(
+        "one", 
+        FTRedux("Nat", List(), List()), 
+        Vector(
+          FUncheckedClause(
+            List(),
+            FUTerm(FTRedux("Nat", List("Suc"), List(FETerm(FTRedux("Nat", List("Zero"), List()))))))))
+    )
+
+    assert(
+      decl"""
+      |def suc : Nat -> Nat
+      |  n = Nat.Suc n
+      """ == FDefinition(
+        "suc", 
+        FTFunction(FBinding("", FTRedux("Nat", List(), List())), FTRedux("Nat", List(), List())),
+        Vector(
+          FUncheckedClause(
+            List(FQPattern(FPVarCon("n"))),
+            FUTerm(FTRedux("Nat", List("Suc"), List(FETerm(FTRedux("n", List(), List()))))))))
+    )
+
+    assert(
+      decl"""
+      |def plus : Nat -> Nat -> Nat
+      |  m Nat.Zero = m
+      |  m (Nat.Suc n) = Nat.Suc (plus m n)
+      """ == FDefinition(
+        "plus", 
+        FTFunction(FBinding("", FTRedux("Nat", List(), List())), FTFunction(FBinding("", FTRedux("Nat", List(), List())), FTRedux("Nat", List(), List()))),
+        Vector(
+          FUncheckedClause(
+            List(FQPattern(FPVarCon("m")), FQPattern(FPCon(List("Nat", "Zero"), List(), false))),
+            FUTerm(FTRedux("m", List(), List()))),
+          FUncheckedClause(
+            List(FQPattern(FPVarCon("m")), FQPattern(FPCon(List("Nat", "Suc"), List(FPVarCon("n")), false))),
+            FUTerm(FTRedux("Nat", List("Suc"), List(FETerm(FTRedux("plus", List(), List(FETerm(FTRedux("m", List(), List())), FETerm(FTRedux("n", List(), List())))))))))))
     )
   }
 }

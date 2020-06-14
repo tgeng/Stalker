@@ -103,5 +103,41 @@ class TypingSpec extends CoreSpec {
       t"List 1lv (Type 0lv)" ∷ t"Type 1lv"
       t"List.Nil" ∷ t"List 0lv Nat"
     }
+
+    Σ +=! decl"""
+    |data Leq (a : Nat)(b : Nat) : Type 0lv where
+    |  Zero : Id 0lv Nat a Nat.Zero -> Leq a b
+    |  Suc : (c : Nat) -> (d : Nat) -> Leq c d -> Id 0lv Nat a (Nat.Suc c) -> Id 0lv Nat b (Nat.Suc d) -> Leq a b
+    """
+
+    "propositions" in {
+      t"Leq.Zero Refl" ∷ t"Leq Nat.Zero Nat.Zero"
+      t"Leq.Zero Refl" ∷ t"Leq Nat.Zero (Nat.Suc Nat.Zero)"
+      t"Leq.Suc Nat.Zero (Nat.Suc Nat.Zero) (Leq.Zero Refl) Refl Refl" ∷ t"Leq (Nat.Suc Nat.Zero) (Nat.Suc (Nat.Suc Nat.Zero))"
+    }
+  }
+
+  "with function" - {
+    Σ +=! decl"""
+    | def one : Nat
+    |   = Nat.Suc Nat.Zero
+    """
+
+    Σ +=! decl"""
+    |def suc : Nat -> Nat
+    |  n = Nat.Suc n
+    """
+
+    Σ +=! decl"""
+    |def plus : Nat -> Nat -> Nat
+    |  m Nat.Zero = m
+    |  m (Nat.Suc n) = Nat.Suc (plus m n)
+    """
+
+    "simple typing" in {
+      t"one" ∷ t"Nat"
+      t"suc one" ∷ t"Nat"
+      t"plus one one" ∷ t"Nat"
+    }
   }
 }

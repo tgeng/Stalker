@@ -111,10 +111,11 @@ class FSignatureBuilder extends Signature {
         yield ()
       case FDefinition(name, ty, clauses) =>
         for ty <- ty.toTt
+            _ = ns.addDeclaration(name)
             clauses <- clauses.liftMap(_.toTt)
             d = PreDefinition(ns.qn / name)(ty, clauses, null)
             _ <- sb += d
-        yield ns.importNs(d)
+        yield ()
     }
   }
 
