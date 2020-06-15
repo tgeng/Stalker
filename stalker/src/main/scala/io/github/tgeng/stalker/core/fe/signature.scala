@@ -57,7 +57,7 @@ object FSignatureBuilder {
 
 class FSignatureBuilder extends Signature {
   import ftConversion.{given _, _}
-  private val sb = SignatureBuilder.create
+  private val sb = SignatureBuilder.create(builtins.signature)
 
   export sb.getData
   export sb.getRecord

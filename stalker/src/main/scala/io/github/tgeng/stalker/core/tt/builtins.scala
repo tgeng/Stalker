@@ -1,7 +1,9 @@
 package io.github.tgeng.stalker.core.tt
 
-import io.github.tgeng.stalker.common.QualifiedName._
+import io.github.tgeng.stalker.common.QualifiedName
+import io.github.tgeng.stalker.core.common.Error._
 
+import QualifiedName._
 import DeclarationT._
 import Term._
 import Whnf._
@@ -58,4 +60,14 @@ object builtins {
     )),
     null
   )
+
+  val signature = {
+    val sb = SignatureBuilder.create(EmptySignature)
+    assertResult(sb += levelType)
+    assertResult(sb += typeType)
+    assertResult(sb += lsucFn)
+    assertResult(sb += lmaxFn)
+    assertResult(sb += idType)
+    sb
+  }
 }

@@ -70,28 +70,36 @@ trait Signature {
   def allDeclarations : Seq[Declaration]
 }
 
+object EmptySignature extends Signature {
+  def getData(qn: QualifiedName) : Result[Data] = typingError(e"No data schema found for $qn")
+  def getRecord(qn: QualifiedName) : Result[Record] = typingError(e"No record schema found for $qn")
+  def getDefinition(qn: QualifiedName) : Result[Definition] = typingError(e"No definition found for $qn")
+  def allDeclarations = Seq.empty
+}
+
 trait MapBasedSignature (
   val data: Map[QualifiedName, Data],
   val records: Map[QualifiedName, Record],
-  val definitions: Map[QualifiedName, Definition]
+  val definitions: Map[QualifiedName, Definition],
+  val fallback: Signature
   ) extends Signature {
 
   def getData(qn: QualifiedName) : Result[Data] = data get qn match {
     case Some(d) => Right(d)
-    case _ => typingError(e"No data schema found for $qn")
+    case _ => fallback.getData(qn)
   }
 
   def getRecord(qn: QualifiedName) : Result[Record] = records get qn match {
     case Some(r) => Right(r)
-    case _ => typingError(e"No record schema found for $qn")
+    case _ => fallback.getRecord(qn)
   }
 
   def getDefinition(qn: QualifiedName) : Result[Definition] = definitions get qn match {
     case Some(d) => Right(d)
-    case _ => typingError(e"No definition found for $qn")
+    case _ => fallback.getDefinition(qn)
   }
 
-  def allDeclarations = data.values.asInstanceOf[Seq[Declaration]] ++ records.values ++ definitions.values
+  def allDeclarations = data.values.asInstanceOf[Seq[Declaration]] ++ records.values ++ definitions.values ++ fallback.allDeclarations
 }
 
 extension dataTypingOps on (self: Data) {
@@ -133,25 +141,15 @@ type PreField = FieldT[Term]
 type PreClause = ClauseT[Unchecked, Term]
 
 object SignatureBuilder {
-  def create : SignatureBuilder = {
-    val sb = SignatureBuilder(HashMap.empty, HashMap.empty, HashMap.empty)
-    import builtins._
-    import scala.language.postfixOps
-
-    assertResult(sb += levelType)
-    assertResult(sb += typeType)
-    assertResult(sb += lsucFn)
-    assertResult(sb += lmaxFn)
-    assertResult(sb += idType)
-    sb
-  }
+  def create(fallback: Signature) : SignatureBuilder = SignatureBuilder(HashMap.empty, HashMap.empty, HashMap.empty, fallback)
 }
 
 class SignatureBuilder(
   val mData: mutable.Map[QualifiedName, Data],
   val mRecords: mutable.Map[QualifiedName, Record],
   val mDefinitions: mutable.Map[QualifiedName, Definition],
-) extends MapBasedSignature(mData, mRecords, mDefinitions) {
+  fallback: Signature
+) extends MapBasedSignature(mData, mRecords, mDefinitions, fallback) {
   given Signature = this
   given Context = Context.empty
 

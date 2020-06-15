@@ -19,5 +19,7 @@ object Main {
 
   def main(args: Array[String]): Unit = {
     val termP = whitespaces >> parser.term << whitespaces
+
+    
   }
 }
