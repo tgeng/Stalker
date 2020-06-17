@@ -62,7 +62,7 @@ class FSignatureBuilder extends Signature {
   export sb.getData
   export sb.getRecord
   export sb.getDefinition
-  export sb.allDeclarations
+  export sb.declarations
 
   def += (d: FDeclaration)(using ns: MutableNamespace) : Result[Unit] = {
     given LocalIndices = LocalIndices()

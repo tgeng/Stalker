@@ -53,3 +53,7 @@ extension extraSetOps on [L, R1, R2, CC[_], C <: SetOps[R1, CC, C]] (self: C) {
     self.foldLeft[Option[CC[R2]]](Some(self.empty.asInstanceOf[CC[R2]]))((acc, e) => acc.flatMap(acc => f(e)
     .map(e => (acc.asInstanceOf[SetOps[R2, CC, Nothing]] union Set(e)).asInstanceOf[CC[R2]])))
 }
+
+extension nullOps on [T](t: T | Null) {
+  def !! = t.asInstanceOf[T]
+}

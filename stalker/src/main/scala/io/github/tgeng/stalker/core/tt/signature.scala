@@ -67,14 +67,14 @@ trait Signature {
   def getData(qn: QualifiedName) : Result[Data]
   def getRecord(qn: QualifiedName) : Result[Record]
   def getDefinition(qn: QualifiedName) : Result[Definition]
-  def allDeclarations : Seq[Declaration]
+  def declarations : Seq[Declaration]
 }
 
 object EmptySignature extends Signature {
   def getData(qn: QualifiedName) : Result[Data] = typingError(e"No data schema found for $qn")
   def getRecord(qn: QualifiedName) : Result[Record] = typingError(e"No record schema found for $qn")
   def getDefinition(qn: QualifiedName) : Result[Definition] = typingError(e"No definition found for $qn")
-  def allDeclarations = Seq.empty
+  def declarations = Seq.empty
 }
 
 trait MapBasedSignature (
@@ -99,7 +99,7 @@ trait MapBasedSignature (
     case _ => fallback.getDefinition(qn)
   }
 
-  def allDeclarations = data.values.asInstanceOf[Seq[Declaration]] ++ records.values ++ definitions.values ++ fallback.allDeclarations
+  def declarations = data.values.asInstanceOf[Seq[Declaration]] ++ records.values ++ definitions.values
 }
 
 extension dataTypingOps on (self: Data) {
