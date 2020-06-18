@@ -67,14 +67,12 @@ trait Signature {
   def getData(qn: QualifiedName) : Result[Data]
   def getRecord(qn: QualifiedName) : Result[Record]
   def getDefinition(qn: QualifiedName) : Result[Definition]
-  def declarations : Seq[Declaration]
 }
 
 object EmptySignature extends Signature {
   def getData(qn: QualifiedName) : Result[Data] = typingError(e"No data schema found for $qn")
   def getRecord(qn: QualifiedName) : Result[Record] = typingError(e"No record schema found for $qn")
   def getDefinition(qn: QualifiedName) : Result[Definition] = typingError(e"No definition found for $qn")
-  def declarations = Seq.empty
 }
 
 trait MapBasedSignature (
@@ -84,22 +82,20 @@ trait MapBasedSignature (
   val fallback: Signature
   ) extends Signature {
 
-  def getData(qn: QualifiedName) : Result[Data] = data get qn match {
+  override def getData(qn: QualifiedName) : Result[Data] = data get qn match {
     case Some(d) => Right(d)
     case _ => fallback.getData(qn)
   }
 
-  def getRecord(qn: QualifiedName) : Result[Record] = records get qn match {
+  override def getRecord(qn: QualifiedName) : Result[Record] = records get qn match {
     case Some(r) => Right(r)
     case _ => fallback.getRecord(qn)
   }
 
-  def getDefinition(qn: QualifiedName) : Result[Definition] = definitions get qn match {
+  override def getDefinition(qn: QualifiedName) : Result[Definition] = definitions get qn match {
     case Some(d) => Right(d)
     case _ => fallback.getDefinition(qn)
   }
-
-  def declarations = data.values.asInstanceOf[Seq[Declaration]] ++ records.values ++ definitions.values
 }
 
 extension dataTypingOps on (self: Data) {
@@ -152,6 +148,8 @@ class SignatureBuilder(
 ) extends MapBasedSignature(mData, mRecords, mDefinitions, fallback) {
   given Signature = this
   given Context = Context.empty
+
+  def declarations = data.values.asInstanceOf[Seq[Declaration]] ++ records.values ++ definitions.values
 
   def importDecl (d: Declaration) : Result[Unit] = d match {
     case d : Data => getData(d.qn) match {
