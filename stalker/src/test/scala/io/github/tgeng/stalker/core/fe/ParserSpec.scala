@@ -121,25 +121,6 @@ class ParserSpec extends UnitSpec {
 
     assert(
       decl"""
-      |data Nat : Type 0lv
-      """ == FData("Nat", List(), FTRedux("Type", List(), List(FETerm(FTLevel(0)))), null)
-    )
-
-    assert(
-      decl"""
-      |data Nat where
-      |  Zero : Nat
-      |  Suc : Nat -> Nat
-      """ ==
-        FDataDef(
-          "Nat",
-          Vector(
-            FConstructor("Zero", List()),
-            FConstructor("Suc", List(FBinding("", FTRedux("Nat", List(), List()))))))
-    )
-
-    assert(
-      decl"""
       |data Vector (n : Nat)(A : Type 0lv) : Type 0lv where
       |  Nil : Id 0lv Nat n Zero -> Vector n A
       |  Cons : (m : Nat) -> A -> Vector m A -> Id 0lv Nat (Suc m) n -> Vector n A
@@ -180,33 +161,13 @@ class ParserSpec extends UnitSpec {
 
     assert(
       decl"""
-      |record NatStream : Type 0lv
-      """ == FRecord(
-        "NatStream",
-        List(),
-        FTRedux("Type", List(), List(FETerm(FTLevel(0)))),
-        null)
-    )
-
-    assert(
-      decl"""
-      |record NatStream where
-      |  head : Nat
-      |  tail : NatStream
-      """ == FRecordDef(
-        "NatStream",
-        Vector(
-          FField("head", FTRedux("Nat", List(), List())),
-          FField("tail", FTRedux("NatStream", List(), List()))))
-    )
-
-    assert(
-      decl"""
-      |record CoNat where
+      |record CoNat : Type 0lv where
       |  izZero : Boolean
       |  tail : Id 0lv Boolean (self .izZero) true -> CoNat
-      """ == FRecordDef(
+      """ == FRecord(
         "CoNat",
+        List(),
+        FTRedux("Type", List(), List(FETerm(FTLevel(0)))),
         Vector(
           FField("izZero", FTRedux("Boolean", List(), List())),
           FField(

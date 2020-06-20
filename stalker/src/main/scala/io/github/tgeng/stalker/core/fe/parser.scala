@@ -177,14 +177,9 @@ object parser {
 
   private def data(using opt: ParsingOptions)(using IndentRequirement) : Parser[FDeclaration] = P { 
     for n <- "data " >>! spaces >> name << spaces
-        st <- schemaType.?
-        cons <- (spaces >> whereSomething(constructor)).?
-        r <- (st, cons) match {
-          case (Some(argTys, ty), cons) => pure(FData(n, argTys.toList, ty, cons.orNull))
-          case (None, Some(cons)) => pure(FDataDef(n, cons))
-          case (None, None) => fail("A data declaration must have at least a type declaration or constructor declarations.")
-        }
-    yield r
+        (argTys, ty) <- schemaType
+        cons <- spaces >> whereSomething(constructor)
+    yield FData(n, argTys.toList, ty, cons)
   }
 
   private def field(using opt: ParsingOptions)(using IndentRequirement) : Parser[FField] = P {
@@ -196,14 +191,9 @@ object parser {
 
   private def record(using opt: ParsingOptions)(using IndentRequirement) : Parser[FDeclaration] = P { 
     for n <- "record " >>! spaces >> name << spaces
-        st <- schemaType.?
-        fields <- (spaces >> whereSomething(field)).?
-        r <- (st, fields) match {
-          case (Some(argTys, ty), fields) => pure(FRecord(n, argTys.toList, ty, fields.orNull))
-          case (None, Some(fields)) => pure(FRecordDef(n, fields))
-          case (None, None) => fail("A record declaration must have at least a type declaration or field declarations.")
-        }
-    yield r
+        (argTys, ty) <- schemaType
+        fields <- spaces >> whereSomething(field)
+    yield FRecord(n, argTys.toList, ty, fields)
   }
 
   private def whereSomething[T](something: Parser[T]) : Parser[Seq[T]] = {

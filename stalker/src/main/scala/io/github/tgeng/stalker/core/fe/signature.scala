@@ -13,21 +13,13 @@ import io.github.tgeng.stalker.core.tt._
 import MutableNamespace.{_, given _}
 
 enum FDeclaration {
-  case FData(name: String, paramTys: FTelescope, ty: FTerm, cons: Seq[FConstructor] | Null)
-  case FDataDef(name: String, cons: Seq[FConstructor])
-
-  case FRecord(name: String, paramTys: FTelescope, ty: FTerm, fields: Seq[FField] | Null)
-  case FRecordDef(name: String, fields: Seq[FField])
-
+  case FData(name: String, paramTys: FTelescope, ty: FTerm, cons: Seq[FConstructor])
+  case FRecord(name: String, paramTys: FTelescope, ty: FTerm, fields: Seq[FField])
   case FDefinition(name: String, ty: FTerm, clauses: Seq[FUncheckedClause])
 
   override def toString = this match {
     case FData(name, paramTys ,ty, cons) => s"""FData("$name", $paramTys, $ty, $cons)"""
-    case FDataDef(name, cons) => s"""FDataDef("$name", $cons)"""
-
     case FRecord(name, paramTys ,ty, fields) => s"""FRecord("$name", $paramTys, $ty, $fields)"""
-    case FRecordDef(name, fields) => s"""FRecordDef("$name", $fields)"""
-
     case FDefinition(name, ty, clauses) => s"""FDefinition("$name", $ty, $clauses)"""
   }
 }
@@ -55,6 +47,7 @@ object FSignatureBuilder {
   def create = FSignatureBuilder()
 }
 
+  // TODO: remove this class
 class FSignatureBuilder extends Signature {
   import ftConversion.{given _, _}
   private val sb = SignatureBuilder.create(builtins.signature)
@@ -73,7 +66,6 @@ class FSignatureBuilder extends Signature {
               for ty <- ty.toTt
                   _ = ns.addDeclaration(name)
                   cons <- cons match {
-                    case null => Right(null)
                     case cons : Seq[FConstructor] => {
                       ns.addDeclaration(name, cons.map(_.name))
                       cons.liftMap(_.toTt)
@@ -83,32 +75,17 @@ class FSignatureBuilder extends Signature {
               yield ()
             }
         yield ()
-      case FDataDef(name, cons) =>
-        for data <- sb.getData(ns.qn / name)
-            cons <- summon[LocalIndices].withNames(data.paramTys.map(_.name)) {
-                      cons.liftMap(_.toTt)
-                    }
-            _ <- sb.updateData(ns.qn / name, cons)
-        yield ns.addDeclaration(name, cons.map(_.name))
       case FRecord(name, paramTys, ty, fields) =>
         for paramTys <- paramTys.toTt
             _ <- summon[LocalIndices].withNames(paramTys.map(_.name) :+ "self") {
               for ty <- ty.toTt
                   _ = ns.addDeclaration(name)
                   fields <- fields match {
-                    case null => Right(null)
                     case fields : Seq[FField] => fields.liftMap(_.toTt)
                   }
                   _ <- sb += PreRecord(ns.qn / name)(paramTys, ty, fields)
               yield ()
             }
-        yield ()
-      case FRecordDef(name, fields) =>
-        for record <- sb.getRecord(ns.qn / name)
-            fields <- summon[LocalIndices].withNames(record.paramTys.map(_.name) :+ "self") {
-                        fields.liftMap(_.toTt)
-                      }
-            _ <- sb.updateRecord(ns.qn / name, fields)
         yield ()
       case FDefinition(name, ty, clauses) =>
         for ty <- ty.toTt
