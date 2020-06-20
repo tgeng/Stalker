@@ -7,6 +7,8 @@ import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.stalker.core.common.Error._
 import io.github.tgeng.stalker.core.tt._
 
+import QualifiedName._
+
 trait FT[F, T] {
   def (f: F) toTt (using ctx: LocalIndices)(using ns: Namespace) : Result[T]
 }
@@ -135,11 +137,61 @@ object ftConversion {
   import FUncheckedRhs._
   import UncheckedRhs._
 
+  given FT[FData, PreData] {
+    def (d: FData) toTt (using ctx: LocalIndices)(using ns: Namespace) : Result[PreData] = {
+      assert(ctx.size == 0)
+      d match {
+        case FData(name, paramTys, ty, cons) => for {
+          paramTys <- paramTys.toTt
+          r <- summon[LocalIndices].withNames(paramTys.map(_.name)) {
+            for ty <- ty.toTt
+                cons <- cons match {
+                  case cons : Seq[FConstructor] => {
+                    cons.liftMap(_.toTt)
+                  }
+                }
+            yield PreData(ns.qn / name)(paramTys, ty, cons)
+          }
+        } yield r
+      }
+    }
+  }
+
   given FT[FConstructor, PreConstructor] {
     def (c: FConstructor) toTt (using ctx: LocalIndices)(using ns: Namespace) : Result[PreConstructor] = c match {
       case FConstructor(name, argTys) =>
         for argTys <- argTys.toTt
         yield PreConstructor(name, argTys)
+    }
+  }
+
+  given FT[FRecord, PreRecord] {
+    def (r: FRecord) toTt (using ctx: LocalIndices)(using ns: Namespace) : Result[PreRecord] = {
+      assert(ctx.size == 0)
+      r match {
+        case FRecord(name, paramTys, ty, fields) => for {
+          paramTys <- paramTys.toTt
+          r <- summon[LocalIndices].withNames(paramTys.map(_.name) :+ "self") {
+            for ty <- ty.toTt
+                fields <- fields match {
+                  case fields : Seq[FField] => fields.liftMap(_.toTt)
+                }
+            yield PreRecord(ns.qn / name)(paramTys, ty, fields)
+          }
+        } yield r
+      }
+    }
+  }
+
+  given FT[FDefinition, PreDefinition] {
+    def (d: FDefinition) toTt (using ctx: LocalIndices)(using ns: Namespace) : Result[PreDefinition] = {
+      assert(ctx.size == 0)
+      d match {
+        case FDefinition(name, ty, clauses) => for {
+          ty <- ty.toTt
+          clauses <- clauses.liftMap(_.toTt)
+        } yield PreDefinition(ns.qn / name)(ty, clauses, null)
+      }
     }
   }
 

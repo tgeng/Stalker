@@ -8,6 +8,7 @@ import io.github.tgeng.stalker.common.QualifiedName._
 import io.github.tgeng.stalker.core.common.Error._
 import io.github.tgeng.stalker.core.common.Namespace
 import io.github.tgeng.stalker.core.common.MutableNamespace
+import io.github.tgeng.stalker.core.common.LeafNamespace
 import io.github.tgeng.stalker.core.tt._
 
 import MutableNamespace.{_, given _}
@@ -21,6 +22,16 @@ enum FDeclaration {
     case FData(name, paramTys ,ty, cons) => s"""FData("$name", $paramTys, $ty, $cons)"""
     case FRecord(name, paramTys ,ty, fields) => s"""FRecord("$name", $paramTys, $ty, $fields)"""
     case FDefinition(name, ty, clauses) => s"""FDefinition("$name", $ty, $clauses)"""
+  }
+
+  def toNamespace(qn: QualifiedName) : Namespace = this match {
+    case FData(name, _, _, cons) => {
+      val ns = MutableNamespace.create(qn)
+      cons.foreach(con => ns(con.name) = LeafNamespace(qn / con.name))
+      ns
+    }
+    case FRecord(name, _, _, _) => LeafNamespace(qn / name)
+    case FDefinition(name, _, _) => LeafNamespace(qn / name)
   }
 }
 
