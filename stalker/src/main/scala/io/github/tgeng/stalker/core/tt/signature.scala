@@ -30,7 +30,7 @@ import Status._
 enum DeclarationT[+S <: Status, +T] {
   case DataT(val qn: QualifiedName)(val paramTys: List[Binding[T]], val ty: T, val cons: Seq[ConstructorT[T]] | Null)
   case RecordT(val qn: QualifiedName)(val paramTys: List[Binding[T]], val ty: T, val fields: Seq[FieldT[T]] | Null)
-  case DefinitionT(val qn: QualifiedName)(val ty: T, val clauses: Seq[ClauseT[S, T]], val ct: CaseTree | Null)
+  case DefinitionT(val qn: QualifiedName)(val ty: T, val clauses: Seq[ClauseT[S, T]] | Null, val ct: CaseTree | Null)
 
   def qn: QualifiedName
 }
@@ -215,9 +215,8 @@ class SignatureBuilder(
               )
               cons <- d.cons match {
                 case null => Right(null)
-                case cons : Seq[PreConstructor] => cons.reduceCons(d.qn, ty)
+                case preCons : Seq[PreConstructor] => updateData(d.qn, preCons)
               }
-              _ = mData(qn) = new Data(qn)(_Δ, ty, cons)
           yield ()
         }
       } yield ()
@@ -244,49 +243,63 @@ class SignatureBuilder(
               )
               fields <- r.fields match {
                 case null => Right(null)
-                case fields: Seq[PreField] => fields.reduceFields(r.qn, ty)(using Context.empty + _Δ + ("self" ∷ Whnf.WRecord(qn, _Δ.vars.toList)))
+                case preFields: Seq[PreField] => updateRecord(r.qn, preFields)
               }
-              _ = mRecords(qn) = new Record(qn)(_Δ, ty, fields)
           yield ()
         }
       } yield ()
       case d@DefinitionT(qn) => {
-        val clauses = ArrayBuffer[Clause]()
         for {
           _ <- d.ty.level
           ty <- d.ty.toWhnf
-          _ = mDefinitions(qn) = new Definition(qn)(ty, clauses, null)
-          _Q <- (d.clauses
-            .map {
-              case UncheckedClause(lhs, rhs) => (Set.empty[(Term /? Pattern) ∷ Type], lhs) |-> rhs
-            }
-            .toList ||| (qn, Nil) ∷ ty).elaborate(using clauses)
-          _ = mDefinitions(qn) = new Definition(qn)(ty, clauses, _Q)
+          _ = mDefinitions(qn) = new Definition(qn)(ty, null, null)
+          _ <- d.clauses match {
+            case null => Right(null, null)
+            case preClauses: Seq[PreClause] => updateDef(d.qn, preClauses)
+          }
         } yield ()
       }
     }
   }
 
-  def updateData(qn: QualifiedName, cons: Seq[PreConstructor]) : Result[Unit] = {
+  def updateData(qn: QualifiedName, preCons: Seq[PreConstructor]) : Result[Unit] = {
     for {
       data <- getData(qn)
       _ = data.cons == null match {
         case true => Right(())
         case false => typingErrorWithCtx(e"Data $qn already has constructors.")
       }
-      cons <- cons.reduceCons(data.qn, data.ty)(using Context.empty + data.paramTys)
+      cons <- preCons.reduceCons(data.qn, data.ty)(using Context.empty + data.paramTys)
     } yield mData(qn) = new DataT(qn)(data.paramTys, data.ty, cons)
   }
 
-  def updateRecord(qn: QualifiedName, fields: Seq[PreField]) : Result[Unit] = {
+  def updateRecord(qn: QualifiedName, preFields: Seq[PreField]) : Result[Unit] = {
     for {
       record <- getRecord(qn)
       _ = record.fields == null match {
         case true => Right(())
         case false => typingErrorWithCtx(e"Record $qn already has fields.")
       }
-      fields <- fields.reduceFields(record.qn, record.ty)(using Context.empty + record.paramTys + ("self" ∷ Whnf.WRecord(qn, record.paramTys.vars.toList)))
+      fields <- preFields.reduceFields(record.qn, record.ty)(using Context.empty + record.paramTys + ("self" ∷ Whnf.WRecord(qn, record.paramTys.vars.toList)))
     } yield mRecords(qn) = new RecordT(qn)(record.paramTys, record.ty, fields)
+  }
+
+  def updateDef(qn: QualifiedName, preClauses: Seq[PreClause]) : Result[Unit] = {
+    val clauses = ArrayBuffer[Clause]()
+    for {
+      d <- getDefinition(qn)
+      _ = d.clauses == null match {
+        case true => Right(())
+        case false => typingErrorWithCtx(e"Definition $qn is already fully defined.")
+      }
+      _Q <- (
+        preClauses.map {
+          case UncheckedClause(lhs, rhs) => (Set.empty[(Term /? Pattern) ∷ Type], lhs) |-> rhs
+        }
+        .toList ||| (qn, Nil) ∷ d.ty
+        ).elaborate(using clauses)
+      _ = mDefinitions(qn) = new Definition(qn)(d.ty, clauses, _Q)
+    } yield ()
   }
 
   import Term._

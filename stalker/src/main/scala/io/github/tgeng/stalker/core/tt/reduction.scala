@@ -26,7 +26,8 @@ object reduction {
     case TRedux(fn, elims) => for {
       definition <- Σ getDefinition fn
       rhs <- if (Γ.size == 0 && definition.ct != null) evalCaseTree(definition.ct, Substitution.id, elims)
-             else evalClauses(definition.clauses, elims, definition)
+             else if (definition.clauses != null) evalClauses(definition.clauses, elims, definition)
+             else typingErrorWithCtx(e"Cannot reduce definition ${definition.qn} since it's not fully defined.")
       r <- rhs.toWhnf
     } yield r
   } flatMap { _.reduceLevel }
