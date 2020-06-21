@@ -57,3 +57,17 @@ extension extraSetOps on [L, R1, R2, CC[_], C <: SetOps[R1, CC, C]] (self: C) {
 extension nullOps on [T](t: T | Null) {
   def !! = t.asInstanceOf[T]
 }
+
+extension eitherOps on [L, R](e: Either[L, R]) {
+  def !!! : R = e match {
+    case Right(r) => r
+    case Left(l) => throw IllegalArgumentException(s"Expected $e to be a right value.")
+  }
+}
+
+extension optionOps on [T](e: Option[T]) {
+  def !!! : T = e match {
+    case Some(t) => t
+    case None => throw IllegalArgumentException(s"Expected $e to be a present.")
+  }
+}

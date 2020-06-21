@@ -67,6 +67,187 @@ trait Signature {
   def getData(qn: QualifiedName) : Result[Data]
   def getRecord(qn: QualifiedName) : Result[Record]
   def getDefinition(qn: QualifiedName) : Result[Definition]
+  
+  given Signature = this
+  given Context = Context.empty
+
+  import Term._
+  import Whnf._
+  import CoPattern._
+
+  def elaborate(d: PreDeclaration): Result[Seq[Declaration]] = d match {
+    case d: PreData => for (data, defs) <- elaborateData(d)
+                       yield data +: defs
+    case r: PreRecord => for (record, defs) <- elaborateRecord(r)
+                         yield record +: defs
+    case d: PreDefinition => elaborateDefinition(d).map(Seq(_))
+  }
+
+  def elaborateData(d: PreData): Result[(Data, Seq[Definition])] = d match {
+    case DataT(qn) => for {
+      _ <- d.paramTys.levelBound
+      _Δ <- d.paramTys.toWhnfs
+      res <- withCtxExtendedBy(_Δ) {
+        for _ <- d.ty.level
+            ty <- d.ty.toWhnf
+            levelBound <- ty match {
+              case WType(l) =>
+                for l <- l.toWhnf
+                yield l
+              case _ => typingErrorWithCtx(e"Cannot reduce ${d.ty} to a Type at some level.")
+            }
+            elaborated = new Data(qn)(_Δ, WType(TWhnf(levelBound)), null)
+            extendSignature = ExtendedSignature(this, elaborated)
+            typeCon <- extendSignature.dataTypeCon(elaborated)
+            (data, valueCons) <- d.cons match {
+              case null => Right(elaborated, Nil)
+              case preCons : Seq[PreConstructor] => ExtendedSignature(extendSignature, typeCon).augmentData(d.qn, preCons)
+            }
+        yield (data, typeCon +: valueCons)
+      }
+    } yield res
+  }
+
+  protected def dataTypeCon(d: Data): Result[Definition] = elaborateDefinition(
+    PreDefinition(d.qn)(
+      d.paramTys.foldRight(TWhnf(d.ty))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
+      Seq(UncheckedClause(
+        d.paramTys.pvars.map(QPattern(_)).toList,
+        UTerm(TWhnf(WData(d.qn, d.paramTys.vars.toList)))
+      )),
+      null
+    ))
+
+  def elaborateRecord(r: PreRecord): Result[(Record, Seq[Definition])] = r match {
+    case RecordT(qn) => for {
+      _ <- r.paramTys.levelBound
+      _Δ <- r.paramTys.toWhnfs
+      res <- withCtxExtendedBy(_Δ) {
+        for _ <- r.ty.level
+            ty <- r.ty.toWhnf
+            levelBound <- ty match {
+              case WType(l) =>
+                for l <- l.toWhnf
+                yield l
+              case _ => typingErrorWithCtx(e"Cannot reduce ${r.ty} to a Type at some level.")
+            }
+            elaborated = new Record(qn)(_Δ, WType(TWhnf(levelBound)), null)
+            extendSignature = ExtendedSignature(this, elaborated)
+            typeCon <- extendSignature.recordTypeCon(elaborated)
+            record <- r.fields match {
+              case null => Right(elaborated)
+              case preFields: Seq[PreField] => ExtendedSignature(extendSignature, typeCon).augmentRecord(r.qn, preFields)
+            }
+        yield (record, Seq(typeCon))
+      }
+    } yield res
+  }
+
+  protected def recordTypeCon(r: Record): Result[Definition] = elaborateDefinition(
+    PreDefinition(r.qn)(
+      r.paramTys.foldRight(TWhnf(r.ty))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
+      Seq(UncheckedClause(
+        r.paramTys.pvars.map(QPattern(_)).toList,
+        UTerm(TWhnf(WRecord(r.qn, r.paramTys.vars.toList)))
+      )),
+      null
+    ))
+
+  def elaborateDefinition(d: PreDefinition): Result[Definition] = d match {
+    case d@DefinitionT(qn) => {
+      for {
+        _ <- d.ty.level
+        ty <- d.ty.toWhnf
+        elaborated = new Definition(qn)(ty, null, null)
+        r <- d.clauses match {
+          case null => Right(elaborated)
+          case preClauses: Seq[PreClause] => ExtendedSignature(this, elaborated).augmentDef(d.qn, preClauses)
+        }
+      } yield r
+    }
+  }
+
+  def augmentData(qn: QualifiedName, preCons: Seq[PreConstructor]): Result[(Data, Seq[Definition])] = {
+    for {
+      data <- getData(qn)
+      _ = data.cons == null match {
+        case true => Right(())
+        case false => typingErrorWithCtx(e"Data $qn already has constructors.")
+      }
+      processed = ArrayBuffer[Constructor]()
+      augmented = new Data(qn)(data.paramTys, data.ty, processed)
+      WType(levelBound) = data.ty
+      _ <- ExtendedSignature(this, augmented).processCons(qn, levelBound, preCons.toList, processed)(using Context.empty + data.paramTys)
+    } yield (augmented, Nil) // Add constructor defs when implicit parameters are supported
+  }
+
+  protected def processCons(qn: QualifiedName, levelBound: Term, preCons: List[PreConstructor], processed: ArrayBuffer[Constructor])(using Context): Result[Unit] = preCons match {
+    case Nil => Right(())
+    case con :: rest => 
+      for l <- con.argTys.levelBound
+          con <- l match {
+            case Some(l) => for {
+              _ <- (TWhnf(l) <= levelBound) match {
+               case Right(true) => Right(())
+               case Right(false) => typingErrorWithCtx(e"Arguments to constructor ${con.name} at level $l is not within the specified level bound $levelBound of data schema $qn.")
+               case _ => typingErrorWithCtx(e"Cannot determine if arguments to constructor ${con.name} at level $l is within the specified level bound $levelBound of data schema $qn.")
+              }
+              wArgTys <- con.argTys.toWhnfs
+            } yield ConstructorT(con.name, wArgTys)
+            case None => typingErrorWithCtx(e"Arguments to constructor ${con.name} is potentially unbound and hence is not within the specified level bound $levelBound of data schema $qn.")
+          }
+          _ = processed.addOne(con)
+          r <- processCons(qn, levelBound, rest, processed)
+      yield r
+  }
+
+  def augmentRecord(qn: QualifiedName, preFields: Seq[PreField]) : Result[Record] = {
+    for {
+      record <- getRecord(qn)
+      _ = record.fields == null match {
+        case true => Right(())
+        case false => typingErrorWithCtx(e"Record $qn already has fields.")
+      }
+      processed = ArrayBuffer[Field]()
+      augmented = new Record(qn)(record.paramTys, record.ty, processed)
+      WType(levelBound) = record.ty
+      _ <- ExtendedSignature(this, augmented).processFields(qn, levelBound, preFields.toList, processed)(using Context.empty + record.paramTys)
+    } yield augmented
+  }
+
+  protected def processFields(qn: QualifiedName, levelBound: Term, preFields: List[PreField], processed: ArrayBuffer[Field])(using Context): Result[Unit] = preFields match {
+    case Nil => Right(())
+    case preField :: rest => for {
+      l <- preField.ty.level
+      _ <- (TWhnf(l) <= levelBound) match {
+       case Right(true) => Right(())
+       case Right(false) => typingErrorWithCtx(e"Field ${preField.name} at level $l is not within the specified level bound $levelBound of record schema $qn.")
+       case _ => typingErrorWithCtx(e"Cannot determine if field ${preField.name} at level $l is within the specified level bound $levelBound of record schema $qn.")
+      }
+      fieldTy <- preField.ty.toWhnf
+      field = Field(preField.name, fieldTy)
+      _ = processed.addOne(field)
+      r <- processFields(qn, levelBound, rest, processed)
+      } yield r
+  }
+
+  def augmentDef(qn: QualifiedName, preClauses: Seq[PreClause]) = {
+    val clauses = ArrayBuffer[Clause]()
+    for {
+      d <- getDefinition(qn)
+      _ = d.clauses == null match {
+        case true => Right(())
+        case false => typingErrorWithCtx(e"Definition $qn is already fully defined.")
+      }
+      augmented = new Definition(qn)(d.ty, clauses, null)
+      _Q <- (
+        preClauses.map {
+          case UncheckedClause(lhs, rhs) => (Set.empty[(Term /? Pattern) ∷ Type], lhs) |-> rhs
+        }
+        .toList ||| (qn, Nil) ∷ d.ty
+        ).elaborate(using clauses)(using Context.empty)(using ExtendedSignature(this, augmented))
+    } yield new Definition(qn)(d.ty, clauses, _Q)
+  }
 }
 
 object EmptySignature extends Signature {
@@ -93,6 +274,24 @@ trait MapBasedSignature (
   }
 
   override def getDefinition(qn: QualifiedName) : Result[Definition] = definitions get qn match {
+    case Some(d) => Right(d)
+    case _ => fallback.getDefinition(qn)
+  }
+}
+
+class ExtendedSignature(val fallback: Signature, val ext: Declaration*) extends Signature {
+  private val dataDecls : Seq[Data] = ext.collect { case d: Data => d}
+  private val recordDecls : Seq[Record] = ext.collect { case r: Record => r}
+  private val defDecls : Seq[Definition] = ext.collect { case d: Definition => d}
+  def getData(qn: QualifiedName) : Result[Data] = dataDecls.find(_.qn == qn) match {
+    case Some(d) => Right(d)
+    case _ => fallback.getData(qn)
+  }
+  def getRecord(qn: QualifiedName) : Result[Record] = recordDecls.find(_.qn == qn) match {
+    case Some(r) => Right(r)
+    case _ => fallback.getRecord(qn)
+  }
+  def getDefinition(qn: QualifiedName) : Result[Definition] = defDecls.find(_.qn == qn) match {
     case Some(d) => Right(d)
     case _ => fallback.getDefinition(qn)
   }
@@ -146,200 +345,26 @@ class SignatureBuilder(
   val mDefinitions: mutable.Map[QualifiedName, Definition],
   fallback: Signature
 ) extends MapBasedSignature(mData, mRecords, mDefinitions, fallback) {
-  given Signature = this
-  given Context = Context.empty
 
   def declarations = data.values.asInstanceOf[Seq[Declaration]] ++ records.values ++ definitions.values
 
-  def importDecl (d: Declaration) : Result[Unit] = d match {
+  def += (d: Declaration): Unit = d match {
     case d : Data => getData(d.qn) match {
-      case Right(existingD) => {
-        if (existingD.paramTys != d.paramTys || existingD.ty != d.ty || existingD.cons != d.cons) {
-          duplicatedDefinitionError(e"Data schema ${d.qn} is already defined.")
-        } else {
-          Right(())
-        }
-      }
-      case _ => Right(mData(d.qn) = d)
+      case Right(existingD) if (existingD.paramTys != d.paramTys || existingD.ty != d.ty || existingD.cons != null) =>
+        throw IllegalArgumentException(s"Data schema ${d.qn} is already defined.")
+      case _ => mData(d.qn) = d
     }
     case r : Record => getRecord(r.qn) match {
-      case Right(existingR) => {
-        if (existingR.paramTys != r.paramTys || existingR.ty != r.ty || existingR.fields != r.fields) {
-          duplicatedDefinitionError(e"Record schema ${r.qn} is already defined.")
-        } else {
-          Right(())
-        }
-      }
-      case _ => Right(mRecords(r.qn) = r)
+      case Right(existingR) if (existingR.paramTys != r.paramTys || existingR.ty != r.ty || existingR.fields != null) =>
+        throw IllegalArgumentException(s"Record schema ${d.qn} is already defined.")
+      case _ => mRecords(r.qn) = r
     }
     case d : Definition => getDefinition(d.qn) match {
-      case Right(existingD) => {
-        if (existingD.ty != d.ty || existingD.clauses != d.clauses || existingD.ct != d.ct) {
-          duplicatedDefinitionError(e"Definition ${d.qn} is already defined.")
-        } else {
-          Right(())
-        }
-      }
-      case _ => Right(mDefinitions(d.qn) = d)
+      case Right(existingD) if (existingD.ty != d.ty || existingD.clauses != d.clauses || existingD.ct != null) =>
+        throw IllegalArgumentException(s"Definition schema ${d.qn} is already defined.")
+      case _ => mDefinitions(d.qn) = d
     }
   }
 
-  def += (d: PreDeclaration) : Result[Unit] = {
-    import Term._
-    import Whnf._
-    import CoPattern._
-    if (mDefinitions.contains(d.qn)) {
-      return duplicatedDefinitionError(e"${d.qn} has been defined already.")
-    }
-    d match {
-      case d@DataT(qn) => for {
-        _ <- d.paramTys.levelBound
-        _Δ <- d.paramTys.toWhnfs
-        _ <- withCtxExtendedBy(_Δ) {
-          for _ <- d.ty.level
-              ty <- d.ty.toWhnf
-              levelBound <- ty match {
-                case WType(l) =>
-                  for l <- l.toWhnf
-                  yield l
-                case _ => typingErrorWithCtx(e"Cannot reduce ${d.ty} to a Type at some level.")
-              }
-              _ = mData(qn) = new Data(qn)(_Δ, WType(TWhnf(levelBound)), null)
-              _ <- this += PreDefinition(qn)(
-                _Δ.foldRight(TWhnf(ty))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
-                Seq(UncheckedClause(
-                  _Δ.pvars.map(QPattern(_)).toList,
-                  UTerm(TWhnf(WData(qn, _Δ.vars.toList)))
-                )),
-                null
-              )
-              cons <- d.cons match {
-                case null => Right(null)
-                case preCons : Seq[PreConstructor] => updateData(d.qn, preCons)
-              }
-          yield ()
-        }
-      } yield ()
-      case r@RecordT(qn) => for {
-        _ <- r.paramTys.levelBound
-        _Δ <- r.paramTys.toWhnfs
-        _ <- withCtxExtendedBy(_Δ) {
-          for _ <- r.ty.level
-              ty <- r.ty.toWhnf
-              levelBound <- ty match {
-                case WType(l) =>
-                  for l <- l.toWhnf
-                  yield l
-                case _ => typingErrorWithCtx(e"Cannot reduce ${r.ty} to a Type at some level.")
-              }
-              _ = mRecords(qn) = new Record(qn)(_Δ, WType(TWhnf(levelBound)), null)
-              _ <- this += PreDefinition(qn)(
-                _Δ.foldRight(TWhnf(ty))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
-                Seq( UncheckedClause(
-                  _Δ.pvars.map(QPattern(_)).toList,
-                  UTerm(TWhnf(WData(qn, _Δ.vars.toList)))
-                )),
-                null
-              )
-              fields <- r.fields match {
-                case null => Right(null)
-                case preFields: Seq[PreField] => updateRecord(r.qn, preFields)
-              }
-          yield ()
-        }
-      } yield ()
-      case d@DefinitionT(qn) => {
-        for {
-          _ <- d.ty.level
-          ty <- d.ty.toWhnf
-          _ = mDefinitions(qn) = new Definition(qn)(ty, null, null)
-          _ <- d.clauses match {
-            case null => Right(null, null)
-            case preClauses: Seq[PreClause] => updateDef(d.qn, preClauses)
-          }
-        } yield ()
-      }
-    }
-  }
-
-  def updateData(qn: QualifiedName, preCons: Seq[PreConstructor]) : Result[Unit] = {
-    for {
-      data <- getData(qn)
-      _ = data.cons == null match {
-        case true => Right(())
-        case false => typingErrorWithCtx(e"Data $qn already has constructors.")
-      }
-      cons <- preCons.reduceCons(data.qn, data.ty)(using Context.empty + data.paramTys)
-    } yield mData(qn) = new DataT(qn)(data.paramTys, data.ty, cons)
-  }
-
-  def updateRecord(qn: QualifiedName, preFields: Seq[PreField]) : Result[Unit] = {
-    for {
-      record <- getRecord(qn)
-      _ = record.fields == null match {
-        case true => Right(())
-        case false => typingErrorWithCtx(e"Record $qn already has fields.")
-      }
-      fields <- preFields.reduceFields(record.qn, record.ty)(using Context.empty + record.paramTys + ("self" ∷ Whnf.WRecord(qn, record.paramTys.vars.toList)))
-    } yield mRecords(qn) = new RecordT(qn)(record.paramTys, record.ty, fields)
-  }
-
-  def updateDef(qn: QualifiedName, preClauses: Seq[PreClause]) : Result[Unit] = {
-    val clauses = ArrayBuffer[Clause]()
-    for {
-      d <- getDefinition(qn)
-      _ = d.clauses == null match {
-        case true => Right(())
-        case false => typingErrorWithCtx(e"Definition $qn is already fully defined.")
-      }
-      _Q <- (
-        preClauses.map {
-          case UncheckedClause(lhs, rhs) => (Set.empty[(Term /? Pattern) ∷ Type], lhs) |-> rhs
-        }
-        .toList ||| (qn, Nil) ∷ d.ty
-        ).elaborate(using clauses)
-      _ = mDefinitions(qn) = new Definition(qn)(d.ty, clauses, _Q)
-    } yield ()
-  }
-
-  import Term._
-  import Whnf._
-
-  private def (cons: Seq[PreConstructor]) reduceCons(qn: QualifiedName, dataTy: Whnf)(using Γ: Context)(using Σ: Signature) : Result[Seq[Constructor]] = 
-    dataTy match {
-      case WType(levelBound) => {
-        cons.liftMap{
-          con => for l <- con.argTys.levelBound
-                     r <- l match {
-                       case Some(l) => for {
-                         _ <- (TWhnf(l) <= levelBound) match {
-                          case Right(true) => Right(())
-                          case Right(false) => typingErrorWithCtx(e"Arguments to constructor ${con.name} at level $l is not within the specified level bound $levelBound of data schema $qn.")
-                          case _ => typingErrorWithCtx(e"Cannot determine if arguments to constructor ${con.name} at level $l is within the specified level bound $levelBound of data schema $qn.")
-                         }
-                         wArgTys <- con.argTys.toWhnfs
-                       } yield ConstructorT(con.name, wArgTys)
-                       case None => typingErrorWithCtx(e"Arguments to constructor ${con.name} is potentially unbound and hence is not within the specified level bound $levelBound of data schema $qn.")
-                     }
-                 yield r
-        }
-      }
-      case _ => throw AssertionError("This case should have been prevented when adding this data schema to the signature.")
-    }
-  private def (fields: Seq[PreField]) reduceFields(qn: QualifiedName, recordTy: Whnf)(using Γ: Context)(using Σ: Signature) : Result[Seq[Field]] = 
-    recordTy match {
-      case WType(levelBound) => {
-        fields.liftMap{
-          field => for l <- field.ty.level
-                     _ <- (TWhnf(l) <= levelBound) match {
-                      case Right(true) => Right(())
-                      case Right(false) => typingErrorWithCtx(e"Field ${field.name} at level $l is not within the specified level bound $levelBound of record schema $qn.")
-                      case _ => typingErrorWithCtx(e"Cannot determine if field ${field.name} at level $l is within the specified level bound $levelBound of record schema $qn.")
-                     }
-                     fieldTy <- field.ty.toWhnf
-                 yield FieldT(field.name, fieldTy)
-        }
-      }
-      case _ => throw AssertionError("This case should have been prevented when adding this data schema to the signature.")
-    }
+  def ++= (decls: Iterable[Declaration]): Unit = decls.foreach(this += _)
 }

@@ -2,6 +2,7 @@ package io.github.tgeng.stalker.core.fe
 
 import scala.language.implicitConversions
 import scala.collection.Seq
+import io.github.tgeng.common.eitherOps._
 import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.common.QualifiedName._
@@ -82,8 +83,7 @@ class FSignatureBuilder extends Signature {
                       cons.liftMap(_.toTt)
                     }
                   }
-                  _ <- sb += PreData(ns.qn / name)(paramTys, ty, cons)
-              yield ()
+              yield sb ++= sb.elaborate(PreData(ns.qn / name)(paramTys, ty, cons)).!!!
             }
         yield ()
       case FRecord(name, paramTys, ty, fields) =>
@@ -94,8 +94,7 @@ class FSignatureBuilder extends Signature {
                   fields <- fields match {
                     case fields : Seq[FField] => fields.liftMap(_.toTt)
                   }
-                  _ <- sb += PreRecord(ns.qn / name)(paramTys, ty, fields)
-              yield ()
+              yield sb ++= sb.elaborate(PreRecord(ns.qn / name)(paramTys, ty, fields)).!!!
             }
         yield ()
       case FDefinition(name, ty, clauses) =>
@@ -103,8 +102,7 @@ class FSignatureBuilder extends Signature {
             _ = ns.addDeclaration(name)
             clauses <- clauses.liftMap(_.toTt)
             d = PreDefinition(ns.qn / name)(ty, clauses, null)
-            _ <- sb += d
-        yield ()
+        yield sb ++= sb.elaborate(d).!!!
     }
   }
 }
