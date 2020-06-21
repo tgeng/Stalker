@@ -73,17 +73,17 @@ trait Signature {
   import CoPattern._
 
   def elaborate(d: PreDeclaration): Result[Seq[Declaration]] = d match {
-    case d: PreData => for (data, defs) <- elaborateData(d)
-                       yield data +: defs
+    case d: PreData => for (data, typeCon) <- elaborateData(d)
+                       yield Seq(data, typeCon)
     case r: PreRecord => for (record, typeCon) <- elaborateRecord(r)
                          yield Seq(record, typeCon)
     case d: PreDefinition => elaborateDefinition(d).map(Seq(_))
   }
 
-  def elaborateData(d: PreData): Result[(Data, Seq[Definition])] = for {
+  def elaborateData(d: PreData): Result[(Data, Definition)] = for {
     (partialData, typeCon) <- elaborateDataType(d)
-    (data, valueCons) <- ExtendedSignature(this, partialData, typeCon).elaborateDataConstructors(d)
-  } yield (data, typeCon +: valueCons)
+    data <- ExtendedSignature(this, partialData, typeCon).elaborateDataConstructors(d)
+  } yield (data, typeCon)
 
   def elaborateDataType(d: PreData): Result[(Data, Definition)] = d match {
     case PreData(qn) => for {
@@ -115,7 +115,7 @@ trait Signature {
       ))
     ))
 
-  def elaborateDataConstructors(d: PreData): Result[(Data, Seq[Definition])] = {
+  def elaborateDataConstructors(d: PreData): Result[Data] = {
     for {
       data <- getData(d.qn)
       _ = data.cons == null match {
@@ -126,7 +126,7 @@ trait Signature {
       augmented = new Data(d.qn)(data.paramTys, data.ty, processed)
       WType(levelBound) = data.ty
       _ <- ExtendedSignature(this, augmented).processCons(d.qn, levelBound, d.cons.toList, processed)(using Context.empty + data.paramTys)
-    } yield (augmented, Nil) // Add constructor defs when implicit parameters are supported
+    } yield augmented
   }
 
   protected def processCons(qn: QualifiedName, levelBound: Term, preCons: List[PreConstructor], processed: ArrayBuffer[Constructor])(using Context): Result[Unit] = preCons match {
