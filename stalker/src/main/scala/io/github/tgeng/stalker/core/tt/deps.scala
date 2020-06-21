@@ -72,7 +72,6 @@ object dependencies {
   }
 
   import PreDeclaration._
-  import ClauseT._
 
   given Deps[PreDeclaration] {
     def (d: PreDeclaration) deps : Set[QualifiedName] = d.typeDeps | (d match {

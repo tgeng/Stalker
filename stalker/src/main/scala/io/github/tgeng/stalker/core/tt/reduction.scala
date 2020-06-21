@@ -8,7 +8,6 @@ import io.github.tgeng.stalker.core.common.Error._
 import Term._
 import Whnf._
 import Elimination._
-import ClauseT._
 import Pattern._
 import CoPattern._
 import utils._
@@ -95,7 +94,7 @@ object reduction {
     yield r
   }
 
-  private def evalClauses(cs: scala.collection.Seq[Clause], e̅: List[Elimination], qn: QualifiedName)(using Γ: Context)(using Σ: Signature) : Result[Term] = returning[Result[Term]] {
+  private def evalClauses(cs: scala.collection.Seq[CheckedClause], e̅: List[Elimination], qn: QualifiedName)(using Γ: Context)(using Σ: Signature) : Result[Term] = returning[Result[Term]] {
     for (c <- cs) {
       c match {
         case CheckedClause(_, q̅, v, _) => e̅ / q̅ match {

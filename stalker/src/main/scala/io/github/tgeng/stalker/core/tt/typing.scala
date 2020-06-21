@@ -11,7 +11,6 @@ import substitutionConversion.{given _}
 import Term._
 import Whnf._
 import Elimination._
-import ClauseT._
 import Pattern._
 import CoPattern._
 import reduction.toWhnfs

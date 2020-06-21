@@ -16,14 +16,13 @@ import CoPattern._
 import Pattern._
 import Whnf._
 import Term._
-import ClauseT._
 import UncheckedRhs._
 import UResult._
 import substitutionConversion.{given _}
 import utils._
 
 extension elaboration on (p: Problem) {
-  def elaborate(using clauses: ArrayBuffer[Clause])(using Γ: Context)(using Σ: Signature) : Result[CaseTree] = p match {
+  def elaborate(using clauses: ArrayBuffer[CheckedClause])(using Γ: Context)(using Σ: Signature) : Result[CaseTree] = p match {
     // Done
     case ((_E1, Nil) |-> rhs1) :: _ ||| (f, q̅) ∷ _C if _E1.solve.isRight => _E1.solve match {
       case Right(σ) => rhs1 match {

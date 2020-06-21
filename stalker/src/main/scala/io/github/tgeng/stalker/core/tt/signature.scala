@@ -20,17 +20,10 @@ import utils._
 
 import io.github.tgeng.common.debug._
 
-enum Status {
-  case Unchecked()
-  case Checked()
-}
-
-import Status._
-
 enum PreDeclaration {
   case PreData(val qn: QualifiedName)(val paramTys: List[Binding[Term]], val ty: Term, val cons: Seq[ConstructorT[Term]])
   case PreRecord(val qn: QualifiedName)(val paramTys: List[Binding[Term]], val ty: Term, val fields: Seq[FieldT[Term]])
-  case PreDefinition(val qn: QualifiedName)(val ty: Term, val clauses: Seq[ClauseT[Unchecked, Term]])
+  case PreDefinition(val qn: QualifiedName)(val ty: Term, val clauses: Seq[UncheckedClause])
 
   def qn: QualifiedName
 }
@@ -40,7 +33,7 @@ import PreDeclaration._
 enum Declaration {
   case Data(val qn: QualifiedName)(val paramTys: Telescope, val ty: Type, val cons: Seq[ConstructorT[Type]] | Null)
   case Record(val qn: QualifiedName)(val paramTys: Telescope, val ty: Type, val fields: Seq[FieldT[Type]] | Null)
-  case Definition(val qn: QualifiedName)(val ty: Type, val clauses: Seq[ClauseT[Checked, Type]] | Null, val ct: CaseTree | Null)
+  case Definition(val qn: QualifiedName)(val ty: Type, val clauses: Seq[CheckedClause] | Null, val ct: CaseTree | Null)
 
   def qn: QualifiedName
 }
@@ -51,12 +44,8 @@ case class ConstructorT[+T](name: String, argTys: List[Binding[T]])
 
 case class FieldT[+T](name: String, ty: T)
 
-enum ClauseT[+S <: Status, +T] {
-  case UncheckedClause(lhs: List[CoPattern], rhs: UncheckedRhs) extends ClauseT[Unchecked, T]
-  case CheckedClause(bindings: List[Binding[T]], lhs: List[CoPattern], rhs: Term, ty: T) extends ClauseT[Checked, T]
-}
-
-import ClauseT._
+case class UncheckedClause(lhs: List[CoPattern], rhs: UncheckedRhs)
+case class CheckedClause(bindings: Telescope, lhs: List[CoPattern], rhs: Term, ty: Type)
 
 enum UncheckedRhs {
   case UTerm(t: Term)
@@ -67,11 +56,9 @@ import UncheckedRhs._
 
 type Constructor = ConstructorT[Type]
 type Field = FieldT[Type]
-type Clause = ClauseT[Checked, Type]
 
 type PreConstructor = ConstructorT[Term]
 type PreField = FieldT[Term]
-type PreClause = ClauseT[Unchecked, Term]
 
 trait Signature {
   def getData(qn: QualifiedName) : Result[Data]
@@ -243,7 +230,7 @@ trait Signature {
   }
 
   def elaborateDefinitionClauses(d: PreDefinition) = {
-    val clauses = ArrayBuffer[Clause]()
+    val clauses = ArrayBuffer[CheckedClause]()
     for {
       data <- getDefinition(d.qn)
       _ = data.clauses == null match {

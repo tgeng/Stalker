@@ -9,7 +9,6 @@ import Declaration._
 import PreDeclaration._
 import Term._
 import Whnf._
-import ClauseT._
 import Pattern._
 import CoPattern._
 import CaseTree._

@@ -211,8 +211,8 @@ object ftConversion {
     }
   }
 
-  given FT[FUncheckedClause, PreClause] {
-    def (c: FUncheckedClause) toTt (using ctx: LocalIndices)(using ns: Namespace) : Result[PreClause] = {
+  given FT[FUncheckedClause, UncheckedClause] {
+    def (c: FUncheckedClause) toTt (using ctx: LocalIndices)(using ns: Namespace) : Result[UncheckedClause] = {
       assert(ctx.size == 0)
       c match {
         case FUncheckedClause(lhs, rhs) => {
@@ -221,7 +221,7 @@ object ftConversion {
           given LocalIndices = ctx
           for lhs <- lhs.liftMap(_.toTt)
               rhs <- rhs.toTt
-          yield ClauseT.UncheckedClause(lhs, rhs)
+          yield UncheckedClause(lhs, rhs)
         }
       }
     }
