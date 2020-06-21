@@ -51,6 +51,7 @@ enum FUncheckedRhs {
   case FUImpossible
 }
 
+import PreDeclaration._
 import FDeclaration._
 import FUncheckedRhs._
 import UncheckedRhs._
@@ -101,7 +102,7 @@ class FSignatureBuilder extends Signature {
         for ty <- ty.toTt
             _ = ns.addDeclaration(name)
             clauses <- clauses.liftMap(_.toTt)
-            d = PreDefinition(ns.qn / name)(ty, clauses, null)
+            d = PreDefinition(ns.qn / name)(ty, clauses)
         yield sb ++= sb.elaborate(d).!!!
     }
   }

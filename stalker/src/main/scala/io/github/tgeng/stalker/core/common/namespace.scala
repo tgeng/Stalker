@@ -64,6 +64,7 @@ object MutableNamespace {
   import io.github.tgeng.stalker.core.tt.builtins._
   import scala.language.implicitConversions
   import io.github.tgeng.stalker.core.tt._
+  import PreDeclaration._
 
   def createWithBuiltins(qn: QualifiedName) : MutableNamespace = {
     val r = InMemoryNamespace(qn)
@@ -80,10 +81,8 @@ object MutableNamespace {
   given dataToNamespace as Conversion[PreData, Namespace] = d => {
     val r = InMemoryNamespace(d.qn)
     val cons = d.cons
-    if (cons != null) {
-      for (con <- cons) {
-        r(con.name) = LeafNamespace(d.qn / con.name, Some(con.name))
-      }
+    for (con <- cons) {
+      r(con.name) = LeafNamespace(d.qn / con.name, Some(con.name))
     }
     r
   }

@@ -27,15 +27,25 @@ enum Status {
 
 import Status._
 
-enum DeclarationT[+S <: Status, +T] {
-  case DataT(val qn: QualifiedName)(val paramTys: List[Binding[T]], val ty: T, val cons: Seq[ConstructorT[T]] | Null)
-  case RecordT(val qn: QualifiedName)(val paramTys: List[Binding[T]], val ty: T, val fields: Seq[FieldT[T]] | Null)
-  case DefinitionT(val qn: QualifiedName)(val ty: T, val clauses: Seq[ClauseT[S, T]] | Null, val ct: CaseTree | Null)
+enum PreDeclaration {
+  case PreData(val qn: QualifiedName)(val paramTys: List[Binding[Term]], val ty: Term, val cons: Seq[ConstructorT[Term]])
+  case PreRecord(val qn: QualifiedName)(val paramTys: List[Binding[Term]], val ty: Term, val fields: Seq[FieldT[Term]])
+  case PreDefinition(val qn: QualifiedName)(val ty: Term, val clauses: Seq[ClauseT[Unchecked, Term]])
 
   def qn: QualifiedName
 }
 
-import DeclarationT._
+import PreDeclaration._
+
+enum Declaration {
+  case Data(val qn: QualifiedName)(val paramTys: Telescope, val ty: Type, val cons: Seq[ConstructorT[Type]] | Null)
+  case Record(val qn: QualifiedName)(val paramTys: Telescope, val ty: Type, val fields: Seq[FieldT[Type]] | Null)
+  case Definition(val qn: QualifiedName)(val ty: Type, val clauses: Seq[ClauseT[Checked, Type]] | Null, val ct: CaseTree | Null)
+
+  def qn: QualifiedName
+}
+
+import Declaration._
 
 case class ConstructorT[+T](name: String, argTys: List[Binding[T]])
 
@@ -55,13 +65,13 @@ enum UncheckedRhs {
 
 import UncheckedRhs._
 
-type Declaration = DeclarationT[Checked, Type]
-type Data = DataT[Checked, Type]
-type Record = RecordT[Checked, Type]
-type Definition = DefinitionT[Checked, Type]
 type Constructor = ConstructorT[Type]
 type Field = FieldT[Type]
 type Clause = ClauseT[Checked, Type]
+
+type PreConstructor = ConstructorT[Term]
+type PreField = FieldT[Term]
+type PreClause = ClauseT[Unchecked, Term]
 
 trait Signature {
   def getData(qn: QualifiedName) : Result[Data]
@@ -78,13 +88,18 @@ trait Signature {
   def elaborate(d: PreDeclaration): Result[Seq[Declaration]] = d match {
     case d: PreData => for (data, defs) <- elaborateData(d)
                        yield data +: defs
-    case r: PreRecord => for (record, defs) <- elaborateRecord(r)
-                         yield record +: defs
+    case r: PreRecord => for (record, typeCon) <- elaborateRecord(r)
+                         yield Seq(record, typeCon)
     case d: PreDefinition => elaborateDefinition(d).map(Seq(_))
   }
 
-  def elaborateData(d: PreData): Result[(Data, Seq[Definition])] = d match {
-    case DataT(qn) => for {
+  def elaborateData(d: PreData): Result[(Data, Seq[Definition])] = for {
+    (partialData, typeCon) <- elaborateDataType(d)
+    (data, valueCons) <- ExtendedSignature(this, partialData, typeCon).elaborateDataConstructors(d)
+  } yield (data, typeCon +: valueCons)
+
+  def elaborateDataType(d: PreData): Result[(Data, Definition)] = d match {
+    case PreData(qn) => for {
       _ <- d.paramTys.levelBound
       _Δ <- d.paramTys.toWhnfs
       res <- withCtxExtendedBy(_Δ) {
@@ -99,85 +114,31 @@ trait Signature {
             elaborated = new Data(qn)(_Δ, WType(TWhnf(levelBound)), null)
             extendSignature = ExtendedSignature(this, elaborated)
             typeCon <- extendSignature.dataTypeCon(elaborated)
-            (data, valueCons) <- d.cons match {
-              case null => Right(elaborated, Nil)
-              case preCons : Seq[PreConstructor] => ExtendedSignature(extendSignature, typeCon).augmentData(d.qn, preCons)
-            }
-        yield (data, typeCon +: valueCons)
+        yield (elaborated, typeCon)
       }
     } yield res
   }
 
   protected def dataTypeCon(d: Data): Result[Definition] = elaborateDefinition(
-    PreDefinition(d.qn)(
+    new PreDefinition(d.qn)(
       d.paramTys.foldRight(TWhnf(d.ty))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
       Seq(UncheckedClause(
         d.paramTys.pvars.map(QPattern(_)).toList,
         UTerm(TWhnf(WData(d.qn, d.paramTys.vars.toList)))
-      )),
-      null
+      ))
     ))
 
-  def elaborateRecord(r: PreRecord): Result[(Record, Seq[Definition])] = r match {
-    case RecordT(qn) => for {
-      _ <- r.paramTys.levelBound
-      _Δ <- r.paramTys.toWhnfs
-      res <- withCtxExtendedBy(_Δ) {
-        for _ <- r.ty.level
-            ty <- r.ty.toWhnf
-            levelBound <- ty match {
-              case WType(l) =>
-                for l <- l.toWhnf
-                yield l
-              case _ => typingErrorWithCtx(e"Cannot reduce ${r.ty} to a Type at some level.")
-            }
-            elaborated = new Record(qn)(_Δ, WType(TWhnf(levelBound)), null)
-            extendSignature = ExtendedSignature(this, elaborated)
-            typeCon <- extendSignature.recordTypeCon(elaborated)
-            record <- r.fields match {
-              case null => Right(elaborated)
-              case preFields: Seq[PreField] => ExtendedSignature(extendSignature, typeCon).augmentRecord(r.qn, preFields)
-            }
-        yield (record, Seq(typeCon))
-      }
-    } yield res
-  }
-
-  protected def recordTypeCon(r: Record): Result[Definition] = elaborateDefinition(
-    PreDefinition(r.qn)(
-      r.paramTys.foldRight(TWhnf(r.ty))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
-      Seq(UncheckedClause(
-        r.paramTys.pvars.map(QPattern(_)).toList,
-        UTerm(TWhnf(WRecord(r.qn, r.paramTys.vars.toList)))
-      )),
-      null
-    ))
-
-  def elaborateDefinition(d: PreDefinition): Result[Definition] = d match {
-    case d@DefinitionT(qn) => {
-      for {
-        _ <- d.ty.level
-        ty <- d.ty.toWhnf
-        elaborated = new Definition(qn)(ty, null, null)
-        r <- d.clauses match {
-          case null => Right(elaborated)
-          case preClauses: Seq[PreClause] => ExtendedSignature(this, elaborated).augmentDef(d.qn, preClauses)
-        }
-      } yield r
-    }
-  }
-
-  def augmentData(qn: QualifiedName, preCons: Seq[PreConstructor]): Result[(Data, Seq[Definition])] = {
+  def elaborateDataConstructors(d: PreData): Result[(Data, Seq[Definition])] = {
     for {
-      data <- getData(qn)
+      data <- getData(d.qn)
       _ = data.cons == null match {
         case true => Right(())
-        case false => typingErrorWithCtx(e"Data $qn already has constructors.")
+        case false => typingErrorWithCtx(e"Data $d.qn already has constructors.")
       }
       processed = ArrayBuffer[Constructor]()
-      augmented = new Data(qn)(data.paramTys, data.ty, processed)
+      augmented = new Data(d.qn)(data.paramTys, data.ty, processed)
       WType(levelBound) = data.ty
-      _ <- ExtendedSignature(this, augmented).processCons(qn, levelBound, preCons.toList, processed)(using Context.empty + data.paramTys)
+      _ <- ExtendedSignature(this, augmented).processCons(d.qn, levelBound, d.cons.toList, processed)(using Context.empty + data.paramTys)
     } yield (augmented, Nil) // Add constructor defs when implicit parameters are supported
   }
 
@@ -201,17 +162,52 @@ trait Signature {
       yield r
   }
 
-  def augmentRecord(qn: QualifiedName, preFields: Seq[PreField]) : Result[Record] = {
+  def elaborateRecord(r: PreRecord): Result[(Record, Definition)] = for {
+    (partialRecord, typeCon) <- elaborateRecordType(r)
+    record <- ExtendedSignature(this, partialRecord, typeCon).elaborateRecordFields(r)
+  } yield (record, typeCon)
+
+  def elaborateRecordType(r: PreRecord): Result[(Record, Definition)] = r match {
+    case PreRecord(qn) => for {
+      _ <- r.paramTys.levelBound
+      _Δ <- r.paramTys.toWhnfs
+      res <- withCtxExtendedBy(_Δ) {
+        for _ <- r.ty.level
+            ty <- r.ty.toWhnf
+            levelBound <- ty match {
+              case WType(l) =>
+                for l <- l.toWhnf
+                yield l
+              case _ => typingErrorWithCtx(e"Cannot reduce ${r.ty} to a Type at some level.")
+            }
+            elaborated = new Record(qn)(_Δ, WType(TWhnf(levelBound)), null)
+            extendSignature = ExtendedSignature(this, elaborated)
+            typeCon <- extendSignature.recordTypeCon(elaborated)
+        yield (elaborated, typeCon)
+      }
+    } yield res
+  }
+
+  protected def recordTypeCon(r: Record): Result[Definition] = elaborateDefinition(
+    new PreDefinition(r.qn)(
+      r.paramTys.foldRight(TWhnf(r.ty))((binding, bodyTy) => TWhnf(WFunction(binding.map(TWhnf(_)), bodyTy))),
+      Seq(UncheckedClause(
+        r.paramTys.pvars.map(QPattern(_)).toList,
+        UTerm(TWhnf(WRecord(r.qn, r.paramTys.vars.toList)))
+      ))
+    ))
+
+  def elaborateRecordFields(r: PreRecord) : Result[Record] = {
     for {
-      record <- getRecord(qn)
+      record <- getRecord(r.qn)
       _ = record.fields == null match {
         case true => Right(())
-        case false => typingErrorWithCtx(e"Record $qn already has fields.")
+        case false => typingErrorWithCtx(e"Record $r.qn already has fields.")
       }
       processed = ArrayBuffer[Field]()
-      augmented = new Record(qn)(record.paramTys, record.ty, processed)
+      augmented = new Record(r.qn)(record.paramTys, record.ty, processed)
       WType(levelBound) = record.ty
-      _ <- ExtendedSignature(this, augmented).processFields(qn, levelBound, preFields.toList, processed)(using Context.empty + record.paramTys)
+      _ <- ExtendedSignature(this, augmented).processFields(r.qn, levelBound, r.fields.toList, processed)(using Context.empty + record.paramTys)
     } yield augmented
   }
 
@@ -231,22 +227,37 @@ trait Signature {
       } yield r
   }
 
-  def augmentDef(qn: QualifiedName, preClauses: Seq[PreClause]) = {
+  def elaborateDefinition(d: PreDefinition): Result[Definition] = for {
+    partialDefinition <- elaborateDefinitionType(d)
+    definition <- ExtendedSignature(this, partialDefinition).elaborateDefinitionClauses(d)
+  } yield definition
+
+  def elaborateDefinitionType(d: PreDefinition): Result[Definition] = d match {
+    case d@PreDefinition(qn) => {
+      for {
+        _ <- d.ty.level
+        ty <- d.ty.toWhnf
+        elaborated = new Definition(qn)(ty, null, null)
+      } yield elaborated
+    }
+  }
+
+  def elaborateDefinitionClauses(d: PreDefinition) = {
     val clauses = ArrayBuffer[Clause]()
     for {
-      d <- getDefinition(qn)
-      _ = d.clauses == null match {
+      data <- getDefinition(d.qn)
+      _ = data.clauses == null match {
         case true => Right(())
-        case false => typingErrorWithCtx(e"Definition $qn is already fully defined.")
+        case false => typingErrorWithCtx(e"Definition $d.qn is already fully defined.")
       }
-      augmented = new Definition(qn)(d.ty, clauses, null)
+      augmented = new Definition(d.qn)(data.ty, clauses, null)
       _Q <- (
-        preClauses.map {
+        d.clauses.map {
           case UncheckedClause(lhs, rhs) => (Set.empty[(Term /? Pattern) ∷ Type], lhs) |-> rhs
         }
-        .toList ||| (qn, Nil) ∷ d.ty
+        .toList ||| (d.qn, Nil) ∷ data.ty
         ).elaborate(using clauses)(using Context.empty)(using ExtendedSignature(this, augmented))
-    } yield new Definition(qn)(d.ty, clauses, _Q)
+    } yield new Definition(d.qn)(data.ty, clauses, _Q)
   }
 }
 
@@ -326,14 +337,6 @@ extension recordTypingOps on (self: Record) {
     Right(fields)
   }
 }
-
-type PreDefinition = DefinitionT[Unchecked, Term]
-type PreDeclaration = DeclarationT[Unchecked, Term]
-type PreData = DataT[Unchecked, Term]
-type PreRecord = RecordT[Unchecked, Term]
-type PreConstructor = ConstructorT[Term]
-type PreField = FieldT[Term]
-type PreClause = ClauseT[Unchecked, Term]
 
 object SignatureBuilder {
   def create(fallback: Signature) : SignatureBuilder = SignatureBuilder(HashMap.empty, HashMap.empty, HashMap.empty, fallback)

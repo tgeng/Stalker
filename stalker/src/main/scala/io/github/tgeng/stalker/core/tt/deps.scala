@@ -71,6 +71,7 @@ object dependencies {
     }
   }
 
+  import PreDeclaration._
   import ClauseT._
 
   given Deps[PreDeclaration] {

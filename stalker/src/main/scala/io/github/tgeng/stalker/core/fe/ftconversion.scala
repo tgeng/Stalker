@@ -133,6 +133,7 @@ object ftConversion {
     }
   }
 
+  import PreDeclaration._
   import FDeclaration._
   import FUncheckedRhs._
   import UncheckedRhs._
@@ -150,7 +151,7 @@ object ftConversion {
                     cons.liftMap(_.toTt)
                   }
                 }
-            yield PreData(ns.qn / name)(paramTys, ty, cons)
+            yield new PreData(ns.qn / name)(paramTys, ty, cons)
           }
         } yield r
       }
@@ -176,7 +177,7 @@ object ftConversion {
                 fields <- fields match {
                   case fields : Seq[FField] => fields.liftMap(_.toTt)
                 }
-            yield PreRecord(ns.qn / name)(paramTys, ty, fields)
+            yield new PreRecord(ns.qn / name)(paramTys, ty, fields)
           }
         } yield r
       }
@@ -190,7 +191,7 @@ object ftConversion {
         case FDefinition(name, ty, clauses) => for {
           ty <- ty.toTt
           clauses <- clauses.liftMap(_.toTt)
-        } yield PreDefinition(ns.qn / name)(ty, clauses, null)
+        } yield new PreDefinition(ns.qn / name)(ty, clauses)
       }
     }
   }

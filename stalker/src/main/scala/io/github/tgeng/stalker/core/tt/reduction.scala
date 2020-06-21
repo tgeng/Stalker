@@ -3,6 +3,7 @@ package io.github.tgeng.stalker.core.tt
 import scala.util.control.NonLocalReturns._
 import io.github.tgeng.common.extraSetOps
 import io.github.tgeng.common.debug._
+import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.core.common.Error._
 import Term._
 import Whnf._
@@ -26,7 +27,7 @@ object reduction {
     case TRedux(fn, elims) => for {
       definition <- Σ getDefinition fn
       rhs <- if (Γ.size == 0 && definition.ct != null) evalCaseTree(definition.ct, Substitution.id, elims)
-             else if (definition.clauses != null) evalClauses(definition.clauses, elims, definition)
+             else if (definition.clauses != null) evalClauses(definition.clauses, elims, definition.qn)
              else typingErrorWithCtx(e"Cannot reduce definition ${definition.qn} since it's not fully defined.")
       r <- rhs.toWhnf
     } yield r
@@ -94,7 +95,7 @@ object reduction {
     yield r
   }
 
-  private def evalClauses(cs: scala.collection.Seq[Clause], e̅: List[Elimination], d: Definition)(using Γ: Context)(using Σ: Signature) : Result[Term] = returning[Result[Term]] {
+  private def evalClauses(cs: scala.collection.Seq[Clause], e̅: List[Elimination], qn: QualifiedName)(using Γ: Context)(using Σ: Signature) : Result[Term] = returning[Result[Term]] {
     for (c <- cs) {
       c match {
         case CheckedClause(_, q̅, v, _) => e̅ / q̅ match {
@@ -104,7 +105,7 @@ object reduction {
         }
       }
     }
-    throwReturn[Result[Term]](typingErrorWithCtx(e"No matched clause found with eliminators ${e̅}. Is definition ${d.qn} exhaustive?"))
+    throwReturn[Result[Term]](typingErrorWithCtx(e"No matched clause found with eliminators ${e̅}. Is definition ${qn} exhaustive?"))
   }
   
   def (v: Term) / (p: Pattern)(using Γ: Context)(using Σ: Signature) : MatchResult = p match {
