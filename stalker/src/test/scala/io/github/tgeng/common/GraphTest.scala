@@ -7,33 +7,34 @@ import graph._
 
 class GraphTest extends UnitSpec {
   "testing collapseCycles" in {
-    collapsing() becomes (Seq(), Map())
-    collapsing(1 -> 2) becomes (Seq($(2), $(1)), Map($(1) -> $(2)))
+    collapsing() becomes (Map(), Seq())
+    collapsing(1 -> 2) becomes (Map($(1) -> $(2)), Seq($(2), $(1)))
 
     collapsing(
       1 -> 2,
       2 -> 3
     ) becomes(
-      Seq($(3), $(2), $(1)),
       Map(
         $(1) -> $(2),
         $(2) -> $(3),
-      ))
+      ),
+      Seq($(3), $(2), $(1))
+    )
 
     collapsing(
       1 -> 2,
       2 -> 3,
       3 -> 1
     ) becomes(
+      Map(),
       Seq($(1, 2, 3)),
-      Map()
     )
 
     collapsing(
       1 -> (2, 3),
     ) becomes(
+      Map($(1) -> ($(2), $(3))),
       Seq($(2), $(3), $(1)),
-      Map($(1) -> ($(2), $(3)))
     )
 
     collapsing(
@@ -41,8 +42,8 @@ class GraphTest extends UnitSpec {
       2 -> (4),
       4 -> (2)
     ) becomes(
+      Map($(1) -> ($(2, 4), $(3))),
       Seq($(2, 4), $(3), $(1)),
-      Map($(1) -> ($(2, 4), $(3)))
     )
 
     collapsing(
@@ -51,8 +52,8 @@ class GraphTest extends UnitSpec {
       3 -> (4, 5),
       4 -> 3
     ) becomes(
+      Map($(1, 2) -> $(3, 4), $(3, 4) -> $(5)),
       Seq($(5), $(3, 4), $(1, 2)),
-      Map($(1, 2) -> $(3, 4), $(3, 4) -> $(5))
     )
 
     collapsing(
@@ -61,8 +62,8 @@ class GraphTest extends UnitSpec {
       3 -> (4, 5),
       4 -> 3
     ) becomes(
+      Map($(1, 2) -> ($(3, 4), $(5)), $(3, 4) -> $(5)),
       Seq($(5), $(3, 4), $(1, 2)),
-      Map($(1, 2) -> ($(3, 4), $(5)), $(3, 4) -> $(5))
     )
 
     collapsing(
@@ -80,17 +81,22 @@ class GraphTest extends UnitSpec {
       32 -> 33,
       33 -> 30,
     ) becomes(
+      Map($(1) -> ($(10, 11, 12, 13), $(20, 21, 22, 23), $(30, 31, 32, 33))),
       Seq($(10, 11, 12, 13), $(20, 21, 22, 23), $(30, 31, 32, 33), $(1)),
-      Map($(1) -> ($(10, 11, 12, 13), $(20, 21, 22, 23), $(30, 31, 32, 33)))
+      Seq($(10, 11, 12, 13), $(30, 31, 32, 33), $(20, 21, 22, 23), $(1)),
+      Seq($(20, 21, 22, 23), $(10, 11, 12, 13), $(30, 31, 32, 33), $(1)),
+      Seq($(20, 21, 22, 23), $(30, 31, 32, 33), $(10, 11, 12, 13), $(1)),
+      Seq($(30, 31, 32, 33), $(20, 21, 22, 23), $(10, 11, 12, 13), $(1)),
+      Seq($(30, 31, 32, 33), $(10, 11, 12, 13), $(20, 21, 22, 23), $(1)),
     )
   }
 
   inline def collapsing(entries: (Int, Set[Int])*) = Map(entries : _*)
 
-  inline def (g: Map[Int, Set[Int]]) becomes (topoSorted: Seq[Set[Int]], dag: Map[Set[Int], Set[Set[Int]]]) = {
+  inline def (g: Map[Int, Set[Int]]) becomes (dag: Map[Set[Int], Set[Set[Int]]], possibleTopoSorted: Seq[Set[Int]]*) = {
     val (actualTopoSorted, actualDag) = collapseCycles(g)
     assert(actualDag == dag)
-    assert(actualTopoSorted == topoSorted)
+    assert(possibleTopoSorted.contains(actualTopoSorted))
   }
 
   def $[T](ts: T*) : Set[T] = Set(ts : _*)
