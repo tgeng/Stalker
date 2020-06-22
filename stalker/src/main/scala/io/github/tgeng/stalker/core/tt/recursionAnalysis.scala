@@ -3,7 +3,7 @@ package io.github.tgeng.stalker.core.tt
 import scala.collection.mutable
 
 import io.github.tgeng
-import tgeng.common._
+import tgeng.common.graph._
 import tgeng.common.nullOps._
 import tgeng.stalker
 
@@ -21,36 +21,21 @@ case class MutualGroup(
 )
 
 object recursionAnalysis {
-  def analyzeMutualDependency(decls: Set[PreDeclaration]) : Result[Set[MutualGroup]] = {
-    val elemByQn : Map[QualifiedName, UnionFindElem[PreDeclaration]] = decls.map(d => d.qn -> UnionFindElem(d)).toMap
+  def analyzeMutualDependency(decls: Set[PreDeclaration]) : Seq[MutualGroup] = {
+    val elemByQn : Map[QualifiedName, PreDeclaration] = decls.map(d => d.qn -> d).toMap
 
-    val graph : Map[UnionFindElem[PreDeclaration], Set[UnionFindElem[PreDeclaration]]] = decls.map{d => 
+    val graph : Map[PreDeclaration, Set[PreDeclaration]] = decls.map{d => 
       elemByQn(d.qn) -> d.deps.filter(elemByQn.contains(_)).map(elemByQn(_))
     }.toMap
 
-    val visited = mutable.Set[UnionFindElem[PreDeclaration]]()
-    val parents = mutable.LinkedHashSet[UnionFindElem[PreDeclaration]]()
-
-    graph.keys.foreach{
-      collapseAllLoops(_)(using graph, visited, parents, UnionFindElem.union)
+    val (topoSorted, dag) = collapseCycles(graph)
+    val mutualGroupByDeclGroup = mutable.Map[Set[PreDeclaration], MutualGroup]()
+    topoSorted.map{ declGroup =>
+      val mutualGroup = MutualGroup(declGroup)(
+        dag.getOrElse(declGroup, Set.empty).map(dep => mutualGroupByDeclGroup(dep)),
+        declGroup.flatMap(_.deps) diff elemByQn.keySet)
+      mutualGroupByDeclGroup(declGroup) = mutualGroup
+      mutualGroup
     }
-    ???
-  }
-
-  private def collapseAllLoops[T](node: T)(using
-    graph: Map[T, Set[T]],
-    visited: mutable.Set[T],
-    parents: mutable.LinkedHashSet[T],
-    collapse: (Iterable[T]) => Unit
-  ) : Unit = {
-    if (visited.contains(node)) return
-    if (parents.contains(node)) {
-      collapse(parents.dropWhile(_ != node))
-      return
-    }
-    parents.add(node)
-    graph(node).foreach{ collapseAllLoops(_) }
-    parents.remove(node)
-    visited.add(node)
   }
 }

@@ -40,7 +40,10 @@ object graph {
   import scala.collection.mutable
   import debug._
 
-  /** Collapse cycles in a general graph and form a DAG. */
+  /** Detects cycles in a general graph and collect cyclic nodes into groups. 
+    * Then returns a topologically sorted seq of such groups and a DAG of such
+    * groups, representing the dependencies among them.
+    */
   def collapseCycles[T](graph: Map[T, Set[T]]): (Seq[Set[T]], Map[Set[T], Set[Set[T]]]) = {
     val allTs = (graph.keys ++ graph.values.flatten).toSet
     val unionFindElemByT : Map[T, UnionFindElem[T]] = allTs.map{ d => d -> UnionFindElem(d)}.toMap
