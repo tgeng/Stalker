@@ -54,8 +54,10 @@ extension extraSetOps on [L, R1, R2, CC[_], C <: SetOps[R1, CC, C]] (self: C) {
     .map(e => (acc.asInstanceOf[SetOps[R2, CC, Nothing]] union Set(e)).asInstanceOf[CC[R2]])))
 }
 
-extension nullOps on [T](t: T | Null) {
-  def !! = t.asInstanceOf[T]
+extension nullOps on [T, R](t: T | Null) {
+  inline def !! = t.asInstanceOf[T]
+  inline def ifNullUse (default: T) : T = if (t == null) default else t
+  inline def ifNotNull(fn: T => R) : R | Null = if (t == null) null else fn(t)
 }
 
 extension eitherOps on [L, R](e: Either[L, R]) {

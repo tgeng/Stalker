@@ -1,4 +1,4 @@
-package io.github.tgeng.stalker.testing
+package io.github.tgeng.testing
 
 import scala.language.implicitConversions
 import org.scalatest.freespec.AnyFreeSpec

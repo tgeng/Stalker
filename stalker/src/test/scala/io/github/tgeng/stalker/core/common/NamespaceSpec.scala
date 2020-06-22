@@ -2,7 +2,7 @@ package io.github.tgeng.stalker.core.common
 
 import scala.collection.immutable.ArraySeq
 import scala.language.implicitConversions
-import io.github.tgeng.stalker.testing.UnitSpec
+import io.github.tgeng.testing.UnitSpec
 
 import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.core.common.Namespace

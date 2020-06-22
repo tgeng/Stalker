@@ -4,7 +4,7 @@ import scala.language.implicitConversions
 import io.github.tgeng.parse._
 import io.github.tgeng.stalker.core.fe.parser._
 import io.github.tgeng.stalker.core.fe.pprint.{given _, _}
-import io.github.tgeng.stalker.testing.UnitSpec
+import io.github.tgeng.testing.UnitSpec
 import io.github.tgeng.parse.string.toStringWithInput
 
 class ParserSpec extends UnitSpec {

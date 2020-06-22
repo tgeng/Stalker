@@ -2,9 +2,9 @@ package io.github.tgeng.common
 
 object debug {
 
-  inline def [T] (inline t: T) printMe (prefix: String): T = {
-    println(prefix + t)
-    t
+  inline def [T](inline v: T) printMe : T = {
+    println(exprName(v) + " = " + v)
+    v
   }
   
   inline def [T] (inline msg: String) | (t: => T) : T = {

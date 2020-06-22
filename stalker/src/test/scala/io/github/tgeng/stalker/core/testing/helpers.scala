@@ -3,7 +3,7 @@ package io.github.tgeng.stalker.core.testing
 import scala.language.implicitConversions
 import org.scalatest.matchers._
 import org.scalatest.Matchers
-import io.github.tgeng.stalker.testing.UnitSpec
+import io.github.tgeng.testing.UnitSpec
 import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.core.common.Namespace
 import io.github.tgeng.stalker.core.common.LocalNames
@@ -19,7 +19,7 @@ import io.github.tgeng.stalker.core.tt._
 import io.github.tgeng.stalker.core.tt.typingRelation
 import io.github.tgeng.stalker.core.tt.typing._
 import io.github.tgeng.stalker.core.tt.reduction.toWhnf
-import io.github.tgeng.stalker.testing.UnitSpec
+import io.github.tgeng.testing.UnitSpec
 
 trait Helpers {
   def (ft: FTerm) tt (using LocalIndices, Namespace): Term = ft.toTt match {
