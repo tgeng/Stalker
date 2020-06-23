@@ -1,6 +1,7 @@
-package io.github.tgeng.stalker.core.common
+package io.github.tgeng.stalker.core.tt
 
 import io.github.tgeng.stalker.common.QualifiedName
+import io.github.tgeng.stalker.core.common._
 import io.github.tgeng.common.extraSeqOps
 import QualifiedName._
 import Error._
@@ -61,10 +62,9 @@ trait MutableNamespace extends Namespace {
 }
 
 object MutableNamespace {
-  import io.github.tgeng.stalker.core.tt.builtins._
   import scala.language.implicitConversions
-  import io.github.tgeng.stalker.core.tt._
   import PreDeclaration._
+  import builtins._
 
   def createWithBuiltins(qn: QualifiedName) : MutableNamespace = {
     val r = InMemoryNamespace(qn)

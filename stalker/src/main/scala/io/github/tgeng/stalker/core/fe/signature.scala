@@ -7,9 +7,9 @@ import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.common.QualifiedName._
 import io.github.tgeng.stalker.core.common.Error._
-import io.github.tgeng.stalker.core.common.Namespace
-import io.github.tgeng.stalker.core.common.MutableNamespace
-import io.github.tgeng.stalker.core.common.LeafNamespace
+import io.github.tgeng.stalker.core.tt.Namespace
+import io.github.tgeng.stalker.core.tt.MutableNamespace
+import io.github.tgeng.stalker.core.tt.LeafNamespace
 import io.github.tgeng.stalker.core.tt._
 
 import MutableNamespace.{_, given _}

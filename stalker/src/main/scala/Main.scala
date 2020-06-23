@@ -3,9 +3,9 @@ import io.github.tgeng.stalker.core.fe.parser
 import io.github.tgeng.stalker.core.fe._
 import io.github.tgeng.stalker.core.tt._
 import io.github.tgeng.stalker.common.QualifiedName._
-import io.github.tgeng.stalker.core.common.Namespace
-import io.github.tgeng.stalker.core.common.InMemoryNamespace
-import io.github.tgeng.stalker.core.common.LeafNamespace
+import io.github.tgeng.stalker.core.tt.Namespace
+import io.github.tgeng.stalker.core.tt.InMemoryNamespace
+import io.github.tgeng.stalker.core.tt.LeafNamespace
 import io.github.tgeng.common._
 import io.github.tgeng.parse._
 import io.github.tgeng.parse.string.{given _, _}

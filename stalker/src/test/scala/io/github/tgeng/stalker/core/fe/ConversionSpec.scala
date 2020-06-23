@@ -6,7 +6,7 @@ import io.github.tgeng.stalker.core.fe.builders._
 import io.github.tgeng.stalker.core.fe.parser._
 import io.github.tgeng.stalker.core.tt._
 import io.github.tgeng.stalker.core.tt.stringBindingOps
-import io.github.tgeng.stalker.core.common.LeafNamespace
+import io.github.tgeng.stalker.core.tt.LeafNamespace
 
 import Term._
 import Whnf._
