@@ -39,7 +39,7 @@ object tfConversion {
       case WData(qn, params) => ftRedux(qn, params.map(t => FETerm(t.toFe)))
       case WRecord(qn, params) => ftRedux(qn, params.map(t => FETerm(t.toFe)))
       case WId(l, ty, x, y) => ftRedux(idType.qn, FETerm(l.toFe), FETerm(ty.toFe), FETerm(x.toFe), FETerm(y.toFe))
-      case WVar(idx, elims) => FTRedux(localVars.get(idx), Nil, elims.map(_.toFe))
+      case WVar(idx, elims) => FTRedux(localVars.get(idx) :: Nil, elims.map(_.toFe))
       case WCon(con, args) => FTCon(con, args.map(_.toFe))
     }
   }
@@ -62,10 +62,10 @@ object tfConversion {
   }
 
   private def ftRedux(qn: QualifiedName, elims: List[FElimination])(using ns: Namespace) : FTerm = ns.render(qn) match {
-    case (head, names) => FTRedux(head, names, elims)
+    case (head, names) => FTRedux(head :: names, elims)
   }
 
   private def ftRedux(qn: QualifiedName, elims: FElimination*)(using ns: Namespace) : FTerm = ns.render(qn) match {
-    case (head, names) => FTRedux(head, names, elims.toList)
+    case (head, names) => FTRedux(head :: names, elims.toList)
   }
 }

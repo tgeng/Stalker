@@ -46,10 +46,7 @@ object parser {
 
   private def ref(using opt: ParsingOptions)(using IndentRequirement) : Parser[FTerm] = P {
     for qn <- qn
-    yield qn match {
-      case head :: tail => FTRedux(head, tail, Nil)
-      case _ => throw AssertionError()
-    }
+    yield FTRedux(qn, Nil)
   }
 
   private def atom(using opt: ParsingOptions)(using IndentRequirement) : Parser[FTerm] = P {
@@ -68,7 +65,7 @@ object parser {
         pure(t)
       } else {
         (t, elims) match {
-          case (FTRedux(head, name, es1), es2) => pure(FTRedux(head, name, es1 ++ es2))
+          case (FTRedux(names, es1), es2) => pure(FTRedux(names, es1 ++ es2))
           case (FTFunction(_, _), _) => fail("Cannot apply to function type.")
           case (FTLevel(_), _) => fail("Cannot apply to a level.")
           case (FTCon(_, _), _) => fail("Cannot apply to a constructed value.")

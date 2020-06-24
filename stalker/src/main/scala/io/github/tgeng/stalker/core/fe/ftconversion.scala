@@ -1,6 +1,7 @@
 package io.github.tgeng.stalker.core.fe
 
 import scala.language.implicitConversions
+import io.github.tgeng.common.eitherOps
 import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.core.tt.Namespace
 import io.github.tgeng.common.extraSeqOps
@@ -33,33 +34,23 @@ object ftConversion {
                                 yield TWhnf(WCon(name, args))
       case FTLevel(level) => Right(TWhnf(WLConst(level)))
       case FTNat(n) => Right((0 until n).foldLeft(TRedux("stalker.data.Nat.Zero", Nil))((acc, _) => TRedux("stalker.data.Nat.Suc", List(ETerm(acc)))))
-      case FTRedux(head, names, elims) => ctx.get(head) match {
-        case Right(idx) => for elims <- elims.liftMap(_.toTt)
-                           yield TWhnf(WVar(idx, names.map(EProj(_)) ++ elims))
-        case _ => ns.get(head) match {
-          case Right(ns) => resolveInNamespace(ns, names) match {
-            case (ns, names) => (ns, ns.getConstructorName, names) match {
-              // TODO(tgeng): remove this special handling after implicit parameter
-              // is supported so that constructor can be normal functions.
-              case (ns, Right(con), names) => {
-                names match {
-                  case Nil =>
-                    for args <- elims.liftMap {
-                          case p : FEProj => typingError(e"Cannot apply projection $p to constructor ${ns.qn}.")
-                          case FETerm(t) => Right(t)
-                        }
-                        args <- args.liftMap(_.toTt)
-                    yield TWhnf(WCon(con, args))
-                  case name :: _ => typingError(e"Cannot apply projection ${FEProj(name)} to constructor ${ns.qn}.")
+      case FTRedux(names, elims) => names match {
+        case name :: Nil if ctx.get(name).isRight => 
+          for elims <- elims.liftMap(_.toTt)
+          yield TWhnf(WVar(ctx.get(name).!!!, elims))
+        case _ => ns.get(names) match {
+         // TODO(tgeng): remove this special handling after implicit parameter
+         // is supported so that constructor can be normal functions.
+          case Right(ns) if ns.constructorName.isDefined => 
+            for args <- elims.liftMap {
+                  case p : FEProj => typingError(e"Cannot apply projection $p to constructor ${ns.qn}.")
+                  case FETerm(t) => Right(t)
                 }
-              }
-              case (ns, _, names) =>
-                for elims <- elims.liftMap(_.toTt)
-                yield TRedux(ns.qn, names.map(EProj(_)) ++ elims)
-            }
-
-          }
-          case _ => noNameError(e"$head is not a local variable nor a name in the current scope.")
+                args <- args.liftMap(_.toTt)
+            yield TWhnf(WCon(ns.constructorName.get, args))
+          case Right(ns) => 
+            for elims <- elims.liftMap(_.toTt)
+            yield TRedux(ns.qn, elims)
         }
       }
     }

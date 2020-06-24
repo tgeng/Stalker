@@ -85,19 +85,19 @@ class ParserSpec extends UnitSpec {
       List(FQPattern(FPCon(List("foo", "bar"), List(FPVarCon("a"), FPVarCon("b")), false))))
 
     assert(q"..a" ==
-      List(FQPattern(FPForced(FTRedux("a",List(),List())))))
+      List(FQPattern(FPForced(FTRedux(List("a"),List())))))
     assert(q"a b ..c" ==
-      List(FQPattern(FPVarCon("a")), FQPattern(FPVarCon("b")), FQPattern(FPForced(FTRedux("c",List(),List())))))
+      List(FQPattern(FPVarCon("a")), FQPattern(FPVarCon("b")), FQPattern(FPForced(FTRedux(List("c"),List())))))
     assert(q"..(a b c)" ==
-      List(FQPattern(FPForced(FTRedux("a",List(),List(FETerm(FTRedux("b",List(),List())), FETerm(FTRedux("c",List(),List()))))))))
+      List(FQPattern(FPForced(FTRedux(List("a"),List(FETerm(FTRedux(List("b"),List())), FETerm(FTRedux(List("c"),List()))))))))
     assert(q"a ..(b c) .d" ==
-      List(FQPattern(FPVarCon("a")), FQPattern(FPForced(FTRedux("b",List(),List(FETerm(FTRedux("c",List(),List())))))), FQProj("d")))
+      List(FQPattern(FPVarCon("a")), FQPattern(FPForced(FTRedux(List("b"),List(FETerm(FTRedux(List("c"),List())))))), FQProj("d")))
     assert(q"(..a b c) " ==
       List(FQPattern(FPCon(List("a"), List(FPVarCon("b"), FPVarCon("c")), true))))
 
     assert(q"a{}" == List(FQPattern(FPCon("a", List(), false))))
     assert(q"a{b c}" == List(FQPattern(FPCon("a", List(FPVarCon("b"), FPVarCon("c")), false))))
-    assert(q"a{..b c}" == List(FQPattern(FPCon("a", List(FPForced(FTRedux("b",List(),List())), FPVarCon("c")), false))))
+    assert(q"a{..b c}" == List(FQPattern(FPCon("a", List(FPForced(FTRedux(List("b"),List())), FPVarCon("c")), false))))
     assert(q"..a{b c}" == List(FQPattern(FPCon("a", List(FPVarCon("b"), FPVarCon("c")), true))))
     assert(q"x ..a{b c} y" == List(FQPattern(FPVarCon("x")), FQPattern(FPCon("a", List(FPVarCon("b"), FPVarCon("c")), true)), FQPattern(FPVarCon("y"))))
     assert(q"a{b{} c}" == List(FQPattern(FPCon("a", List(FPCon("b", List(), false), FPVarCon("c")), false))))
@@ -113,10 +113,10 @@ class ParserSpec extends UnitSpec {
         FData(
           "Nat",
           List(),
-          FTRedux("Type",List(),List(FETerm(FTLevel(0)))),
+          FTRedux(List("Type"),List(FETerm(FTLevel(0)))),
           Vector(
             FConstructor("Zero",List()),
-            FConstructor("Suc",List(FBinding("",FTRedux("Nat",List(),List()))))))
+            FConstructor("Suc",List(FBinding("",FTRedux(List("Nat"),List()))))))
     )
 
     assert(
@@ -127,20 +127,20 @@ class ParserSpec extends UnitSpec {
       """ ==
         FData(
           "Vector",
-          List(FBinding("n", FTRedux("Nat", List(), List())), FBinding("A", FTRedux("Type", List(), List(FETerm(FTLevel(0)))))),
-          FTRedux("Type", List(), List(FETerm(FTLevel(0)))),
+          List(FBinding("n", FTRedux(List("Nat"), List())), FBinding("A", FTRedux(List("Type"), List(FETerm(FTLevel(0)))))),
+          FTRedux(List("Type"), List(FETerm(FTLevel(0)))),
           Vector(
             FConstructor(
               "Nil", 
               List(
-                FBinding("", FTRedux("Id", List(), List(FETerm(FTLevel(0)), FETerm(FTRedux("Nat", List(), List())), FETerm(FTRedux("n", List(), List())), FETerm(FTRedux("Zero", List(), List()))))))),
+                FBinding("", FTRedux(List("Id"), List(FETerm(FTLevel(0)), FETerm(FTRedux(List("Nat"), List())), FETerm(FTRedux(List("n"), List())), FETerm(FTRedux(List("Zero"), List()))))))),
             FConstructor(
               "Cons",
               List(
-                FBinding("m", FTRedux("Nat", List(), List())),
-                FBinding("", FTRedux("A", List(), List())),
-                FBinding("", FTRedux("Vector", List(), List(FETerm(FTRedux("m", List(), List())), FETerm(FTRedux("A", List(), List()))))),
-                FBinding("", FTRedux("Id", List(), List(FETerm(FTLevel(0)), FETerm(FTRedux("Nat", List(), List())), FETerm(FTRedux("Suc", List(), List(FETerm(FTRedux("m", List(), List()))))), FETerm(FTRedux("n", List(), List())))))))))
+                FBinding("m", FTRedux(List("Nat"), List())),
+                FBinding("", FTRedux(List("A"), List())),
+                FBinding("", FTRedux(List("Vector"), List(FETerm(FTRedux(List("m"), List())), FETerm(FTRedux(List("A"), List()))))),
+                FBinding("", FTRedux(List("Id"), List(FETerm(FTLevel(0)), FETerm(FTRedux(List("Nat"), List())), FETerm(FTRedux(List("Suc"), List(FETerm(FTRedux(List("m"), List()))))), FETerm(FTRedux(List("n"), List())))))))))
     )
   }
 
@@ -153,10 +153,10 @@ class ParserSpec extends UnitSpec {
       """ == FRecord(
         "NatStream",
         List(),
-        FTRedux("Type", List(), List(FETerm(FTLevel(0)))),
+        FTRedux(List("Type"), List(FETerm(FTLevel(0)))),
         Vector(
-          FField("head", FTRedux("Nat", List(), List())),
-          FField("tail", FTRedux("NatStream", List(), List()))))
+          FField("head", FTRedux(List("Nat"), List())),
+          FField("tail", FTRedux(List("NatStream"), List()))))
     )
 
     assert(
@@ -167,16 +167,16 @@ class ParserSpec extends UnitSpec {
       """ == FRecord(
         "CoNat",
         List(),
-        FTRedux("Type", List(), List(FETerm(FTLevel(0)))),
+        FTRedux(List("Type"), List(FETerm(FTLevel(0)))),
         Vector(
-          FField("izZero", FTRedux("Boolean", List(), List())),
+          FField("izZero", FTRedux(List("Boolean"), List())),
           FField(
             "tail",
             FTFunction(
               FBinding(
                 "", 
-                FTRedux("Id", List(), List(FETerm(FTLevel(0)), FETerm(FTRedux("Boolean", List(), List())), FETerm(FTRedux("self", List(), List(FEProj("izZero")))), FETerm(FTRedux("true", List(), List()))))),
-              FTRedux("CoNat", List(), List())))))
+                FTRedux(List("Id"), List(FETerm(FTLevel(0)), FETerm(FTRedux(List("Boolean"), List())), FETerm(FTRedux(List("self"), List(FEProj("izZero")))), FETerm(FTRedux(List("true"), List()))))),
+              FTRedux(List("CoNat"), List())))))
     )
 
     assert(
@@ -185,11 +185,11 @@ class ParserSpec extends UnitSpec {
       |  = Nat.Suc Nat.Zero
       """ == FDefinition(
         "one", 
-        FTRedux("Nat", List(), List()), 
+        FTRedux(List("Nat"), List()), 
         Vector(
           FUncheckedClause(
             List(),
-            FUTerm(FTRedux("Nat", List("Suc"), List(FETerm(FTRedux("Nat", List("Zero"), List()))))))))
+            FUTerm(FTRedux(List("Nat", "Suc"), List(FETerm(FTRedux(List("Nat", "Zero"), List()))))))))
     )
 
     assert(
@@ -198,11 +198,11 @@ class ParserSpec extends UnitSpec {
       |  n = Nat.Suc n
       """ == FDefinition(
         "suc", 
-        FTFunction(FBinding("", FTRedux("Nat", List(), List())), FTRedux("Nat", List(), List())),
+        FTFunction(FBinding("", FTRedux(List("Nat"), List())), FTRedux(List("Nat"), List())),
         Vector(
           FUncheckedClause(
             List(FQPattern(FPVarCon("n"))),
-            FUTerm(FTRedux("Nat", List("Suc"), List(FETerm(FTRedux("n", List(), List()))))))))
+            FUTerm(FTRedux(List("Nat", "Suc"), List(FETerm(FTRedux(List("n"), List()))))))))
     )
 
     assert(
@@ -212,14 +212,14 @@ class ParserSpec extends UnitSpec {
       |  m (Nat.Suc n) = Nat.Suc (plus m n)
       """ == FDefinition(
         "plus", 
-        FTFunction(FBinding("", FTRedux("Nat", List(), List())), FTFunction(FBinding("", FTRedux("Nat", List(), List())), FTRedux("Nat", List(), List()))),
+        FTFunction(FBinding("", FTRedux(List("Nat"), List())), FTFunction(FBinding("", FTRedux(List("Nat"), List())), FTRedux(List("Nat"), List()))),
         Vector(
           FUncheckedClause(
             List(FQPattern(FPVarCon("m")), FQPattern(FPCon(List("Nat", "Zero"), List(), false))),
-            FUTerm(FTRedux("m", List(), List()))),
+            FUTerm(FTRedux(List("m"), List()))),
           FUncheckedClause(
             List(FQPattern(FPVarCon("m")), FQPattern(FPCon(List("Nat", "Suc"), List(FPVarCon("n")), false))),
-            FUTerm(FTRedux("Nat", List("Suc"), List(FETerm(FTRedux("plus", List(), List(FETerm(FTRedux("m", List(), List())), FETerm(FTRedux("n", List(), List())))))))))))
+            FUTerm(FTRedux(List("Nat", "Suc"), List(FETerm(FTRedux(List("plus"), List(FETerm(FTRedux(List("m"), List())), FETerm(FTRedux(List("n"), List())))))))))))
     )
   }
 }
