@@ -6,6 +6,7 @@ enum Error {
   case TypingError(msg: Seq[Any], override val localNames: Option[LocalNames])
   case NoNameError(msg: Seq[Any])
   case DuplicatedDefinitionError(msg: Seq[Any])
+  case AmbiguousNameError(msg: Seq[Any])
 
   def msg: Seq[Any]
   def localNames: Option[LocalNames] = None
@@ -25,6 +26,8 @@ object Error {
   def noNameError(msg: Seq[Any]) = Left(NoNameError(msg))
 
   def duplicatedDefinitionError(msg: Seq[Any]) = Left(DuplicatedDefinitionError(msg))
+
+  def ambiguousNameError(msg: Seq[Any]) = Left(AmbiguousNameError(msg))
 
   def assertResult[T](r: Result[T]) : T = r match {
     case Right(r) => r

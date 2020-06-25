@@ -3,15 +3,21 @@ package io.github.tgeng.stalker.core.fe
 import scala.language.implicitConversions
 import io.github.tgeng.common.eitherOps
 import io.github.tgeng.stalker.common.QualifiedName
-import io.github.tgeng.stalker.core.tt.Namespace
+import io.github.tgeng.stalker.common.Namespace
 import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.stalker.core.common.Error._
 import io.github.tgeng.stalker.core.tt._
+import io.github.tgeng.stalker.common.nsElemSetOps
+import io.github.tgeng.stalker.common._
 
 import QualifiedName._
 
 trait FT[F, T] {
   def (f: F) toTt (using ctx: LocalIndices)(using ns: Namespace) : Result[T]
+}
+
+trait FTWithQualifiedName[F, T] {
+  def (f: F) toTt(qn: QualifiedName) (using ctx: LocalIndices)(using ns: Namespace) : Result[T]
 }
 
 object ftConversion {
@@ -38,29 +44,27 @@ object ftConversion {
         case name :: Nil if ctx.get(name).isRight => 
           for elims <- elims.liftMap(_.toTt)
           yield TWhnf(WVar(ctx.get(name).!!!, elims))
-        case _ => ns.get(names) match {
-         // TODO(tgeng): remove this special handling after implicit parameter
-         // is supported so that constructor can be normal functions.
-          case Right(ns) if ns.constructorName.isDefined => 
-            for args <- elims.liftMap {
-                  case p : FEProj => typingError(e"Cannot apply projection $p to constructor ${ns.qn}.")
-                  case FETerm(t) => Right(t)
-                }
-                args <- args.liftMap(_.toTt)
-            yield TWhnf(WCon(ns.constructorName.get, args))
-          case Right(ns) => 
-            for elims <- elims.liftMap(_.toTt)
-            yield TRedux(ns.qn, elims)
+        case _ => {
+          val nsElems = ns.resolve(names)
+          // TODO(tgeng): remove this special handling after implicit parameter
+          // is supported so that constructor can be normal functions.
+          nsElems.uniqueConstructor(names) match {
+            case Right(constructorName) => 
+              for args <- elims.liftMap {
+                    case p : FEProj => typingError(e"Cannot apply projection $p to constructor $constructorName.")
+                    case FETerm(t) => Right(t)
+                  }
+                  args <- args.liftMap(_.toTt)
+              yield TWhnf(WCon(constructorName, args))
+            case Left(_ : NoNameError) => {
+                for qn <- nsElems.uniqueQualifiedName(names)
+                    elims <- elims.liftMap(_.toTt)
+                yield TRedux(qn, elims)
+            }
+            case Left(e) => Left(e)
+          }
         }
       }
-    }
-  }
-
-  private def resolveInNamespace(ns: Namespace, names: List[String]): (Namespace, List[String]) = names match {
-    case Nil => (ns, Nil)
-    case name :: rest => ns.get(name) match {
-      case Right(ns) => resolveInNamespace(ns, rest)
-      case _ => (ns, names)
     }
   }
 
@@ -90,8 +94,7 @@ object ftConversion {
   given FT[FPattern, Pattern] {
     def (p: FPattern) toTt (using ctx:LocalIndices)(using ns: Namespace) : Result[Pattern] = p match {
       case FPVarCon(name) => 
-        (for conNs <- ns.get(name)
-             con <- conNs.getConstructorName
+        (for con <- ns.resolve(name).uniqueConstructor(Seq(name))
          yield PCon(con, Nil)) match {
           case Left(_) => for idx <- ctx.get(name)
                           yield PVar(idx)(name)
@@ -100,8 +103,7 @@ object ftConversion {
 
       case FPCon(con: Seq[String], args, forced) => 
         for args <- args.liftMap(_.toTt) 
-            conNs <- ns.get(con)
-            con <- conNs.getConstructorName
+            con <- ns.resolve(con).uniqueConstructor(con)
         yield forced match {
           case true => PForcedCon(con, args)
           case false => PCon(con, args)
@@ -129,8 +131,8 @@ object ftConversion {
   import FUncheckedRhs._
   import UncheckedRhs._
 
-  given FT[FData, PreData] {
-    def (d: FData) toTt (using ctx: LocalIndices)(using ns: Namespace) : Result[PreData] = {
+  given FTWithQualifiedName[FData, PreData] {
+    def (d: FData) toTt(qn: QualifiedName) (using ctx: LocalIndices)(using ns: Namespace) : Result[PreData] = {
       assert(ctx.size == 0)
       d match {
         case FData(name, paramTys, ty, cons) => for {
@@ -142,7 +144,7 @@ object ftConversion {
                     cons.liftMap(_.toTt)
                   }
                 }
-            yield new PreData(ns.qn / name)(paramTys, ty, cons)
+            yield new PreData(qn / name)(paramTys, ty, cons)
           }
         } yield r
       }
@@ -157,8 +159,8 @@ object ftConversion {
     }
   }
 
-  given FT[FRecord, PreRecord] {
-    def (r: FRecord) toTt (using ctx: LocalIndices)(using ns: Namespace) : Result[PreRecord] = {
+  given FTWithQualifiedName[FRecord, PreRecord] {
+    def (r: FRecord) toTt(qn: QualifiedName) (using ctx: LocalIndices)(using ns: Namespace) : Result[PreRecord] = {
       assert(ctx.size == 0)
       r match {
         case FRecord(name, paramTys, ty, fields) => for {
@@ -168,21 +170,21 @@ object ftConversion {
                 fields <- fields match {
                   case fields : Seq[FField] => fields.liftMap(_.toTt)
                 }
-            yield new PreRecord(ns.qn / name)(paramTys, ty, fields)
+            yield new PreRecord(qn / name)(paramTys, ty, fields)
           }
         } yield r
       }
     }
   }
 
-  given FT[FDefinition, PreDefinition] {
-    def (d: FDefinition) toTt (using ctx: LocalIndices)(using ns: Namespace) : Result[PreDefinition] = {
+  given FTWithQualifiedName[FDefinition, PreDefinition] {
+    def (d: FDefinition) toTt(qn: QualifiedName) (using ctx: LocalIndices)(using ns: Namespace) : Result[PreDefinition] = {
       assert(ctx.size == 0)
       d match {
         case FDefinition(name, ty, clauses) => for {
           ty <- ty.toTt
           clauses <- clauses.liftMap(_.toTt)
-        } yield new PreDefinition(ns.qn / name)(ty, clauses)
+        } yield new PreDefinition(qn / name)(ty, clauses)
       }
     }
   }
@@ -270,11 +272,9 @@ class LocalIndices(content: Map[String, Int] = Map.empty) {
       case FPVarCon(name) => {
         get(name) match {
           case Right(_) => ()
-          case _ => (for conNs <- ns.get(name)
-                         con <- conNs.getConstructorName
-                    yield ()) match {
+          case _ => ns.resolve(name).uniqueConstructor(Seq(name)) match {
                       case Left(_) => add(name)
-                      case _ => ()
+                      case Right(_) => ()
                     }
         }
       }
@@ -285,4 +285,28 @@ class LocalIndices(content: Map[String, Int] = Map.empty) {
   }
 
   override def toString = indices.view.mapValues(_.last).toMap.toString
+}
+
+import scala.collection.Set
+
+private def (nsElems: Set[NsElem]) uniqueConstructor(names: Seq[String]): Result[String] = {
+  val cons = nsElems.constructors
+  if (cons.isEmpty) {
+    noNameError(e"$names does not reference a valid constructor.")
+  } else if (cons.size > 1) {
+    ambiguousNameError(e"$names references multiple distinct constructor names $cons.")
+  } else {
+    Right(cons.head)
+  }
+}
+
+private def (nsElems: Set[NsElem]) uniqueQualifiedName(names: Seq[String]): Result[QualifiedName] = {
+  val qns = nsElems.qualifiedNames
+  if (qns.isEmpty) {
+    noNameError(e"$names does not reference a valid definition.")
+  } else if (qns.size == 1) {
+    Right(qns.head)
+  } else {
+    ambiguousNameError(e"$names references multiple different definitions $qns.")
+  }
 }

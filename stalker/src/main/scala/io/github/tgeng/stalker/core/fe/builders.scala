@@ -1,6 +1,6 @@
 package io.github.tgeng.stalker.core.fe
 
-import io.github.tgeng.stalker.core.tt.Namespace
+import io.github.tgeng.stalker.common.Namespace
 import io.github.tgeng.stalker.core.common.LocalNames
 import io.github.tgeng.stalker.core.fe.ftConversion.{given _, _}
 import io.github.tgeng.stalker.core.fe.pprint.toBlock

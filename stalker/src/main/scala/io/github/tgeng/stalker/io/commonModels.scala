@@ -9,9 +9,3 @@ enum DeclType {
   case Record
   case Definition
 }
-
-enum PackageCommand {
-  case PImport(names: Seq[String], merge: Boolean)
-  case PExport(names: Seq[String], merge: Boolean)
-  case PDecl(decl: FDeclaration)
-}

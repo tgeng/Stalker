@@ -1,7 +1,7 @@
 package io.github.tgeng.stalker.core.fe
 
 import io.github.tgeng.stalker.common.QualifiedName
-import io.github.tgeng.stalker.core.tt.Namespace
+import io.github.tgeng.stalker.common.Namespace
 import io.github.tgeng.stalker.core.common.LocalNames
 import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.stalker.core.common.Error._
@@ -62,10 +62,10 @@ object tfConversion {
   }
 
   private def ftRedux(qn: QualifiedName, elims: List[FElimination])(using ns: Namespace) : FTerm = ns.render(qn) match {
-    case (head, names) => FTRedux(head :: names, elims)
+    case names => FTRedux(names, elims)
   }
 
   private def ftRedux(qn: QualifiedName, elims: FElimination*)(using ns: Namespace) : FTerm = ns.render(qn) match {
-    case (head, names) => FTRedux(head :: names, elims.toList)
+    case names => FTRedux(names, elims.toList)
   }
 }

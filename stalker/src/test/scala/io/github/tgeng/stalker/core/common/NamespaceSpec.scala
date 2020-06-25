@@ -1,10 +1,8 @@
-package io.github.tgeng.stalker.core.tt
+package io.github.tgeng.stalker.common
 
 import scala.collection.immutable.ArraySeq
 import scala.language.implicitConversions
 import io.github.tgeng.testing.UnitSpec
-
-import io.github.tgeng.stalker.common.QualifiedName
 
 import QualifiedName.{_, given _}
 
