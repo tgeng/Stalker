@@ -4,10 +4,18 @@ import java.io.File
 import io.github.tgeng.stalker._
 import common.QualifiedName
 
-case class FileStats (
-  val timestamp: Long,
-)
+opaque type Timestamp = Long
 
-object FileStats {
-  def loadFileStats(root: File)(qn: QualifiedName): Option[FileStats] = ???
+extension timestampOps on (t1: Timestamp) {
+  def < (t2: Timestamp) = t1 < t2
+  def > (t2: Timestamp) = t1 > t2
+  def <= (t2: Timestamp) = t1 <= t2
+  def >= (t2: Timestamp) = t1 >= t2
 }
+
+extension fileTimestampOps on (f: File) {
+  def timestamp : Option[Timestamp] = f.lastModified match {
+    case 0 => None
+    case t => Some(t)
+  }
+ }

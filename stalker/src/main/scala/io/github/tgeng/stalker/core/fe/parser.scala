@@ -35,7 +35,7 @@ object parser {
     }.withFilter(!Set("->", ":", "=", "_").contains(_)) 
   }
 
-  private def qn(using opt: ParsingOptions) = P { name sepBy1 '.' map (_.toList) }
+  private def names(using opt: ParsingOptions) = P { name sepBy1 '.' map (_.toList) }
 
   private def con(using opt: ParsingOptions)(using IndentRequirement) : Parser[FTerm] = P {
     for {
@@ -45,8 +45,8 @@ object parser {
   }
 
   private def ref(using opt: ParsingOptions)(using IndentRequirement) : Parser[FTerm] = P {
-    for qn <- qn
-    yield FTRedux(qn, Nil)
+    for names <- names
+    yield FTRedux(names, Nil)
   }
 
   private def atom(using opt: ParsingOptions)(using IndentRequirement) : Parser[FTerm] = P {
@@ -105,9 +105,9 @@ object parser {
 
   private def pConApp(using opt: ParsingOptions)(using IndentRequirement) : Parser[FPattern] = P {
     for forced <- "..".?
-        qn <- qn << opt.appDelimiter
+        names <- names << opt.appDelimiter
         args <- pAtom sepBy1 opt.appDelimiter
-    yield FPCon(qn, args.toList, forced.isDefined)
+    yield FPCon(names, args.toList, forced.isDefined)
   }
 
   private def pConRaw(using opt: ParsingOptions)(using IndentRequirement) : Parser[FPattern] = P {
@@ -123,7 +123,7 @@ object parser {
 
   private def pAtom(using opt: ParsingOptions)(using IndentRequirement) : Parser[FPattern] = P {
     pConRaw |
-    qn.map{ names =>
+    names.map{ names =>
       if (names.size == 1) {
         FPVarCon(names(0))
       } else {
@@ -222,6 +222,46 @@ object parser {
     alignedWithIndent(1) {
       data | record | definition
     }
+  }
+
+  import ModuleCommand._
+
+  private def mImport : Parser[MImport] = P {
+    for {
+      shouldExport <- "public ".?.map(_.isDefined)
+      _ <- "import "
+      src <- names(using ParsingOptions())
+      dst <- mImportExportDst(src)
+    } yield new MImport(src, dst, shouldExport)
+  }
+
+  private def mExport : Parser[MExport] = P {
+    for {
+      _ <- "export "
+      src <- names(using ParsingOptions())
+      dst <- mImportExportDst(src)
+    } yield new MExport(src, dst)
+  }
+
+  private def mImportExportDst(src: List[String]) : Parser[List[String]] = P {
+    "._".map(_ => Nil) |
+    spaces >> "as " >> names(using ParsingOptions()) |
+    pure(List(src.last))
+  }
+
+  private def mDecl : Parser[MDecl] = P {
+    for {
+      shouldExport <- "public ".?.map(_.isDefined) << spaces
+      decl <- declaration
+    } yield new MDecl(decl, shouldExport)
+  }
+
+  def moduleCommand : Parser[ModuleCommand] = P {
+    mImport | mExport | mDecl
+  }
+
+  def module : Parser[Vector[ModuleCommand]] = P {
+    moduleCommand sepBy whitespaces
   }
 }
 

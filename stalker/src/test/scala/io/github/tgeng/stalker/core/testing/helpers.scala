@@ -7,7 +7,6 @@ import io.github.tgeng.testing.UnitSpec
 import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.common.Namespace
 import io.github.tgeng.stalker.core.common.LocalNames
-import io.github.tgeng.stalker.core.tt.InMemoryNamespace
 import io.github.tgeng.parse._
 import io.github.tgeng.parse.string._
 import io.github.tgeng.stalker.core.fe._

@@ -221,5 +221,47 @@ class ParserSpec extends UnitSpec {
             List(FQPattern(FPVarCon("m")), FQPattern(FPCon(List("Nat", "Suc"), List(FPVarCon("n")), false))),
             FUTerm(FTRedux(List("Nat", "Suc"), List(FETerm(FTRedux(List("plus"), List(FETerm(FTRedux(List("m"), List())), FETerm(FTRedux(List("n"), List())))))))))))
     )
+
+    import ModuleCommand._
+
+    assert(cmd"import a as b" == MImport(List("a"), List("b"), false))
+    assert(cmd"import a.b.c as b.c.d" == MImport(List("a", "b", "c"), List("b", "c", "d"), false))
+    assert(cmd"import stalker.data.Nat" == MImport(List("stalker", "data", "Nat"), List("Nat"), false))
+    assert(cmd"import stalker.data._" == MImport(List("stalker", "data"), List(), false))
+    assert(cmd"public import stalker.data.Nat" == MImport(List("stalker", "data", "Nat"), List("Nat"), true))
+    assert(cmd"public import stalker.data._" == MImport(List("stalker", "data"), List(), true))
+
+    assert(cmd"export a as b" == MExport(List("a"), List("b")))
+    assert(cmd"export a.b.c as b.c.d" == MExport(List("a", "b", "c"), List("b", "c", "d")))
+    assert(cmd"export stalker.data.Nat" == MExport(List("stalker", "data", "Nat"), List("Nat")))
+    assert(cmd"export stalker.data._" == MExport(List("stalker", "data"), List()))
+
+    assert(cmd"""
+    |data Nat : Type 0lv where
+    |  Zero : Nat
+    |  Suc : Nat -> Nat
+    """ ==
+      MDecl(
+        FData(
+          "Nat",
+          List(),
+          FTRedux(List("Type"),List(FETerm(FTLevel(0)))),
+          Vector(
+            FConstructor("Zero",List()),
+            FConstructor("Suc",List(FBinding("",FTRedux(List("Nat"),List())))))), false))
+
+    assert(cmd"""
+    |public data Nat : Type 0lv where
+    |  Zero : Nat
+    |  Suc : Nat -> Nat
+    """ ==
+      MDecl(
+        FData(
+          "Nat",
+          List(),
+          FTRedux(List("Type"),List(FETerm(FTLevel(0)))),
+          Vector(
+            FConstructor("Zero",List()),
+            FConstructor("Suc",List(FBinding("",FTRedux(List("Nat"),List())))))), true))
   }
 }

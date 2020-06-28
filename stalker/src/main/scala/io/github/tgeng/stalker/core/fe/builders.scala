@@ -1,5 +1,6 @@
 package io.github.tgeng.stalker.core.fe
 
+import io.github.tgeng.common.nullOps
 import io.github.tgeng.stalker.common.Namespace
 import io.github.tgeng.stalker.core.common.LocalNames
 import io.github.tgeng.stalker.core.fe.ftConversion.{given _, _}
@@ -66,7 +67,7 @@ object builders {
     case Left(e) => throw Exception("Parsing copatterns failed:\n" + e.toStringWithInput(s))
   }
 
-  inline def [T](ctx: StringContext) decl() : FDeclaration = decl(ctx.parts(0).trim.asInstanceOf[String].stripMargin)
+  inline def [T](ctx: StringContext) decl() : FDeclaration = decl(ctx.parts(0).trim.!!.stripMargin)
 
   def decl(s: String) : FDeclaration = (declaration << eof).parse(s) match {
     case Right(d) => d
@@ -84,5 +85,12 @@ object builders {
       context += binding
     }
     action(using localIndices, localNames, context)
+  }
+
+  inline def [T](ctx: StringContext) cmd() : ModuleCommand = cmd(ctx.parts(0).trim.!!.stripMargin)
+
+  def cmd(s: String) : ModuleCommand = (moduleCommand << eof).parse(s) match {
+    case Right(c) => c
+    case Left(e) => throw Exception("Parsing module command failed:\n" + e.toStringWithInput(s))
   }
 }

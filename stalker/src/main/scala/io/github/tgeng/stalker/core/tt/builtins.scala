@@ -1,6 +1,6 @@
 package io.github.tgeng.stalker.core.tt
 
-import io.github.tgeng.stalker.common.QualifiedName
+import io.github.tgeng.stalker.common._
 import io.github.tgeng.stalker.core.common.Error._
 import io.github.tgeng.common.eitherOps._
 
@@ -65,5 +65,18 @@ object builtins {
     sb ++= sb.elaborate(lmaxFn).!!!
     sb ++= sb.elaborate(idType).!!!
     sb
+  }
+
+  val namespace = {
+    import NsElem._
+    val ns = MutableNamespace()
+    def add(d: PreDeclaration) = {
+      ns(d.qn.parts.reverse).add(NQualifiedName(d.qn))
+    }
+    add(levelType)
+    add(typeType)
+    add(lsucFn)
+    add(lmaxFn)
+    add(idType)
   }
 }
