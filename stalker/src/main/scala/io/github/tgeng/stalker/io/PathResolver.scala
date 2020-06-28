@@ -12,10 +12,8 @@ import io.github.tgeng.common.nullOps._
 
 trait PathResolver(
   val sourceRoots : Seq[File],
-  val moduleCacheRoot : File,
-  val signatureCacheRoot : File,
-) {
-
+  val fileCacheRoot : File,
+  val signatureCacheRoot : File) {
   {
     // Clean up cache if it's for an old version
     import stalker.BuildInfo
@@ -34,10 +32,9 @@ trait PathResolver(
         buildIdFile.writeAllText(buildId)
       }
     }
-    initCacheRoot(moduleCacheRoot)
+    initCacheRoot(fileCacheRoot)
     initCacheRoot(signatureCacheRoot)
   }
-
 
   def resolveSourceFiles(qn: QualifiedName) : Seq[File] = resolveSourcePaths(qn).filter{ _.isFile }
   def resolveSourcePaths(qn: QualifiedName) : Seq[File] = sourceRoots.resolveSourceDirsImpl(qn.parts.reverse)
@@ -56,9 +53,9 @@ trait PathResolver(
       .resolveSourceDirsImpl(rest)
   }
 
-  def resolveModuleCacheFile(qn: QualifiedName) : File = qn match {
-    case Root => moduleCacheRoot / ".smc"
-    case parent / name => moduleCacheRoot.resolveCacheDir(parent.parts.reverse) / s"$name.sfc"
+  def resolveFileCacheFile(qn: QualifiedName) : File = qn match {
+    case Root => fileCacheRoot / ".sfc"
+    case parent / name => fileCacheRoot.resolveCacheDir(parent.parts.reverse) / s"$name.sfc"
   }
 
   def resolveSignatureCacheFile(qn: QualifiedName) : File = qn match {
@@ -88,21 +85,21 @@ object PathResolver {
     { 
       sys.env.getOrElse("STALKER_SOURCE_ROOTS", "").split(File.pathSeparatorChar).filter(!_.isEmpty).map(File(_)).toSeq :+ File(".") :+ stdLibRoot
     },
-    sys.env.get("STALKER_MODULE_CACHE_ROOT") match {
+    sys.env.get("STALKER_FILE_CACHE_ROOT") match {
       case Some(dir) => File(dir)
-      case None => userHome / ".stalker/cache/module"
+      case None => userHome / ".stalker/cache/file"
     },
     sys.env.get("STALKER_SIGNATURE_CACHE_ROOT") match {
       case Some(dir) => File(dir)
       case None => userHome / ".stalker/cache/signature"
     }
-  ){}
+  ) {}
 
   def createTmp(sourceRoots: Seq[File]) = {
     val tmpRoot = Files.createTempDirectory("stalker-").toFile.!!
     new PathResolver(
         sourceRoots :+ stdLibRoot,
-        tmpRoot / "cache/module",
+        tmpRoot / "cache/file",
         tmpRoot / "cache/signature/",
     ) {}
   }
