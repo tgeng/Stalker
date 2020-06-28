@@ -12,7 +12,6 @@ import Error._
 enum NsElem {
   case NNamespace(ns: Namespace)
   case NQualifiedName(qn: QualifiedName)
-  case NConstructor(name: String)
 }
 
 import NsElem._
@@ -34,13 +33,11 @@ trait Namespace {
 extension nsElemSetOps on (elems: Set[NsElem]) {
   def namespaces: Set[Namespace] = elems.collect{ case NNamespace(ns) => ns }
   def qualifiedNames : Set[QualifiedName] = elems.collect { case NQualifiedName(qn) => qn }
-  def constructors : Set[String] = elems.collect{ case NConstructor(name) => name }
 }
 
 extension nsElemMutableSetOps on (elems: mutable.Set[NsElem]) {
   def addNs(ns: Namespace) = elems.add(NNamespace(ns))
   def addQn(qn: QualifiedName) = elems.add(NQualifiedName(qn))
-  def addCon(con: String) = elems.add(NConstructor(con))
 }
 
 trait MemNamespace[NS <: MemNamespace[NS, S, M], S <: Set, M <: Map](

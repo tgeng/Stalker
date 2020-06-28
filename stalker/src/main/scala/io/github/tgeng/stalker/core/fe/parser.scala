@@ -103,13 +103,6 @@ object parser {
   import FPattern._
   import FCoPattern._
 
-  private def pConApp(using opt: ParsingOptions)(using IndentRequirement) : Parser[FPattern] = P {
-    for forced <- "..".?
-        names <- names << opt.appDelimiter
-        args <- pAtom sepBy1 opt.appDelimiter
-    yield FPCon(names, args.toList, forced.isDefined)
-  }
-
   private def pConRaw(using opt: ParsingOptions)(using IndentRequirement) : Parser[FPattern] = P {
     for forced <- "..".?
         con <- name
@@ -117,21 +110,11 @@ object parser {
     yield FPCon(con, args.toList, forced.isDefined)
   }
 
-  private def pattern(using opt: ParsingOptions)(using IndentRequirement) : Parser[FPattern] = P {
-    pConApp | pAtom
-  }
-
   private def pAtom(using opt: ParsingOptions)(using IndentRequirement) : Parser[FPattern] = P {
     pConRaw |
-    names.map{ names =>
-      if (names.size == 1) {
-        FPVarCon(names(0))
-      } else {
-        FPCon(names, Nil, false)
-      }
-    } |
+    name.map(FPVar(_)) |
     "()".as(FPAbsurd) |
-    '(' >>! whitespaces >> pattern(using opt.copy(appDelimiter = whitespaces)) << whitespaces << ')' |
+    '(' >>! whitespaces >> pAtom(using opt.copy(appDelimiter = whitespaces)) << whitespaces << ')' |
     ".." >>! atom.map(FPForced(_))
   }
 

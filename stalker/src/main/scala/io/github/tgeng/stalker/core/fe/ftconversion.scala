@@ -44,26 +44,9 @@ object ftConversion {
         case name :: Nil if ctx.get(name).isRight => 
           for elims <- elims.liftMap(_.toTt)
           yield TWhnf(WVar(ctx.get(name).!!!, elims))
-        case _ => {
-          val nsElems = ns.resolve(names)
-          // TODO(tgeng): remove this special handling after implicit parameter
-          // is supported so that constructor can be normal functions.
-          nsElems.uniqueConstructor(names) match {
-            case Right(constructorName) => 
-              for args <- elims.liftMap {
-                    case p : FEProj => typingError(e"Cannot apply projection $p to constructor $constructorName.")
-                    case FETerm(t) => Right(t)
-                  }
-                  args <- args.liftMap(_.toTt)
-              yield TWhnf(WCon(constructorName, args))
-            case Left(_ : NoNameError) => {
-                for qn <- nsElems.uniqueQualifiedName(names)
-                    elims <- elims.liftMap(_.toTt)
-                yield TRedux(qn, elims)
-            }
-            case Left(e) => Left(e)
-          }
-        }
+        case _ => for qn <- ns.resolve(names).uniqueQualifiedName(names)
+                      elims <- elims.liftMap(_.toTt)
+                  yield TRedux(qn, elims)
       }
     }
   }
@@ -93,21 +76,8 @@ object ftConversion {
 
   given FT[FPattern, Pattern] {
     def (p: FPattern) toTt (using ctx:LocalIndices)(using ns: Namespace) : Result[Pattern] = p match {
-      case FPVarCon(name) => 
-        (for con <- ns.resolve(name).uniqueConstructor(Seq(name))
-         yield PCon(con, Nil)) match {
-          case Left(_) => for idx <- ctx.get(name)
+      case FPVar(name) => for idx <- ctx.get(name)
                           yield PVar(idx)(name)
-          case r => r
-        }
-
-      case FPCon(con: Seq[String], args, forced) => 
-        for args <- args.liftMap(_.toTt) 
-            con <- ns.resolve(con).uniqueConstructor(con)
-        yield forced match {
-          case true => PForcedCon(con, args)
-          case false => PCon(con, args)
-        }
       case FPCon(con: String, args, forced) =>
         for args <- args.liftMap(_.toTt) 
         yield forced match {
@@ -269,13 +239,10 @@ class LocalIndices(content: Map[String, Int] = Map.empty) {
   def addAllFromPatterns(patterns: Seq[FPattern])(using ns: Namespace) : Unit = {
     import FPattern._
     patterns.foreach {
-      case FPVarCon(name) => {
+      case FPVar(name) => {
         get(name) match {
           case Right(_) => ()
-          case _ => ns.resolve(name).uniqueConstructor(Seq(name)) match {
-                      case Left(_) => add(name)
-                      case Right(_) => ()
-                    }
+          case _ => add(name)
         }
       }
       case FPCon(_, args, _) => addAllFromPatterns(args)
@@ -288,17 +255,6 @@ class LocalIndices(content: Map[String, Int] = Map.empty) {
 }
 
 import scala.collection.Set
-
-private def (nsElems: Set[NsElem]) uniqueConstructor(names: Seq[String]): Result[String] = {
-  val cons = nsElems.constructors
-  if (cons.isEmpty) {
-    noNameError(e"$names does not reference a valid constructor.")
-  } else if (cons.size > 1) {
-    ambiguousNameError(e"$names references multiple distinct constructor names $cons.")
-  } else {
-    Right(cons.head)
-  }
-}
 
 private def (nsElems: Set[NsElem]) uniqueQualifiedName(names: Seq[String]): Result[QualifiedName] = {
   val qns = nsElems.qualifiedNames

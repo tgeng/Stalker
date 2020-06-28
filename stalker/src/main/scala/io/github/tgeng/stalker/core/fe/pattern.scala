@@ -5,19 +5,14 @@ import io.github.tgeng.stalker.common.Namespace
 import io.github.tgeng.stalker.core.common.Error._
 
 enum FPattern {
-  case FPVarCon(name: String)
-  case FPCon(con: Seq[String] | String, args: List[FPattern], forced: Boolean)
+  case FPVar(name: String)
+  case FPCon(con: String, args: List[FPattern], forced: Boolean)
   case FPForced(t: FTerm)
   case FPAbsurd
 
   override def toString = this match {
-    case FPVarCon(name) => s"""FPVarCon("$name")"""
-    case FPCon(con, args, forced) => s"""FPCon(${
-      con match {
-        case con : Seq[String] => con.map{ c => s""""$c""""}
-        case con : String => s""""$con""""
-      }
-    }, $args, $forced)"""
+    case FPVar(name) => s"""FPVar("$name")"""
+    case FPCon(con, args, forced) => s"""FPCon("$con", $args, $forced)"""
     case FPForced(t) => s"FPForced($t)"
     case FPAbsurd => s"FPAbsurd"
   }

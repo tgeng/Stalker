@@ -12,7 +12,7 @@ import io.github.tgeng.common.nullOps._
 
 trait PathResolver(
   val sourceRoots : Seq[File],
-  val fileCacheRoot : File,
+  val moduleCacheRoot : File,
   val signatureCacheRoot : File) {
   {
     // Clean up cache if it's for an old version
@@ -32,7 +32,7 @@ trait PathResolver(
         buildIdFile.writeAllText(buildId)
       }
     }
-    initCacheRoot(fileCacheRoot)
+    initCacheRoot(moduleCacheRoot)
     initCacheRoot(signatureCacheRoot)
   }
 
@@ -53,9 +53,9 @@ trait PathResolver(
       .resolveSourceDirsImpl(rest)
   }
 
-  def resolveFileCacheFile(qn: QualifiedName) : File = qn match {
-    case Root => fileCacheRoot / ".sfc"
-    case parent / name => fileCacheRoot.resolveCacheDir(parent.parts.reverse) / s"$name.sfc"
+  def resolveModuleCacheFile(qn: QualifiedName) : File = qn match {
+    case Root => moduleCacheRoot / ".smc"
+    case parent / name => moduleCacheRoot.resolveCacheDir(parent.parts.reverse) / s"$name.smc"
   }
 
   def resolveSignatureCacheFile(qn: QualifiedName) : File = qn match {
@@ -87,7 +87,7 @@ object PathResolver {
     },
     sys.env.get("STALKER_FILE_CACHE_ROOT") match {
       case Some(dir) => File(dir)
-      case None => userHome / ".stalker/cache/file"
+      case None => userHome / ".stalker/cache/module"
     },
     sys.env.get("STALKER_SIGNATURE_CACHE_ROOT") match {
       case Some(dir) => File(dir)
@@ -99,7 +99,7 @@ object PathResolver {
     val tmpRoot = Files.createTempDirectory("stalker-").toFile.!!
     new PathResolver(
         sourceRoots :+ stdLibRoot,
-        tmpRoot / "cache/file",
+        tmpRoot / "cache/module",
         tmpRoot / "cache/signature/",
     ) {}
   }

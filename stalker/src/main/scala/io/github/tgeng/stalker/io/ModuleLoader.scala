@@ -24,7 +24,7 @@ class ModuleLoader(val pathResolver: PathResolver) {
       case 1 => {
         val sourceFile = sourceFiles.head
         val sourceTimestamp = sourceFiles.head.timestamp
-        val cacheFile = pathResolver.resolveFileCacheFile(qn)
+        val cacheFile = pathResolver.resolveModuleCacheFile(qn)
         val cacheTimestamp = cacheFile.timestamp
         if (sourceTimestamp >= cacheTimestamp) {
           // cache is stale
