@@ -260,8 +260,9 @@ object parser {
     mImport | mExport | mDecl
   }
 
-  def module : Parser[Vector[ModuleCommand]] = P {
-    moduleCommand sepBy whitespaces
+  def module : Parser[Module] = P {
+    for commands <- moduleCommand sepBy whitespaces
+    yield Module(commands)
   }
 }
 

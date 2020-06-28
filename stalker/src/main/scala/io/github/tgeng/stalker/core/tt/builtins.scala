@@ -78,5 +78,6 @@ object builtins {
     add(lsucFn)
     add(lmaxFn)
     add(idType)
+    ns.seal
   }
 }

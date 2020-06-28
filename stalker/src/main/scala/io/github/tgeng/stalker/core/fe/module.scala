@@ -5,3 +5,7 @@ enum ModuleCommand {
   case MExport(src: List[String], dst: List[String])
   case MDecl(decl: FDeclaration, shouldExport: Boolean)
 }
+
+case class Module(
+  commands: Seq[ModuleCommand]
+)

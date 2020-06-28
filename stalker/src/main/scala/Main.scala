@@ -1,4 +1,5 @@
 import scala.language.implicitConversions
+import io.github.tgeng.stalker
 import io.github.tgeng.stalker.core.fe.parser
 import io.github.tgeng.stalker.core.fe._
 import io.github.tgeng.stalker.core.tt._
@@ -24,5 +25,8 @@ object Main {
     ns("FooBar").addQn("foo.bar.FooBar")
     println(ns.render("foo.bar.FooBar"))
     println(ns.render("one.two.three"))
+
+    import stalker.BuildInfo
+    println(BuildInfo.buildInfoBuildNumber)
   }
 }
