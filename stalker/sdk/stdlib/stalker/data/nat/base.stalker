@@ -1,0 +1,3 @@
+data Nat : Type 0lv where
+  Zero : Nat
+  Suc : Nat -> Nat
