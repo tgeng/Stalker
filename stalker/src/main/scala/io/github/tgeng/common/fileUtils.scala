@@ -1,8 +1,4 @@
-package io.github.tgeng.stalker.io
-
-import io.github.tgeng.common.nullOps
-import io.github.tgeng.stalker._
-import common.QualifiedName
+package io.github.tgeng.common
 
 opaque type Timestamp = Long
 

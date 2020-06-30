@@ -1,10 +1,12 @@
-package io.github.tgeng.stalker.io
+package io.github.tgeng.stalker.core.io
 
 import java.lang.System
 
 import java.io.File
 import java.nio.file.Files
 import scala.collection.mutable
+import io.github.tgeng.common._
+import io.github.tgeng.common.fileOps
 import io.github.tgeng.stalker
 import stalker.common._
 import stalker.common.QualifiedName._
@@ -37,6 +39,7 @@ trait PathResolver(
   }
 
   def resolveSourceFiles(qn: QualifiedName) : Seq[File] = resolveSourcePaths(qn).filter{ _.isFile }
+  def resolveSourceDirs(qn: QualifiedName) : Seq[File] = resolveSourcePaths(qn).filter{ _.isDirectory }
   def resolveSourcePaths(qn: QualifiedName) : Seq[File] = sourceRoots.resolveSourceDirsImpl(qn.parts.reverse)
 
   private def (paths: Seq[File]) resolveSourceDirsImpl(names: List[String]) : Seq[File] = names match {

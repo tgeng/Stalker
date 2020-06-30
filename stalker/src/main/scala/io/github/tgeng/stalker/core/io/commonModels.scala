@@ -1,4 +1,4 @@
-package io.github.tgeng.stalker.io
+package io.github.tgeng.stalker.core.io
 
 import io.github.tgeng.common.nullOps._
 import io.github.tgeng.stalker._

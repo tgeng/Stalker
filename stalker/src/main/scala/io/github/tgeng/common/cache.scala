@@ -65,8 +65,6 @@ class SingleLoadingExpirableCache[K, V, F](loadingFn: (key: K) => (V, F)) extend
   }
 }
 
-type Timestamp = Long
-
 private val base64 = Base64.getEncoder.!!
 
 case class FingerPrint private(private val bytes: Array[Byte]) {

@@ -1,26 +1,25 @@
-package io.github.tgeng.stalker.io
+package io.github.tgeng.stalker.core.io
 
 import java.io.File
 
 import scala.collection.mutable
 
+import io.github.tgeng.common.fileOps
 import io.github.tgeng.stalker
 import stalker.common._
+import stalker.core.common.Error._
 import stalker.core.fe._
-import IoError._
-import fileOps._
-import timestampOps._
 
 import io.github.tgeng.parse._
 import io.github.tgeng.parse.string.{given _, _}
 
 class ModuleLoader(val pathResolver: PathResolver) {
-  private val cache = mutable.Map[QualifiedName, Either[ParserError[Char], Module]]()
+  private val cache = mutable.Map[QualifiedName, Result[Option[Module]]]()
 
-  def loadModule(qn: QualifiedName) : Either[ParserError[Char], Module] = cache.getOrElseUpdate(qn, {
+  def loadModule(qn: QualifiedName) : Result[Option[Module]] = cache.getOrElseUpdate(qn, {
     val sourceFiles = pathResolver.resolveSourceFiles(qn)
     sourceFiles.size match {
-      case 0 => throw SourceFileNotFound(qn)
+      case 0 => Right(None)
       case 1 => {
         val sourceFile = sourceFiles.head
         val sourceTimestamp = sourceFiles.head.timestamp
@@ -34,16 +33,16 @@ class ModuleLoader(val pathResolver: PathResolver) {
           loadFromCache(cacheFile)
         }
       }
-      case _ => throw DuplicatedSourceFile(qn, sourceFiles)
+      case _ => Left(DuplicatedSourceFile(qn, sourceFiles))
     }
   })
 
-  private def loadFromSourceAndUpdateCache(sourceFile: File, cacheFile: File) : Either[ParserError[Char], Module] = {
+  private def loadFromSourceAndUpdateCache(sourceFile: File, cacheFile: File) : Result[Option[Module]] = {
     val fileContent = sourceFile.readAllText
-    for module <- (parser.module << whitespaces << eof).parse(fileContent)
+    (for module <- (parser.module << whitespaces << eof).parse(fileContent)
         _ = cacheFile.writeObject(module)
-    yield module
+    yield Some(module)).left.map(ParsingError(_))
   }
 
-  private def loadFromCache(cacheFile: File) : Either[ParserError[Char], Module] = Right(cacheFile.readObject)
+  private def loadFromCache(cacheFile: File) : Result[Option[Module]] = Right(cacheFile.readObject)
 }

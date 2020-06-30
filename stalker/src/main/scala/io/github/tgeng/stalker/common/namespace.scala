@@ -60,9 +60,12 @@ trait MemNamespace[NS <: MemNamespace[NS, S, M], S <: Set, M <: Map](
   } yield ()
 }
 
-class MutableNamespace extends MemNamespace[MutableNamespace, mutable.Set, mutable.Map](
-  mutable.Set[NsElem](),
-  mutable.Map[String, MutableNamespace]().withDefault( _ => MutableNamespace())) {
+class MutableNamespace(
+    startSet : mutable.Set[NsElem] = mutable.Set[NsElem](),
+    startElems : mutable.Map[String, MutableNamespace] = mutable.Map[String, MutableNamespace]().withDefault( _ => emptyMutableNamespace)
+  ) extends MemNamespace[MutableNamespace, mutable.Set, mutable.Map](
+  startSet,
+  startElems) {
   def apply(names: String*) : mutable.Set[NsElem] = applyImpl(names.toList)
   def apply(names: Iterable[String]) : mutable.Set[NsElem] = applyImpl(names.toList)
   private def applyImpl(names: List[String]) : mutable.Set[NsElem] = names match {
@@ -78,6 +81,9 @@ class MutableNamespace extends MemNamespace[MutableNamespace, mutable.Set, mutab
       subspaces.view.mapValues{_.seal}.to(immutable.Map))
   }
 }
+
+// workaround type inference failure. Inline this definition to see the problem.
+private def emptyMutableNamespace : MutableNamespace = new MutableNamespace()
 
 case class ImmutableNamespace(
   override val rootElems: immutable.Set[NsElem],
