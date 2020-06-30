@@ -1,7 +1,6 @@
-package io.github.tgeng.stalker.core.common
+package io.github.tgeng.stalker.common
 
 import java.io.File
-import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.parse._
 import scala.collection.Seq
 
@@ -13,6 +12,7 @@ enum Error {
   case ParsingError(e: ParserError[Char])
   case DuplicatedSourceFile(qn: QualifiedName, val sourceFiles: Seq[File])
   case CyclicImport(cycle: Seq[QualifiedName])
+  case UnresolvableNamespace(names: List[String])
 
   def msg: Seq[Any] = Nil
   def localNames: Option[LocalNames] = None
@@ -23,6 +23,13 @@ enum Error {
 object Error {
   type Result = Either[Error, *]
 
+  extension resultFilter on [T](r: Result[T]) {
+    def withFilter(p : T => Boolean) : Result[T] = r match {
+      case Right(t) if (p(t)) => Right(t)
+      case Right(t) => throw IllegalStateException(s"You must only do case match for exact matches in for comprehension.")
+      case e => e
+    }
+  }
   def typingError(msg: Seq[Any]) = {
     Left(TypingError(msg, None))
   }

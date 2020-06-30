@@ -7,15 +7,30 @@ import java.nio.file.Files
 import scala.collection.mutable
 import io.github.tgeng.common._
 import io.github.tgeng.common.fileOps
+import io.github.tgeng.common.nullOps._
 import io.github.tgeng.stalker
 import stalker.common._
 import stalker.common.QualifiedName._
-import io.github.tgeng.common.nullOps._
+import stalker.common.Error._
+import SourceTree._
 
 trait PathResolver(
   val sourceRoots : Seq[File],
   val moduleCacheRoot : File,
   val signatureCacheRoot : File) {
+
+  private val sourceTrees : Seq[SourceTree] = sourceRoots.flatMap(convertFileToSourceTree)
+
+  private def convertFileToSourceTree(file: File) : Option[SourceTree] = file match {
+    case file if (file.getName.!!.endsWith(".stalker") && file.isFile) => Some(SourceFile(file))
+    case dir if (dir.isDirectory) => {
+      val subTrees = dir.children.map((k, v) => convertFileToSourceTree(v).map{(k, _)}).flatten.toMap
+      if (subTrees.isEmpty) None
+      else Some(SourceDir(subTrees))
+    }
+    case _ => None
+  }
+
   {
     // Clean up cache if it's for an old version
     import stalker.BuildInfo
@@ -27,7 +42,7 @@ trait PathResolver(
       val buildIdFile = root / ".build_id"
       if (buildIdFile.exists) {
         if (buildIdFile.readAllText != buildId) {
-          root.children.foreach(_.deleteRecursively)
+          root.children.foreach((_, f) => f.deleteRecursively)
           buildIdFile.writeAllText(buildId)
         }
       } else {
@@ -38,22 +53,28 @@ trait PathResolver(
     initCacheRoot(signatureCacheRoot)
   }
 
-  def resolveSourceFiles(qn: QualifiedName) : Seq[File] = resolveSourcePaths(qn).filter{ _.isFile }
-  def resolveSourceDirs(qn: QualifiedName) : Seq[File] = resolveSourcePaths(qn).filter{ _.isDirectory }
-  def resolveSourcePaths(qn: QualifiedName) : Seq[File] = sourceRoots.resolveSourceDirsImpl(qn.parts.reverse)
+  def resolveSourceFile(qn: QualifiedName) : Result[Option[File]] = resolveSourceFiles(qn).toList match {
+    case Nil => Right(None)
+    case f :: Nil => Right(Some(f))
+    case sources => Left(DuplicatedSourceFile(qn, sources))
+  }
 
-  private def (paths: Seq[File]) resolveSourceDirsImpl(names: List[String]) : Seq[File] = names match {
-    case Nil => paths
-    case name :: rest => paths
-      .flatMap { d => 
-        var result : List[File] = Nil
-        val dir = d / name
-        if (dir.isDirectory) result = dir :: result
-        val file = d / s"$name.stalker"
-        if (file.isFile) result = file :: result
-        result
-       }
-      .resolveSourceDirsImpl(rest)
+  private def resolveSourceFiles(qn: QualifiedName) : Seq[File] = sourceTrees.resolveSourcePathsImpl(qn.parts.reverse).collect{
+    case SourceFile(f) => f
+  }
+
+  def resolveSourceDirs(qn: QualifiedName) : Seq[SourceDir] = sourceTrees.resolveSourcePathsImpl(qn.parts.reverse).collect{
+    case d : SourceDir => d
+  }
+
+  private def (trees: Seq[SourceTree]) resolveSourcePathsImpl(names: List[String]) : Seq[SourceTree] = names match {
+    case Nil => trees
+    case name :: rest => trees
+      .flatMap {
+        case _ : SourceFile => Nil
+        case d: SourceDir => Seq(d.resolveFile(name), d.resolveDir(name)).flatten
+      }
+      .resolveSourcePathsImpl(rest)
   }
 
   def resolveModuleCacheFile(qn: QualifiedName) : File = qn match {

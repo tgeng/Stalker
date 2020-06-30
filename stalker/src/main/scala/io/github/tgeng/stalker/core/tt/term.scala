@@ -2,8 +2,8 @@ package io.github.tgeng.stalker.core.tt
 
 import scala.collection.mutable.ArrayBuffer
 import io.github.tgeng.stalker.common.QualifiedName
-import io.github.tgeng.stalker.core.common.Error._
-import io.github.tgeng.stalker.core.common.LocalNames
+import io.github.tgeng.stalker.common.Error._
+import io.github.tgeng.stalker.common.LocalNames
 
 type Type = Whnf
 

@@ -2,7 +2,7 @@ package io.github.tgeng.stalker.core.fe
 
 import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.stalker.common.QualifiedName
-import io.github.tgeng.stalker.core.common.Error._
+import io.github.tgeng.stalker.common.Error._
 import pprint.{given _, _}
 
 case class FBinding(name: String, ty: FTerm) {

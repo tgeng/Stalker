@@ -2,8 +2,8 @@ package io.github.tgeng.stalker.core.fe
 
 import io.github.tgeng.common._
 import io.github.tgeng.stalker.common.Namespace
-import io.github.tgeng.stalker.core.common.LocalNames
-import io.github.tgeng.stalker.core.common.Error
+import io.github.tgeng.stalker.common.LocalNames
+import io.github.tgeng.stalker.common.Error
 import io.github.tgeng.stalker.core.tt._
 import io.github.tgeng.stalker.core.fe.tfConversion.{given _, _}
 import Block._

@@ -4,7 +4,7 @@ import scala.util.control.NonLocalReturns._
 import io.github.tgeng.common.extraSetOps
 import io.github.tgeng.common.debug._
 import io.github.tgeng.stalker.common.QualifiedName
-import io.github.tgeng.stalker.core.common.Error._
+import io.github.tgeng.stalker.common.Error._
 import Term._
 import Whnf._
 import Elimination._
@@ -174,12 +174,18 @@ object reduction {
       case (CLam(_Q), ETerm(u) :: e̅) => evalCaseTree(_Q, σ ⊎ u, e̅)
       case (CRecord(fields), EProj(π) :: e̅) => evalCaseTree(fields(π), σ, e̅)
       case (CDataCase(x, branches), e̅) => for {
-        case WCon(c, u̅) <- σ(x).toWhnf
-        r <- evalCaseTree(branches(c), σ \ x ⊎ u̅, e̅)
+        con <- σ(x).toWhnf
+        r <- con match {
+          case WCon(c, u̅) => evalCaseTree(branches(c), σ \ x ⊎ u̅, e̅)
+          case _ => typingErrorWithCtx(e"Evaluation stuck when trying to perform case match on $con.")
+        }
       } yield r
       case (CIdCase(x, τ, _Q), e̅) => for {
-        case WRefl <- σ(x).toWhnf
-        r <- evalCaseTree(_Q, τ ∘ σ, e̅)
+        refl <- σ(x).toWhnf
+        r <- refl match {
+          case WRefl => evalCaseTree(_Q, τ ∘ σ, e̅)
+          case _ => typingErrorWithCtx(e"Evaluation stuck when trying to match $refl against Refl.")
+        }
       } yield r
       case _ => typingErrorWithCtx(e"Stuck while evaluating case tree $Q with substitution $σ and eliminations ${e̅}")
     }

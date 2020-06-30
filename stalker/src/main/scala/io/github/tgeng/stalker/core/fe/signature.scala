@@ -6,7 +6,7 @@ import io.github.tgeng.common.eitherOps._
 import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.common.QualifiedName._
-import io.github.tgeng.stalker.core.common.Error._
+import io.github.tgeng.stalker.common.Error._
 import io.github.tgeng.stalker.common.Namespace
 import io.github.tgeng.stalker.core.tt._
 
@@ -22,15 +22,7 @@ enum FDeclaration {
     case FDefinition(name, ty, clauses) => s"""FDefinition("$name", $ty, $clauses)"""
   }
 
-  // def toNamespace(qn: QualifiedName) : Namespace = this match {
-  //   case FData(name, _, _, cons) => {
-  //     val ns = MutableNamespace.create(qn)
-  //     cons.foreach(con => ns(con.name) = LeafNamespace(qn / con.name))
-  //     ns
-  //   }
-  //   case FRecord(name, _, _, _) => LeafNamespace(qn / name)
-  //   case FDefinition(name, _, _) => LeafNamespace(qn / name)
-  // }
+  def name: String
 }
 
 case class FConstructor(name: String, argTys: FTelescope) {

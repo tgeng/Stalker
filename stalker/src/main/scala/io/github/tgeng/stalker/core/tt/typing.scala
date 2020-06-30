@@ -5,7 +5,7 @@ import scala.math.max
 import io.github.tgeng.common._
 import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.stalker.common._
-import io.github.tgeng.stalker.core.common.Error._
+import io.github.tgeng.stalker.common.Error._
 import io.github.tgeng.stalker.core.tt.telescopeOps
 import substitutionConversion.{given _}
 import Term._
@@ -487,12 +487,4 @@ extension elimEqRelation on (x: List[Elimination]) {
 
 extension derivationRelation on [X, Y](x: X) {
   def |- (y: Y) = new |-(x, y)
-}
-
-extension resultFilter on [T](r: Result[T]) {
-  def withFilter(p : T => Boolean)(using ctx: Context) : Result[T] = r match {
-    case Right(t) if (p(t)) => Right(t)
-    case Right(t) => typingErrorWithCtx(e"Result $t does not satisfy predicate $p")
-    case e => e
-  }
 }

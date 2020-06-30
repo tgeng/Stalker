@@ -6,7 +6,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.math.{min, max}
 import scala.language.implicitConversions
 import io.github.tgeng.common._
-import io.github.tgeng.stalker.core.common.Error._
+import io.github.tgeng.stalker.common.Error._
 import io.github.tgeng.stalker.common.QualifiedName
 import typing.level
 import reduction.toWhnf

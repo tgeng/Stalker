@@ -5,9 +5,10 @@ import java.io.File
 import scala.collection.mutable
 
 import io.github.tgeng.common.fileOps
+import io.github.tgeng.common.timestampOps
 import io.github.tgeng.stalker
 import stalker.common._
-import stalker.core.common.Error._
+import stalker.common.Error._
 import stalker.core.fe._
 
 import io.github.tgeng.parse._
@@ -17,24 +18,23 @@ class ModuleLoader(val pathResolver: PathResolver) {
   private val cache = mutable.Map[QualifiedName, Result[Option[Module]]]()
 
   def loadModule(qn: QualifiedName) : Result[Option[Module]] = cache.getOrElseUpdate(qn, {
-    val sourceFiles = pathResolver.resolveSourceFiles(qn)
-    sourceFiles.size match {
-      case 0 => Right(None)
-      case 1 => {
-        val sourceFile = sourceFiles.head
-        val sourceTimestamp = sourceFiles.head.timestamp
-        val cacheFile = pathResolver.resolveModuleCacheFile(qn)
-        val cacheTimestamp = cacheFile.timestamp
-        if (sourceTimestamp >= cacheTimestamp) {
-          // cache is stale
-          loadFromSourceAndUpdateCache(sourceFile, cacheFile)
-        } else {
-          // cache is good
-          loadFromCache(cacheFile)
+    for sourceFile <- pathResolver.resolveSourceFile(qn)
+        r <- sourceFile match {
+          case None => Right(None)
+          case Some(sourceFile) => {
+            val sourceTimestamp = sourceFile.timestamp
+            val cacheFile = pathResolver.resolveModuleCacheFile(qn)
+            val cacheTimestamp = cacheFile.timestamp
+            if (sourceTimestamp >= cacheTimestamp) {
+              // cache is stale
+              loadFromSourceAndUpdateCache(sourceFile, cacheFile)
+            } else {
+              // cache is good
+              loadFromCache(cacheFile)
+            }
+          }
         }
-      }
-      case _ => Left(DuplicatedSourceFile(qn, sourceFiles))
-    }
+    yield r
   })
 
   private def loadFromSourceAndUpdateCache(sourceFile: File, cacheFile: File) : Result[Option[Module]] = {

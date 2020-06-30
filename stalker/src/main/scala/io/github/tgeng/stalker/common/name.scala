@@ -42,6 +42,8 @@ enum QualifiedName {
     }
   }
 
+  def isPrefixedWith(that: QualifiedName) = (this - that).isDefined
+
   def drop(i: Int) : QualifiedName = (i, this) match {
     case (i, _) if (i <= 0) => this
     case (_, Root) => Root
@@ -54,4 +56,5 @@ import QualifiedName._
 object QualifiedName {
   def (qn: QualifiedName) / (name: String) : QualifiedName = /(qn, name)
   given qn as Conversion[String, QualifiedName] = s => s.split('.').foldLeft(Root)(_ / _)
+  def fromNames(names: Iterable[String]) = names.foldRight(Root)((name, parent) => parent / name)
 }

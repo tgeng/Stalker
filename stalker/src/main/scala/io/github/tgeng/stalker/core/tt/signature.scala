@@ -7,7 +7,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
 import io.github.tgeng.common._
 import io.github.tgeng.common.extraSeqOps
-import io.github.tgeng.stalker.core.common.Error._
+import io.github.tgeng.stalker.common.Error._
 import io.github.tgeng.stalker.common.QualifiedName
 import reduction.toWhnfs
 import reduction.toWhnf

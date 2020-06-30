@@ -2,13 +2,11 @@ package io.github.tgeng.stalker.core.fe
 
 import scala.language.implicitConversions
 import io.github.tgeng.common.eitherOps
-import io.github.tgeng.stalker.common.QualifiedName
-import io.github.tgeng.stalker.common.Namespace
-import io.github.tgeng.common.extraSeqOps
-import io.github.tgeng.stalker.core.common.Error._
-import io.github.tgeng.stalker.core.tt._
 import io.github.tgeng.stalker.common.nsElemSetOps
 import io.github.tgeng.stalker.common._
+import io.github.tgeng.stalker.common.Error._
+import io.github.tgeng.common.extraSeqOps
+import io.github.tgeng.stalker.core.tt._
 
 import QualifiedName._
 
@@ -44,7 +42,8 @@ object ftConversion {
         case name :: Nil if ctx.get(name).isRight => 
           for elims <- elims.liftMap(_.toTt)
           yield TWhnf(WVar(ctx.get(name).!!!, elims))
-        case _ => for qn <- ns.resolve(names).uniqueQualifiedName(names)
+        case _ => for qns <- ns.resolve(names)
+                      qn <- qns.uniqueQualifiedName(names)
                       elims <- elims.liftMap(_.toTt)
                   yield TRedux(qn, elims)
       }

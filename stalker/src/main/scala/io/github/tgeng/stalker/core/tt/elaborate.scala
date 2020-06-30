@@ -7,8 +7,8 @@ import io.github.tgeng.common.extraIterableOps
 import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.common.extraSetOps
 import io.github.tgeng.stalker.common._
-import io.github.tgeng.stalker.core.common.Error._
-import io.github.tgeng.stalker.core.common.LocalNames
+import io.github.tgeng.stalker.common.Error._
+import io.github.tgeng.stalker.common.LocalNames
 import reduction._
 import typing._
 import CaseTree._

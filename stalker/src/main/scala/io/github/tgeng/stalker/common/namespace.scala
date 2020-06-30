@@ -17,9 +17,9 @@ enum NsElem {
 import NsElem._
 
 trait Namespace {
-  def resolve(names: String*) : Set[NsElem] = resolve(names)
-  def resolve(names: Iterable[String]): Set[NsElem] = resolveImpl(names.toList)
-  protected def resolveImpl(names: List[String]): Set[NsElem]
+  def resolve(names: String*) : Result[Set[NsElem]] = resolve(names)
+  def resolve(names: Iterable[String]): Result[Set[NsElem]] = resolveImpl(names.toList)
+  protected def resolveImpl(names: List[String]): Result[Set[NsElem]]
   def render(qn: QualifiedName): List[String] = {
     val qnParts = qn.parts.reverse
       renderImpl(qn) match {
@@ -43,9 +43,9 @@ extension nsElemMutableSetOps on (elems: mutable.Set[NsElem]) {
 trait MemNamespace[NS <: MemNamespace[NS, S, M], S <: Set, M <: Map](
   protected val rootElems: S[NsElem],
   protected val subspaces: M[String, NS]) extends Namespace {
-  override def resolve(names: Iterable[String]): Set[NsElem] = resolveImpl(names.toList)
-  protected def resolveImpl(names: List[String]): Set[NsElem] = names match {
-    case Nil => rootElems
+  override def resolve(names: Iterable[String]): Result[Set[NsElem]] = resolveImpl(names.toList)
+  protected def resolveImpl(names: List[String]): Result[Set[NsElem]] = names match {
+    case Nil => Right(rootElems)
     case name :: rest => subspaces(name).resolveImpl(rest)
   }
 

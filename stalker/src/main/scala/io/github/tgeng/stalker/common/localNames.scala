@@ -1,8 +1,8 @@
-package io.github.tgeng.stalker.core.common
+package io.github.tgeng.stalker.common
 
 import scala.collection.mutable.ArrayBuffer
 import io.github.tgeng.common.extraSeqOps
-import io.github.tgeng.stalker.core.common.Error._
+import Error._
 
 class LocalNames(val names: ArrayBuffer[String] = ArrayBuffer[String]()) {
 

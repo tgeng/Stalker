@@ -1,7 +1,7 @@
 package io.github.tgeng.stalker.core.tt
 
 import scala.language.implicitConversions
-import io.github.tgeng.stalker.core.common.LocalNames
+import io.github.tgeng.stalker.common.LocalNames
 import scala.collection.mutable.ArrayBuffer
 
 /** First element on the right. */

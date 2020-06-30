@@ -1,7 +1,7 @@
 package io.github.tgeng.stalker.core.tt
 
 import io.github.tgeng.stalker.common._
-import io.github.tgeng.stalker.core.common.Error._
+import io.github.tgeng.stalker.common.Error._
 import io.github.tgeng.common.eitherOps._
 
 import QualifiedName._

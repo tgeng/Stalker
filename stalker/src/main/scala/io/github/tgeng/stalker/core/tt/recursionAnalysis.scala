@@ -8,9 +8,9 @@ import tgeng.common.nullOps._
 import tgeng.stalker
 
 import stalker.common.QualifiedName
+import stalker.common.Error._
 
 import stalker.core
-import core.common.Error._
 import core.tt.dependencies.{given _}
 
 case class MutualGroup(

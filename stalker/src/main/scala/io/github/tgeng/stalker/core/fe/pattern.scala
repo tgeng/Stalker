@@ -2,7 +2,7 @@ package io.github.tgeng.stalker.core.fe
 
 import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.stalker.common.Namespace
-import io.github.tgeng.stalker.core.common.Error._
+import io.github.tgeng.stalker.common.Error._
 
 enum FPattern {
   case FPVar(name: String)

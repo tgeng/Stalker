@@ -59,9 +59,9 @@ extension fileOps on (f: File) {
     }
   }
 
-  def children: Seq[File] = {
-    val listFiles = f.listFiles
-    if (listFiles == null) Seq.empty
-    else ArraySeq.unsafeWrapArray(listFiles.asInstanceOf[Array[File]])
+  def children: Map[String, File] = {
+    val childrenNames = f.list
+    if (childrenNames == null) Map.empty
+    else childrenNames.map(name => (name.!!, f / name.!!)).toMap
   }
 }
