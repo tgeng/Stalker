@@ -71,7 +71,14 @@ class RootNamespaceLoader(moduleLoader: ModuleLoader, pathResolver: PathResolver
               case true => Left(UnresolvableNamespace(src))
             }
         yield r
-
+      commands.foreach {
+        case MDecl(decl, shouldExport) => {
+          val declQn = NQualifiedName(qn / decl.name)
+          internalNs(decl.name) add declQn
+          if (shouldExport) externalNs(decl.name) add declQn
+        }
+        case _ => ()
+      }
       for {
         _ <- commands.liftMap {
           case MImport(src, dst, shouldExport) =>
@@ -83,12 +90,7 @@ class RootNamespaceLoader(moduleLoader: ModuleLoader, pathResolver: PathResolver
           case MExport(src, dst) =>
             for srcNsElems <- getSrcNsElems(src)
             yield externalNs(dst) addAll srcNsElems
-          case MDecl(decl, shouldExport) => {
-            val declQn = NQualifiedName(qn / decl.name)
-            internalNs(decl.name) add declQn
-            if (shouldExport) externalNs(decl.name) add declQn
-            Right(())
-          }
+          case _ => Right(())
         }
       } yield ModuleNamespaces(internalNs, externalNs)
     }
@@ -105,7 +107,7 @@ private class DirectoryNamespace(val rootNamespaceLoader: RootNamespaceLoader, r
     }).reverse)
   }
 
-  protected def resolveImpl(names: List[String]): Result[Set[NsElem]] = names match {
+  override def resolveImpl(names: List[String]): Result[Set[NsElem]] = names match {
     case Nil => Right(Set(NsElem.NNamespace(this)))
     case name :: rest => 
       for namespaceOption <- rootNamespaceLoader.loadNamespace(requester, rootQn / name)

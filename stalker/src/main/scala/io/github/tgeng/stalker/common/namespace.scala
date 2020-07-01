@@ -6,6 +6,7 @@ import scala.collection.mutable
 import scala.collection.immutable
 import nsElemSetOps._
 import io.github.tgeng.common.extraSeqOps
+import io.github.tgeng.common.extraSetOps
 import Error._
 
 
@@ -19,7 +20,7 @@ import NsElem._
 trait Namespace {
   def resolve(names: String*) : Result[Set[NsElem]] = resolve(names)
   def resolve(names: Iterable[String]): Result[Set[NsElem]] = resolveImpl(names.toList)
-  protected def resolveImpl(names: List[String]): Result[Set[NsElem]]
+  def resolveImpl(names: List[String]): Result[Set[NsElem]]
   def render(qn: QualifiedName): List[String] = {
     val qnParts = qn.parts.reverse
       renderImpl(qn) match {
@@ -41,12 +42,21 @@ extension nsElemMutableSetOps on (elems: mutable.Set[NsElem]) {
 }
 
 trait MemNamespace[NS <: MemNamespace[NS, S, M], S <: Set, M <: Map](
-  protected val rootElems: S[NsElem],
-  protected val subspaces: M[String, NS]) extends Namespace {
+  val rootElems: S[NsElem],
+  val subspaces: M[String, NS]) extends Namespace {
   override def resolve(names: Iterable[String]): Result[Set[NsElem]] = resolveImpl(names.toList)
-  protected def resolveImpl(names: List[String]): Result[Set[NsElem]] = names match {
+  override def resolveImpl(names: List[String]): Result[Set[NsElem]] = names match {
     case Nil => Right(rootElems)
-    case name :: rest => subspaces(name).resolveImpl(rest)
+    case name :: rest => for {
+      elemsFromThis : Set[NsElem] <- subspaces.get(name) match {
+        case Some(ns) => {
+          ns.resolveImpl(rest)
+        }
+        case None => Right(Set.empty)
+      }
+      siblingNamespaces : Set[Namespace] = rootElems.collect{case NNamespace(n) => n}
+      elemsFromSiblings : Set[Set[NsElem]] <- siblingNamespaces.liftMap{_.resolveImpl(names)}
+    } yield elemsFromThis | elemsFromSiblings.flatten
   }
 
   override def renderImpl(qn: QualifiedName): Either[List[String], Unit] = for {
@@ -62,7 +72,7 @@ trait MemNamespace[NS <: MemNamespace[NS, S, M], S <: Set, M <: Map](
 
 class MutableNamespace(
     startSet : mutable.Set[NsElem] = mutable.Set[NsElem](),
-    startElems : mutable.Map[String, MutableNamespace] = mutable.Map[String, MutableNamespace]().withDefault( _ => emptyMutableNamespace)
+    startElems : mutable.Map[String, MutableNamespace] = mutable.Map[String, MutableNamespace]()
   ) extends MemNamespace[MutableNamespace, mutable.Set, mutable.Map](
   startSet,
   startElems) {
@@ -70,7 +80,7 @@ class MutableNamespace(
   def apply(names: Iterable[String]) : mutable.Set[NsElem] = applyImpl(names.toList)
   private def applyImpl(names: List[String]) : mutable.Set[NsElem] = names match {
     case Nil => rootElems
-    case name :: rest => subspaces(name).applyImpl(rest)
+    case name :: rest => subspaces.getOrElseUpdate(name, emptyMutableNamespace).applyImpl(rest)
   }
 
 
@@ -80,6 +90,8 @@ class MutableNamespace(
       rootElems.to(immutable.Set),
       subspaces.view.mapValues{_.seal}.to(immutable.Map))
   }
+
+  override def toString = s"MutableNamespace{$startSet, $startElems}"
 }
 
 // workaround type inference failure. Inline this definition to see the problem.
