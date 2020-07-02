@@ -8,11 +8,13 @@ enum Error {
   case TypingError(override val msg: Seq[Any], override val localNames: Option[LocalNames])
   case NoNameError(override val msg: Seq[Any])
   case DuplicatedDefinitionError(override val msg: Seq[Any])
+
   case AmbiguousNameError(override val msg: Seq[Any])
   case ParsingError(e: ParserError[Char])
   case DuplicatedSourceFile(qn: QualifiedName, val sourceFiles: Seq[File])
   case CyclicImport(cycle: Seq[QualifiedName])
   case UnresolvableNamespace(names: List[String])
+  case MissingDefinitionError(qn: QualifiedName)
 
   def msg: Seq[Any] = Nil
   def localNames: Option[LocalNames] = None
