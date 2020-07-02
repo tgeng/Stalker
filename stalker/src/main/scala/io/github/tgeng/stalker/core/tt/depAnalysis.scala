@@ -16,7 +16,7 @@ import core.tt.dependencies.{given _}
 case class MutualGroup(
   val declarations: Set[PreDeclaration]
   )(
-  val depRecursionGroups: Set[MutualGroup],
+  val depMutualGroups: Set[MutualGroup],
   val deps: Set[QualifiedName],
 )
 

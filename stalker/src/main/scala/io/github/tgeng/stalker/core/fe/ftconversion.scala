@@ -15,7 +15,7 @@ trait FT[F, T] {
 }
 
 trait FTWithQualifiedName[F, T] {
-  def (f: F) toTt(qn: QualifiedName) (using ctx: LocalIndices)(using ns: Namespace) : Result[T]
+  def (f: F) toTt(qn: QualifiedName)(using ns: Namespace) : Result[T]
 }
 
 object ftConversion {
@@ -100,9 +100,17 @@ object ftConversion {
   import FUncheckedRhs._
   import UncheckedRhs._
 
+  given FTWithQualifiedName[FDeclaration, PreDeclaration] {
+    def (d: FDeclaration) toTt(qn: QualifiedName)(using ns: Namespace) : Result[PreDeclaration] = d match {
+      case d: FData => d.toTt(qn)
+      case r: FRecord => r.toTt(qn)
+      case d: FDefinition => d.toTt(qn)
+    }
+  }
+
   given FTWithQualifiedName[FData, PreData] {
-    def (d: FData) toTt(qn: QualifiedName) (using ctx: LocalIndices)(using ns: Namespace) : Result[PreData] = {
-      assert(ctx.size == 0)
+    def (d: FData) toTt(qn: QualifiedName)(using ns: Namespace) : Result[PreData] = {
+      given LocalIndices = LocalIndices()
       d match {
         case FData(name, paramTys, ty, cons) => for {
           paramTys <- paramTys.toTt
@@ -129,8 +137,8 @@ object ftConversion {
   }
 
   given FTWithQualifiedName[FRecord, PreRecord] {
-    def (r: FRecord) toTt(qn: QualifiedName) (using ctx: LocalIndices)(using ns: Namespace) : Result[PreRecord] = {
-      assert(ctx.size == 0)
+    def (r: FRecord) toTt(qn: QualifiedName)(using ns: Namespace) : Result[PreRecord] = {
+      given LocalIndices = LocalIndices()
       r match {
         case FRecord(name, paramTys, ty, fields) => for {
           paramTys <- paramTys.toTt
@@ -147,8 +155,8 @@ object ftConversion {
   }
 
   given FTWithQualifiedName[FDefinition, PreDefinition] {
-    def (d: FDefinition) toTt(qn: QualifiedName) (using ctx: LocalIndices)(using ns: Namespace) : Result[PreDefinition] = {
-      assert(ctx.size == 0)
+    def (d: FDefinition) toTt(qn: QualifiedName)(using ns: Namespace) : Result[PreDefinition] = {
+      given LocalIndices = LocalIndices()
       d match {
         case FDefinition(name, ty, clauses) => for {
           ty <- ty.toTt

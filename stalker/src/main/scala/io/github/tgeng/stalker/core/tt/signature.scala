@@ -62,6 +62,8 @@ trait Signature {
   def getData(qn: QualifiedName) : Result[Data]
   def getRecord(qn: QualifiedName) : Result[Record]
   def getDefinition(qn: QualifiedName) : Result[Definition]
+
+  def extendedWith(decls: Declaration*) = ExtendedSignature(this, decls: _*)
   
   given Signature = this
   given Context = Context.empty
@@ -80,7 +82,7 @@ trait Signature {
 
   def elaborateData(d: PreData): Result[(Data, Definition)] = for {
     (partialData, typeCon) <- elaborateDataType(d)
-    data <- ExtendedSignature(this, partialData, typeCon).elaborateDataConstructors(d)
+    data <- extendedWith(partialData, typeCon).elaborateDataConstructors(d)
   } yield (data, typeCon)
 
   def elaborateDataType(d: PreData): Result[(Data, Definition)] = d match {
@@ -97,7 +99,7 @@ trait Signature {
               case _ => typingErrorWithCtx(e"Cannot reduce ${d.ty} to a Type at some level.")
             }
             elaborated = new Data(qn)(_Δ, WType(TWhnf(levelBound)), null)
-            extendSignature = ExtendedSignature(this, elaborated)
+            extendSignature = extendedWith(elaborated)
             typeCon <- extendSignature.dataTypeCon(elaborated)
         yield (elaborated, typeCon)
       }
@@ -123,7 +125,7 @@ trait Signature {
       processed = ArrayBuffer[Constructor]()
       augmented = new Data(d.qn)(data.paramTys, data.ty, processed)
       WType(levelBound) = data.ty
-      _ <- ExtendedSignature(this, augmented).processCons(d.qn, levelBound, d.cons.toList, processed)(using Context.empty + data.paramTys)
+      _ <- extendedWith(augmented).processCons(d.qn, levelBound, d.cons.toList, processed)(using Context.empty + data.paramTys)
     } yield augmented
   }
 
@@ -149,7 +151,7 @@ trait Signature {
 
   def elaborateRecord(r: PreRecord): Result[(Record, Definition)] = for {
     (partialRecord, typeCon) <- elaborateRecordType(r)
-    record <- ExtendedSignature(this, partialRecord, typeCon).elaborateRecordFields(r)
+    record <- extendedWith(partialRecord, typeCon).elaborateRecordFields(r)
   } yield (record, typeCon)
 
   def elaborateRecordType(r: PreRecord): Result[(Record, Definition)] = r match {
@@ -166,7 +168,7 @@ trait Signature {
               case _ => typingErrorWithCtx(e"Cannot reduce ${r.ty} to a Type at some level.")
             }
             elaborated = new Record(qn)(_Δ, WType(TWhnf(levelBound)), null)
-            extendSignature = ExtendedSignature(this, elaborated)
+            extendSignature = extendedWith(elaborated)
             typeCon <- extendSignature.recordTypeCon(elaborated)
         yield (elaborated, typeCon)
       }
@@ -192,7 +194,7 @@ trait Signature {
       processed = ArrayBuffer[Field]()
       augmented = new Record(r.qn)(record.paramTys, record.ty, processed)
       WType(levelBound) = record.ty
-      _ <- ExtendedSignature(this, augmented).processFields(r.qn, levelBound, r.fields.toList, processed)(using Context.empty + record.paramTys)
+      _ <- extendedWith(augmented).processFields(r.qn, levelBound, r.fields.toList, processed)(using Context.empty + record.paramTys)
     } yield augmented
   }
 
@@ -214,7 +216,7 @@ trait Signature {
 
   def elaborateDefinition(d: PreDefinition): Result[Definition] = for {
     partialDefinition <- elaborateDefinitionType(d)
-    definition <- ExtendedSignature(this, partialDefinition).elaborateDefinitionClauses(d)
+    definition <- extendedWith(partialDefinition).elaborateDefinitionClauses(d)
   } yield definition
 
   def elaborateDefinitionType(d: PreDefinition): Result[Definition] = d match {
@@ -227,7 +229,7 @@ trait Signature {
     }
   }
 
-  def elaborateDefinitionClauses(d: PreDefinition) = {
+  def elaborateDefinitionClauses(d: PreDefinition): Result[Definition] = {
     val clauses = ArrayBuffer[CheckedClause]()
     for {
       data <- getDefinition(d.qn)
@@ -241,7 +243,7 @@ trait Signature {
           case UncheckedClause(lhs, rhs) => (Set.empty[(Term /? Pattern) ∷ Type], lhs) |-> rhs
         }
         .toList ||| (d.qn, Nil) ∷ data.ty
-        ).elaborate(using clauses)(using Context.empty)(using ExtendedSignature(this, augmented))
+        ).elaborate(using clauses)(using Context.empty)(using extendedWith(augmented))
     } yield new Definition(d.qn)(data.ty, clauses, _Q)
   }
 }
@@ -275,19 +277,19 @@ trait MapBasedSignature (
   }
 }
 
-class ExtendedSignature(val fallback: Signature, val ext: Declaration*) extends Signature {
-  private val dataDecls : Seq[Data] = ext.collect { case d: Data => d}
-  private val recordDecls : Seq[Record] = ext.collect { case r: Record => r}
-  private val defDecls : Seq[Definition] = ext.collect { case d: Definition => d}
-  def getData(qn: QualifiedName) : Result[Data] = dataDecls.find(_.qn == qn) match {
+private class ExtendedSignature(val fallback: Signature, val ext: Declaration*) extends Signature {
+  private val dataDecls = ext.collect { case d: Data => (d.qn, d)}.toMap
+  private val recordDecls = ext.collect { case r: Record => (r.qn, r)}.toMap
+  private val defDecls = ext.collect { case d: Definition => (d.qn, d)}.toMap
+  def getData(qn: QualifiedName) : Result[Data] = dataDecls.get(qn) match {
     case Some(d) => Right(d)
     case _ => fallback.getData(qn)
   }
-  def getRecord(qn: QualifiedName) : Result[Record] = recordDecls.find(_.qn == qn) match {
+  def getRecord(qn: QualifiedName) : Result[Record] = recordDecls.get(qn) match {
     case Some(r) => Right(r)
     case _ => fallback.getRecord(qn)
   }
-  def getDefinition(qn: QualifiedName) : Result[Definition] = defDecls.find(_.qn == qn) match {
+  def getDefinition(qn: QualifiedName) : Result[Definition] = defDecls.get(qn) match {
     case Some(d) => Right(d)
     case _ => fallback.getDefinition(qn)
   }
@@ -324,7 +326,7 @@ extension recordTypingOps on (self: Record) {
 }
 
 object SignatureBuilder {
-  def create(fallback: Signature) : SignatureBuilder = SignatureBuilder(HashMap.empty, HashMap.empty, HashMap.empty, fallback)
+  def create(fallback: Signature = builtins.signature) : SignatureBuilder = SignatureBuilder(HashMap.empty, HashMap.empty, HashMap.empty, fallback)
 }
 
 class SignatureBuilder(
