@@ -18,8 +18,6 @@ import userInputBarBarBar._
 import lhsOps._
 import utils._
 
-import io.github.tgeng.common.debug._
-
 enum PreDeclaration {
   case PreData(val qn: QualifiedName)(val paramTys: List[Binding[Term]], val ty: Term, val cons: Seq[ConstructorT[Term]])
   case PreRecord(val qn: QualifiedName)(val paramTys: List[Binding[Term]], val ty: Term, val fields: Seq[FieldT[Term]])

@@ -2,7 +2,6 @@ package io.github.tgeng.stalker.core.tt
 
 import scala.util.control.NonLocalReturns._
 import io.github.tgeng.common.extraSetOps
-import io.github.tgeng.common.debug._
 import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.common.Error._
 import Term._

@@ -38,7 +38,6 @@ object UnionFindElem {
 
 object graph {
   import scala.collection.mutable
-  import debug._
 
   /** Detects cycles in a general graph and collect cyclic nodes into groups. 
     * Then returns a topologically sorted seq of such groups and a DAG of such

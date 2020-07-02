@@ -18,8 +18,6 @@ import reduction.toWhnf
 import reduction.reduceLevel
 import utils._
 
-import io.github.tgeng.common.debug._
-
 object typing {
   def (tm: Term)level(using Γ: Context)(using Σ: Signature) : Result[Whnf] = tm match {
     case TWhnf(w) => w.level
