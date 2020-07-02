@@ -18,5 +18,10 @@ class RootNamespaceLoaderSpec extends UnitSpec {
   "stalker.data.nat.base internal namespace" in {
     val internalNs = nsLoader.loadNamespace("stalker.data.nat.base", "stalker.data.nat.base").!!!.!!!
     assert(internalNs.resolve("Nat").!!! == Set(NQualifiedName("stalker.data.nat.base.Nat")))
+    assert(internalNs.resolve("stalker", "builtins", "Level").!!! == Set(NQualifiedName("stalker.builtins.Level")))
+    assert(internalNs.resolve("stalker", "builtins", "Type").!!! == Set(NQualifiedName("stalker.builtins.Type")))
+    assert(internalNs.resolve("stalker", "builtins", "lsuc").!!! == Set(NQualifiedName("stalker.builtins.lsuc")))
+    assert(internalNs.resolve("stalker", "builtins", "lmax").!!! == Set(NQualifiedName("stalker.builtins.lmax")))
+    assert(internalNs.resolve("stalker", "builtins", "Id").!!! == Set(NQualifiedName("stalker.builtins.Id")))
   }
 }
