@@ -47,7 +47,7 @@ enum QualifiedName {
     }
   }
 
-  def isPrefixedWith(that: QualifiedName) = (this - that).isDefined
+  def hasPrefix(that: QualifiedName) = (this - that).isDefined
 
   def drop(i: Int) : QualifiedName = (i, this) match {
     case (i, _) if (i <= 0) => this

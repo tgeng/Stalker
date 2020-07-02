@@ -49,7 +49,7 @@ class RootNamespaceLoader(moduleLoader: ModuleLoader, pathResolver: PathResolver
           r <- module match {
             case Some(m) => 
               for ModuleNamespaces(privateNs, internalNs, publicNs) <- cache.getOrElseUpdate(qn, loadModuleNamespaces(qn, m)) 
-              yield (requester == qn, requester isPrefixedWith qn.parent) match {
+              yield (requester == qn, requester hasPrefix qn.parent) match {
                 case (true, _) => Some(privateNs)
                 // Use the internal namespace if the requester is under the directory containing the module being imported.
                 case (false, true) => Some(internalNs)

@@ -20,7 +20,7 @@ case class MutualGroup(
   val deps: Set[QualifiedName],
 )
 
-object recursionAnalysis {
+object depAnalysis {
   def analyzeMutualDependency(decls: Set[PreDeclaration]) : Seq[MutualGroup] = {
     val elemByQn : Map[QualifiedName, PreDeclaration] = decls.map(d => d.qn -> d).toMap
 
