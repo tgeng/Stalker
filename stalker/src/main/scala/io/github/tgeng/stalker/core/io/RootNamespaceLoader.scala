@@ -16,6 +16,9 @@ import stalker.common.Error._
 import SourceTree._
 import NsElem._
 import ModuleCommand._
+import Visibility._
+
+import debug._
 
 class RootNamespaceLoader(moduleLoader: ModuleLoader, pathResolver: PathResolver) {
   private val importChain = mutable.LinkedHashSet[QualifiedName]()
@@ -41,30 +44,34 @@ class RootNamespaceLoader(moduleLoader: ModuleLoader, pathResolver: PathResolver
       return Left(CyclicImport(importChain.dropWhile(_ != qn).toSeq))
     }
     importChain.add(qn)
-    val r = for module <- moduleLoader.loadModule(qn)
-        r <- module match {
-          case Some(m) => 
-            for ModuleNamespaces(internal, external) <- cache.getOrElseUpdate(qn, loadModuleNamespaces(qn, m)) 
-            yield requester isPrefixedWith qn match {
-              // Use the internal namespace if the requester is under the module being imported.
-              case true => Some(internal)
-              case false => Some(external)
-            }
-          case None => Right(None)
-        }
-    yield r
-    importChain.dropRight(1)
-    r
+    try {
+      for module <- moduleLoader.loadModule(qn)
+          r <- module match {
+            case Some(m) => 
+              for ModuleNamespaces(privateNs, internalNs, publicNs) <- cache.getOrElseUpdate(qn, loadModuleNamespaces(qn, m)) 
+              yield (requester == qn, requester isPrefixedWith qn.parent) match {
+                case (true, _) => Some(privateNs)
+                // Use the internal namespace if the requester is under the directory containing the module being imported.
+                case (false, true) => Some(internalNs)
+                case (false, false) => Some(publicNs)
+              }
+            case None => Right(None)
+          }
+      yield r
+    } finally {
+      importChain.remove(qn)
+    }
   }
 
   private def loadModuleNamespaces(qn: QualifiedName, module: Module) : Result[ModuleNamespaces] = module match {
     case Module(commands) => {
-      val internalNs = MutableNamespace(mutable.Set(NNamespace(builtins.namespace)))
-      val externalNs = MutableNamespace()
+      val privateNs = MutableNamespace(mutable.Set(NNamespace(builtins.namespace)))
+      val internalNs = MutableNamespace()
+      val publicNs = MutableNamespace()
 
       def getSrcNsElems(src: List[String]): Result[Set[NsElem]] =
         for rootNsOption <- loadNamespace(qn, QualifiedName.fromNames(src))
-            localNsElems <- internalNs.resolve(src)
+            localNsElems <- privateNs.resolve(src)
             srcNsElems = rootNsOption.map(NNamespace(_)).toSet | localNsElems
             r <- srcNsElems.isEmpty match {
               case false => Right(srcNsElems)
@@ -72,32 +79,37 @@ class RootNamespaceLoader(moduleLoader: ModuleLoader, pathResolver: PathResolver
             }
         yield r
       commands.foreach {
-        case MDecl(decl, shouldExport) => {
+        case MDecl(decl, visibility) => {
           val declQn = NQualifiedName(qn / decl.name)
-          internalNs(decl.name) add declQn
-          if (shouldExport) externalNs(decl.name) add declQn
+          privateNs(decl.name) add declQn
+          visibility match {
+            case Public => {
+              internalNs(decl.name) add declQn
+              publicNs(decl.name) add declQn
+            }
+            case Internal => internalNs(decl.name) add declQn
+            case Private => ()
+          }
         }
         case _ => ()
       }
       for {
         _ <- commands.liftMap {
-          case MImport(src, dst, shouldExport) =>
+          case MNsOp(src, dst, scope) =>
             for srcNsElems <- getSrcNsElems(src)
-            yield {
-              internalNs(dst) addAll srcNsElems
-              if (shouldExport) externalNs(dst) addAll srcNsElems
+            yield scope match {
+              case Private => privateNs(dst) addAll srcNsElems
+              case Internal => internalNs(dst) addAll srcNsElems
+              case Public => publicNs(dst) addAll srcNsElems
             }
-          case MExport(src, dst) =>
-            for srcNsElems <- getSrcNsElems(src)
-            yield externalNs(dst) addAll srcNsElems
           case _ => Right(())
         }
-      } yield ModuleNamespaces(internalNs, externalNs)
+      } yield ModuleNamespaces(privateNs, internalNs, publicNs)
     }
   }
 }
 
-private case class ModuleNamespaces(internal: Namespace, external: Namespace)
+private case class ModuleNamespaces(privateNs: Namespace, internalNs: Namespace, publicNs: Namespace)
 
 private class DirectoryNamespace(val rootNamespaceLoader: RootNamespaceLoader, requester: QualifiedName, val rootQn: QualifiedName) extends Namespace {
   override def renderImpl(qn: QualifiedName): Either[List[String], Unit] = {

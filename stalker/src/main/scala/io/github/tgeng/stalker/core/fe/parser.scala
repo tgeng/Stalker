@@ -208,22 +208,31 @@ object parser {
   }
 
   import ModuleCommand._
+  import Visibility._
 
-  private def mImport : Parser[MImport] = P {
+  private def mImport : Parser[Seq[ModuleCommand]] = P {
     for {
-      shouldExport <- "public ".?.map(_.isDefined)
-      _ <- "import "
+      v <- visibility << whitespace | pure(Private)
+      _ <- "import" << whitespace
       src <- names(using ParsingOptions())
       dst <- mImportExportDst(src)
-    } yield new MImport(src, dst, shouldExport)
+    } yield v match {
+      case Private => Seq(MNsOp(src, dst, Private))
+      case Internal => Seq(MNsOp(src, dst, Private), MNsOp(src, dst, Internal))
+      case Public => Seq(MNsOp(src, dst, Private), MNsOp(src, dst, Internal), MNsOp(src, dst, Public))
+    }
   }
 
-  private def mExport : Parser[MExport] = P {
+  private def mExport : Parser[Seq[ModuleCommand]] = P {
     for {
-      _ <- "export "
+      isInternal <- ("internal" << whitespace).?.map(_.isDefined)
+      _ <- "export" << whitespace
       src <- names(using ParsingOptions())
       dst <- mImportExportDst(src)
-    } yield new MExport(src, dst)
+    } yield isInternal match {
+      case true => Seq(MNsOp(src, dst, Internal))
+      case false => Seq(MNsOp(src, dst, Internal), MNsOp(src, dst, Public))
+    }
   }
 
   private def mImportExportDst(src: List[String]) : Parser[List[String]] = P {
@@ -232,20 +241,26 @@ object parser {
     pure(List(src.last))
   }
 
-  private def mDecl : Parser[MDecl] = P {
-    for {
-      shouldExport <- "public ".?.map(_.isDefined) << spaces
-      decl <- declaration
-    } yield new MDecl(decl, shouldExport)
+  private def visibility : Parser[Visibility] = P {
+    ("private" as Visibility.Private) |
+    ("internal" as Visibility.Internal) |
+    ("public" as Visibility.Public)
   }
 
-  def moduleCommand : Parser[ModuleCommand] = P {
+  private def mDecl : Parser[Seq[ModuleCommand]] = P {
+    for {
+      v <- visibility << whitespace | pure(Public)
+      decl <- declaration
+    } yield Seq(MDecl(decl, v))
+  }
+
+  def moduleCommands : Parser[Seq[ModuleCommand]] = P {
     mImport | mExport | mDecl
   }
 
   def module : Parser[Module] = P {
-    for commands <- moduleCommand sepBy whitespaces
-    yield Module(commands)
+    for commands <- moduleCommands sepBy whitespaces
+    yield Module(commands.flatten)
   }
 }
 

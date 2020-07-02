@@ -87,9 +87,9 @@ object builders {
     action(using localIndices, localNames, context)
   }
 
-  inline def [T](ctx: StringContext) cmd() : ModuleCommand = cmd(ctx.parts(0).trim.!!.stripMargin)
+  inline def [T](ctx: StringContext) cmd() : Seq[ModuleCommand] = cmd(ctx.parts(0).trim.!!.stripMargin)
 
-  def cmd(s: String) : ModuleCommand = (moduleCommand << eof).parse(s) match {
+  def cmd(s: String) : Seq[ModuleCommand] = (moduleCommands << eof).parse(s) match {
     case Right(c) => c
     case Left(e) => throw Exception("Parsing module command failed:\n" + e.toStringWithInput(s))
   }

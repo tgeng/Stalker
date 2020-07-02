@@ -4,7 +4,12 @@ import scala.language.implicitConversions
 
 enum QualifiedName {
   case Root
-  case /(val parent: QualifiedName, val name: String)
+  case /(override val parent: QualifiedName, val name: String)
+
+  def parent : QualifiedName = this match {
+    case Root => Root
+    case parent / _ => parent
+  }
 
   override def toString: String = this match {
     case Root => throw AssertionError("toString method cannot be overwritten for the singleton Root so this case should never be invoked")

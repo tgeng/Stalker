@@ -1,3 +1,5 @@
+package debug
+
 inline def [T](inline v: T) printMe : T = {
   println(exprName(v) + " = " + v)
   v

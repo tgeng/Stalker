@@ -198,45 +198,37 @@ class ParserSpec extends UnitSpec {
     )
 
     import ModuleCommand._
+    import Visibility._
 
-    assert(cmd"import a as b" == MImport(List("a"), List("b"), false))
-    assert(cmd"import a.b.c as b.c.d" == MImport(List("a", "b", "c"), List("b", "c", "d"), false))
-    assert(cmd"import stalker.data.Nat" == MImport(List("stalker", "data", "Nat"), List("Nat"), false))
-    assert(cmd"import stalker.data._" == MImport(List("stalker", "data"), List(), false))
-    assert(cmd"public import stalker.data.Nat" == MImport(List("stalker", "data", "Nat"), List("Nat"), true))
-    assert(cmd"public import stalker.data._" == MImport(List("stalker", "data"), List(), true))
+    assert(cmd"import a as b" == Seq(MNsOp(List("a"), List("b"), Private)))
+    assert(cmd"import a.b.c as b.c.d" == Seq(MNsOp(List("a", "b", "c"), List("b", "c", "d"), Private)))
+    assert(cmd"import stalker.data.Nat" == Seq(MNsOp(List("stalker", "data", "Nat"), List("Nat"), Private)))
+    assert(cmd"import stalker.data._" == Seq(MNsOp(List("stalker", "data"), List(), Private)))
+    assert(cmd"public import stalker.data.Nat" == Seq(MNsOp(List("stalker", "data", "Nat"), List("Nat"), Private), MNsOp(List("stalker", "data", "Nat"), List("Nat"), Internal), MNsOp(List("stalker", "data", "Nat"), List("Nat"), Public)))
+    assert(cmd"public import stalker.data._" == Seq(MNsOp(List("stalker", "data"), List(), Private), MNsOp(List("stalker", "data"), List(), Internal), MNsOp(List("stalker", "data"), List(), Public)))
 
-    assert(cmd"export a as b" == MExport(List("a"), List("b")))
-    assert(cmd"export a.b.c as b.c.d" == MExport(List("a", "b", "c"), List("b", "c", "d")))
-    assert(cmd"export stalker.data.Nat" == MExport(List("stalker", "data", "Nat"), List("Nat")))
-    assert(cmd"export stalker.data._" == MExport(List("stalker", "data"), List()))
+    assert(cmd"export a as b" == Seq(MNsOp(List("a"), List("b"), Internal), MNsOp(List("a"), List("b"), Public)))
+    assert(cmd"internal export a.b.c as b.c.d" == Seq(MNsOp(List("a", "b", "c"), List("b", "c", "d"), Internal)))
+    assert(cmd"internal export stalker.data.Nat" == Seq(MNsOp(List("stalker", "data", "Nat"), List("Nat"), Internal)))
+    assert(cmd"internal export stalker.data._" == Seq(MNsOp(List("stalker", "data"), List(), Internal)))
 
     assert(cmd"""
     |data Nat : Type 0lv where
     |  Zero : Nat
     |  Suc : Nat -> Nat
     """ ==
-      MDecl(
+      Seq(MDecl(
         FData(
           "Nat",
           List(),
           FTRedux(List("Type"),List(FETerm(FTLevel(0)))),
           Vector(
             FConstructor("Zero",List()),
-            FConstructor("Suc",List(FBinding("",FTRedux(List("Nat"),List())))))), false))
+            FConstructor("Suc",List(FBinding("",FTRedux(List("Nat"),List())))))), Visibility.Public)))
 
-    assert(cmd"""
-    |public data Nat : Type 0lv where
-    |  Zero : Nat
-    |  Suc : Nat -> Nat
-    """ ==
-      MDecl(
-        FData(
-          "Nat",
-          List(),
-          FTRedux(List("Type"),List(FETerm(FTLevel(0)))),
-          Vector(
-            FConstructor("Zero",List()),
-            FConstructor("Suc",List(FBinding("",FTRedux(List("Nat"),List())))))), true))
+    assert(cmd"private data Nat : Type 0lv where" == 
+      Seq(MDecl(FData("Nat", List(), FTRedux(List("Type"),List(FETerm(FTLevel(0)))), Vector()), Visibility.Private)))
+    assert(cmd"internal data Nat : Type 0lv where" == 
+      Seq(MDecl(FData("Nat", List(), FTRedux(List("Type"),List(FETerm(FTLevel(0)))), Vector()), Visibility.Internal)))
   }
 }
