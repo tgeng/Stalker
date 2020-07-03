@@ -2,7 +2,7 @@ package io.github.tgeng.stalker.core.fe
 
 import io.github.tgeng.common._
 import io.github.tgeng.stalker.common.Namespace
-import io.github.tgeng.stalker.common.LocalNames
+import io.github.tgeng.stalker.common.LocalTfCtx
 import io.github.tgeng.stalker.common.Error
 import io.github.tgeng.stalker.core.tt._
 import io.github.tgeng.stalker.core.fe.tfConversion.{given _, _}
@@ -94,7 +94,7 @@ object pprint {
     override def (t: FElimination) blockImpl = throw AssertionError("impossible since block is overwritten")
   }
 
-  def [T](ctx: StringContext) pp (args: Any*)(using LocalNames)(using Namespace): String = {
+  def [T](ctx: StringContext) pp (args: Any*)(using LocalTfCtx)(using Namespace): String = {
     val p = ctx.parts.iterator
     val a = args.iterator
     val resultSeq = scala.collection.mutable.ArrayBuffer[Any]()
@@ -109,12 +109,12 @@ object pprint {
     resultSeq.toBlock.toString
   }
 
-  def (e: Error) toBlock (using LocalNames)(using Namespace): Block = e.localNames match {
+  def (e: Error) toBlock (using LocalTfCtx)(using Namespace): Block = e.localNames match {
     case Some(ln) => e.msg.toBlock(using ln)
     case None => e.msg.toBlock 
   }
 
-  private def (seq: scala.collection.Seq[Any]) toBlock (using LocalNames)(using Namespace): Block = {
+  private def (seq: scala.collection.Seq[Any]) toBlock (using LocalTfCtx)(using Namespace): Block = {
     val children = scala.collection.mutable.ArrayBuffer[Block | String]()
     for (part <- seq) {
       part match {
@@ -125,7 +125,7 @@ object pprint {
     Block(wrapPolicy = Wrap, delimitPolicy = Paragraph)(children.toSeq : _*)
   }
   
-  private def (part: Any) toBlockOrString(using LocalNames)(using Namespace): Block | String = part match {
+  private def (part: Any) toBlockOrString(using LocalTfCtx)(using Namespace): Block | String = part match {
     case t: Term => t.toFe.toBlock
     case t: Whnf => t.toFe.toBlock
     case t: Elimination => t.toFe.toBlock

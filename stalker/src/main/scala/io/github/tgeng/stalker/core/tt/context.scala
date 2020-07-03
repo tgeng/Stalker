@@ -1,7 +1,7 @@
 package io.github.tgeng.stalker.core.tt
 
 import scala.language.implicitConversions
-import io.github.tgeng.stalker.common.LocalNames
+import io.github.tgeng.stalker.common.LocalTfCtx
 import scala.collection.mutable.ArrayBuffer
 
 /** First element on the right. */
@@ -25,5 +25,5 @@ extension contextOps on (self: Context) {
 
   def toClosedTelescope : List[Binding[Type]] = self.reverse
 
-  def toLocalNames = LocalNames(ArrayBuffer[String](self.map(_.name) : _*))
+  def toLocalTfCtx = LocalTfCtx(ArrayBuffer[String](self.map(_.name) : _*))
 }

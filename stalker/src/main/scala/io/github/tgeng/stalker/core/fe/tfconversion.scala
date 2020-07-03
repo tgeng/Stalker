@@ -2,13 +2,13 @@ package io.github.tgeng.stalker.core.fe
 
 import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.common.Namespace
-import io.github.tgeng.stalker.common.LocalNames
+import io.github.tgeng.stalker.common.LocalTfCtx
 import io.github.tgeng.common.extraSeqOps
 import io.github.tgeng.stalker.common.Error._
 import io.github.tgeng.stalker.core.tt._
 
 trait TF[T, F] {
-  def (t: T) toFe(using localVars: LocalNames)(using ns: Namespace) : F
+  def (t: T) toFe(using localVars: LocalTfCtx)(using ns: Namespace) : F
 }
 
 object tfConversion {
@@ -20,14 +20,14 @@ object tfConversion {
   import builtins._
 
   given TF[Term, FTerm] {
-    def (t: Term) toFe(using localVars: LocalNames)(using ns: Namespace) : FTerm = t match {
+    def (t: Term) toFe(using localVars: LocalTfCtx)(using ns: Namespace) : FTerm = t match {
       case TWhnf(w) => w.toFe
       case TRedux(qn, elims) => ftRedux(qn, elims.map(_.toFe))
     }
   }
 
   given TF[Whnf, FTerm] {
-    def (w: Whnf) toFe(using localVars: LocalNames)(using ns: Namespace) : FTerm = w match {
+    def (w: Whnf) toFe(using localVars: LocalTfCtx)(using ns: Namespace) : FTerm = w match {
       case WFunction(arg, bodyTy) => FTFunction(arg.toFe, localVars.withName(arg.name) { bodyTy.toFe })
       case WType(level) => ftRedux(typeType.qn, FETerm(level.toFe))
       case WLConst(l) => FTLevel(l)
@@ -44,21 +44,21 @@ object tfConversion {
     }
   }
 
-  private def maxFeImpl(first: LSuc, rest: List[LSuc])(using localVars: LocalNames)(using ns: Namespace) : FTerm = rest.foldRight(sucFeImpl(first))((e, acc) => ftRedux(lmaxFn.qn, FETerm(sucFeImpl(e)), FETerm(acc)))
-  private def sucFeImpl(lsuc: LSuc)(using localVars: LocalNames)(using ns: Namespace) : FTerm = lsuc match {
+  private def maxFeImpl(first: LSuc, rest: List[LSuc])(using localVars: LocalTfCtx)(using ns: Namespace) : FTerm = rest.foldRight(sucFeImpl(first))((e, acc) => ftRedux(lmaxFn.qn, FETerm(sucFeImpl(e)), FETerm(acc)))
+  private def sucFeImpl(lsuc: LSuc)(using localVars: LocalTfCtx)(using ns: Namespace) : FTerm = lsuc match {
     case LSuc(l, t) => sucFeImpl(l, t.toFe)
   }
-  private def sucFeImpl(l: Int, t: FTerm)(using localVars: LocalNames)(using ns: Namespace) : FTerm = (0 until l).foldLeft(t)((acc, _) => ftRedux(lsucFn.qn, FETerm(acc)))
+  private def sucFeImpl(l: Int, t: FTerm)(using localVars: LocalTfCtx)(using ns: Namespace) : FTerm = (0 until l).foldLeft(t)((acc, _) => ftRedux(lsucFn.qn, FETerm(acc)))
 
   given TF[Elimination, FElimination] {
-    def (w: Elimination) toFe(using localVars: LocalNames)(using ns: Namespace) : FElimination = w match {
+    def (w: Elimination) toFe(using localVars: LocalTfCtx)(using ns: Namespace) : FElimination = w match {
       case ETerm(t) => FETerm(t.toFe)
       case EProj(p) => FEProj(p)
     }
   }
 
   given TF[Binding[Term], FBinding] {
-    def (b: Binding[Term]) toFe(using localVars: LocalNames)(using ns: Namespace) : FBinding = FBinding(b.name, b.ty.toFe)
+    def (b: Binding[Term]) toFe(using localVars: LocalTfCtx)(using ns: Namespace) : FBinding = FBinding(b.name, b.ty.toFe)
   }
 
   private def ftRedux(qn: QualifiedName, elims: List[FElimination])(using ns: Namespace) : FTerm = ns.render(qn) match {

@@ -4,7 +4,7 @@ import scala.collection.Seq
 import scala.collection.mutable.ArrayBuffer
 import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.common.Error._
-import io.github.tgeng.stalker.common.LocalNames
+import io.github.tgeng.stalker.common.LocalTfCtx
 
 import Term._
 import Whnf._
@@ -22,5 +22,5 @@ object utils {
   
   def (self: Term)app(e̅: Seq[Elimination])(using ctx: Context) : Result[Term] = e̅.foldLeft[Result[Term]](Right(self))((acc, e) => acc.flatMap(_.app(e)))
   
-  def typingErrorWithCtx(msg: Seq[Any])(using ctx: Context) = typingErrorWithNames(msg)(using ctx.toLocalNames)
+  def typingErrorWithCtx(msg: Seq[Any])(using ctx: Context) = typingErrorWithNames(msg)(using ctx.toLocalTfCtx)
 }

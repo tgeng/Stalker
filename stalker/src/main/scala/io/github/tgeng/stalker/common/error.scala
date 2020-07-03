@@ -5,7 +5,7 @@ import io.github.tgeng.parse._
 import scala.collection.Seq
 
 enum Error {
-  case TypingError(override val msg: Seq[Any], override val localNames: Option[LocalNames])
+  case TypingError(override val msg: Seq[Any], override val localNames: Option[LocalTfCtx])
   case NoNameError(override val msg: Seq[Any])
   case DuplicatedDefinitionError(override val msg: Seq[Any])
 
@@ -18,7 +18,7 @@ enum Error {
   case UnresolvableModuleError(qn: QualifiedName)
 
   def msg: Seq[Any] = Nil
-  def localNames: Option[LocalNames] = None
+  def localNames: Option[LocalTfCtx] = None
   val trace: Exception = Exception(msg.toString)
 }
 
@@ -37,7 +37,7 @@ object Error {
     Left(TypingError(msg, None))
   }
 
-  def typingErrorWithNames(msg: Seq[Any])(using localNames: LocalNames) = Left(TypingError(msg, Some(localNames)))
+  def typingErrorWithNames(msg: Seq[Any])(using localNames: LocalTfCtx) = Left(TypingError(msg, Some(localNames)))
 
   def noNameError(msg: Seq[Any]) = Left(NoNameError(msg))
 

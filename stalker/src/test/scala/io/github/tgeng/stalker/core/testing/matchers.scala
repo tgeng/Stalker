@@ -6,7 +6,7 @@ import org.scalatest.Matchers
 import io.github.tgeng.testing.UnitSpec
 import io.github.tgeng.stalker.common.QualifiedName
 import io.github.tgeng.stalker.common.Namespace
-import io.github.tgeng.stalker.common.LocalNames
+import io.github.tgeng.stalker.common.LocalTfCtx
 import io.github.tgeng.stalker.core.fe._
 import io.github.tgeng.stalker.core.fe.builders._
 import io.github.tgeng.stalker.core.fe.pprint._
@@ -22,7 +22,7 @@ import io.github.tgeng.stalker.core.tt.typing._
 import Term._
 
 object matchers extends Helpers {
-  def haveType(_A: Term)(using LocalNames, Context, Signature, Namespace) = Matcher { (x: Term) => {
+  def haveType(_A: Term)(using LocalTfCtx, Context, Signature, Namespace) = Matcher { (x: Term) => {
     (for _ <- _A.level
         r <- (x ∷ _A.whnf).check
     yield r) match {
@@ -38,7 +38,7 @@ object matchers extends Helpers {
     }
   }}
 
-  def haveWhnf(w: FTerm)(using LocalIndices, LocalNames, Context, Signature, Namespace) = Matcher { (t: Term) => 
+  def haveWhnf(w: FTerm)(using LocalFtCtx, LocalTfCtx, Context, Signature, Namespace) = Matcher { (t: Term) => 
     val wt = t.whnf
     MatchResult(
       TWhnf(wt).toFe == w,
@@ -47,7 +47,7 @@ object matchers extends Helpers {
     )
   }
 
-  def holdUnderType(_A: Term)(using LocalIndices, LocalNames, Context, Signature, Namespace) = Matcher { (e: ≡[Term]) =>
+  def holdUnderType(_A: Term)(using LocalFtCtx, LocalTfCtx, Context, Signature, Namespace) = Matcher { (e: ≡[Term]) =>
     (for _ <- _A.level
         r <- (e ∷ _A.whnf).checkEq
     yield r) match {
@@ -64,7 +64,7 @@ object matchers extends Helpers {
     }
   }
 
-  def beALowerOrEqualLevelThan(l2: Term)(using LocalIndices, LocalNames, Context, Signature, Namespace) = Matcher { (l1: Term) =>
+  def beALowerOrEqualLevelThan(l2: Term)(using LocalFtCtx, LocalTfCtx, Context, Signature, Namespace) = Matcher { (l1: Term) =>
     (l1 <= l2) match {
       case Right(r) => MatchResult(
         r,

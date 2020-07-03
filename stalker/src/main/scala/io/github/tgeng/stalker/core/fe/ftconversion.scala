@@ -11,7 +11,7 @@ import io.github.tgeng.stalker.core.tt._
 import QualifiedName._
 
 trait FT[F, T] {
-  def (f: F) toTt (using ctx: LocalIndices)(using ns: Namespace) : Result[T]
+  def (f: F) toTt (using ctx: LocalFtCtx)(using ns: Namespace) : Result[T]
 }
 
 trait FTWithQualifiedName[F, T] {
@@ -30,7 +30,7 @@ object ftConversion {
   import CoPattern._
 
   given FT[FTerm, Term] {
-    def (f: FTerm) toTt (using ctx: LocalIndices)(using ns: Namespace) : Result[Term] = f match {
+    def (f: FTerm) toTt (using ctx: LocalFtCtx)(using ns: Namespace) : Result[Term] = f match {
       case FTFunction(arg, bodyTy) => for arg <- arg.toTt
                                           bodyTy <- ctx.withName(arg.name) { bodyTy.toTt } 
                                       yield TWhnf(WFunction(arg, bodyTy))
@@ -51,20 +51,20 @@ object ftConversion {
   }
 
   given FT[FElimination, Elimination] {
-    def (f: FElimination) toTt (using ctx: LocalIndices)(using ns: Namespace) : Result[Elimination] = f match {
+    def (f: FElimination) toTt (using ctx: LocalFtCtx)(using ns: Namespace) : Result[Elimination] = f match {
       case FETerm(t) => for t <- t.toTt yield ETerm(t)
       case FEProj(p) => Right(EProj(p))
     }
   }
 
   given FT[FBinding, Binding[Term]] {
-    def (b: FBinding) toTt (using ctx: LocalIndices)(using ns: Namespace) : Result[Binding[Term]] = b match {
+    def (b: FBinding) toTt (using ctx: LocalFtCtx)(using ns: Namespace) : Result[Binding[Term]] = b match {
       case FBinding(name, ty) => ty.toTt.map(Binding(_)(name))
     }
   }
 
   given FT[FTelescope, List[Binding[Term]]] {
-    def (ts: FTelescope) toTt (using ctx: LocalIndices)(using ns: Namespace) : Result[List[Binding[Term]]] = ts match {
+    def (ts: FTelescope) toTt (using ctx: LocalFtCtx)(using ns: Namespace) : Result[List[Binding[Term]]] = ts match {
       case Nil => Right(Nil)
       case b :: rest => 
         for b <- b.toTt
@@ -74,7 +74,7 @@ object ftConversion {
   }
 
   given FT[FPattern, Pattern] {
-    def (p: FPattern) toTt (using ctx:LocalIndices)(using ns: Namespace) : Result[Pattern] = p match {
+    def (p: FPattern) toTt (using ctx:LocalFtCtx)(using ns: Namespace) : Result[Pattern] = p match {
       case FPVar(name) => for idx <- ctx.get(name)
                           yield PVar(idx)(name)
       case FPCon(con: String, args, forced) =>
@@ -89,7 +89,7 @@ object ftConversion {
   }
 
   given FT[FCoPattern, CoPattern] {
-    def (q: FCoPattern) toTt (using ctx:LocalIndices)(using ns: Namespace) : Result[CoPattern] = q match {
+    def (q: FCoPattern) toTt (using ctx:LocalFtCtx)(using ns: Namespace) : Result[CoPattern] = q match {
       case FQPattern(p) => for p <- p.toTt yield QPattern(p)
       case FQProj(p) => Right(QProj(p))
     }
@@ -110,11 +110,11 @@ object ftConversion {
 
   given FTWithQualifiedName[FData, PreData] {
     def (d: FData) toTt(qn: QualifiedName)(using ns: Namespace) : Result[PreData] = {
-      given LocalIndices = LocalIndices()
+      given LocalFtCtx = LocalFtCtx()
       d match {
         case FData(name, paramTys, ty, cons) => for {
           paramTys <- paramTys.toTt
-          r <- summon[LocalIndices].withNames(paramTys.map(_.name)) {
+          r <- summon[LocalFtCtx].withNames(paramTys.map(_.name)) {
             for ty <- ty.toTt
                 cons <- cons match {
                   case cons : Seq[FConstructor] => {
@@ -129,7 +129,7 @@ object ftConversion {
   }
 
   given FT[FConstructor, PreConstructor] {
-    def (c: FConstructor) toTt (using ctx: LocalIndices)(using ns: Namespace) : Result[PreConstructor] = c match {
+    def (c: FConstructor) toTt (using ctx: LocalFtCtx)(using ns: Namespace) : Result[PreConstructor] = c match {
       case FConstructor(name, argTys) =>
         for argTys <- argTys.toTt
         yield PreConstructor(name, argTys)
@@ -138,11 +138,11 @@ object ftConversion {
 
   given FTWithQualifiedName[FRecord, PreRecord] {
     def (r: FRecord) toTt(qn: QualifiedName)(using ns: Namespace) : Result[PreRecord] = {
-      given LocalIndices = LocalIndices()
+      given LocalFtCtx = LocalFtCtx()
       r match {
         case FRecord(name, paramTys, ty, fields) => for {
           paramTys <- paramTys.toTt
-          r <- summon[LocalIndices].withNames(paramTys.map(_.name) :+ "self") {
+          r <- summon[LocalFtCtx].withNames(paramTys.map(_.name) :+ "self") {
             for ty <- ty.toTt
                 fields <- fields match {
                   case fields : Seq[FField] => fields.liftMap(_.toTt)
@@ -156,7 +156,7 @@ object ftConversion {
 
   given FTWithQualifiedName[FDefinition, PreDefinition] {
     def (d: FDefinition) toTt(qn: QualifiedName)(using ns: Namespace) : Result[PreDefinition] = {
-      given LocalIndices = LocalIndices()
+      given LocalFtCtx = LocalFtCtx()
       d match {
         case FDefinition(name, ty, clauses) => for {
           ty <- ty.toTt
@@ -167,7 +167,7 @@ object ftConversion {
   }
 
   given FT[FField, PreField] {
-    def (c: FField) toTt (using ctx: LocalIndices)(using ns: Namespace) : Result[PreField] = c match {
+    def (c: FField) toTt (using ctx: LocalFtCtx)(using ns: Namespace) : Result[PreField] = c match {
       case FField(name, ty) =>
         for ty <- ty.toTt
         yield PreField(name, ty)
@@ -175,20 +175,20 @@ object ftConversion {
   }
 
   given FT[FUncheckedRhs, UncheckedRhs] {
-    def (c: FUncheckedRhs) toTt (using ctx: LocalIndices)(using ns: Namespace) : Result[UncheckedRhs] = c match {
+    def (c: FUncheckedRhs) toTt (using ctx: LocalFtCtx)(using ns: Namespace) : Result[UncheckedRhs] = c match {
       case FUTerm(t) => for t <- t.toTt yield UTerm(t)
       case FUImpossible => Right(UImpossible)
     }
   }
 
   given FT[FUncheckedClause, UncheckedClause] {
-    def (c: FUncheckedClause) toTt (using ctx: LocalIndices)(using ns: Namespace) : Result[UncheckedClause] = {
+    def (c: FUncheckedClause) toTt (using ctx: LocalFtCtx)(using ns: Namespace) : Result[UncheckedClause] = {
       assert(ctx.size == 0)
       c match {
         case FUncheckedClause(lhs, rhs) => {
-          val ctx = LocalIndices()
+          val ctx = LocalFtCtx()
           ctx.addAllFromCoPatterns(lhs)
-          given LocalIndices = ctx
+          given LocalFtCtx = ctx
           for lhs <- lhs.liftMap(_.toTt)
               rhs <- rhs.toTt
           yield UncheckedClause(lhs, rhs)
@@ -198,7 +198,7 @@ object ftConversion {
   }
 }
 
-class LocalIndices(content: Map[String, Int] = Map.empty) {
+class LocalFtCtx(content: Map[String, Int] = Map.empty) {
   import scala.collection.mutable.Map
   import scala.collection.mutable.ArrayBuffer
 

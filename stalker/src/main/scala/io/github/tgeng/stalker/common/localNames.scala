@@ -4,7 +4,7 @@ import scala.collection.mutable.ArrayBuffer
 import io.github.tgeng.common.extraSeqOps
 import Error._
 
-class LocalNames(val names: ArrayBuffer[String] = ArrayBuffer[String]()) {
+class LocalTfCtx(val names: ArrayBuffer[String] = ArrayBuffer[String]()) {
 
   def get(idx: Int) : String = {
     if (names.isEmpty) {

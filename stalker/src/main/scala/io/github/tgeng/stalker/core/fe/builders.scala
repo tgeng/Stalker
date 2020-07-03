@@ -2,7 +2,7 @@ package io.github.tgeng.stalker.core.fe
 
 import io.github.tgeng.common.nullOps
 import io.github.tgeng.stalker.common.Namespace
-import io.github.tgeng.stalker.common.LocalNames
+import io.github.tgeng.stalker.common.LocalTfCtx
 import io.github.tgeng.stalker.core.fe.ftConversion.{given _, _}
 import io.github.tgeng.stalker.core.fe.pprint.toBlock
 import io.github.tgeng.stalker.core.tt.contextOps
@@ -17,21 +17,21 @@ import parser._
 object builders {
   inline def [T](ctx: StringContext) ft() : FTerm = ft(ctx.parts(0))
 
-  inline def [T](ctx: StringContext) t()(using LocalIndices, LocalNames)(using Namespace) : Term = t(ctx.parts(0))
+  inline def [T](ctx: StringContext) t()(using LocalFtCtx, LocalTfCtx)(using Namespace) : Term = t(ctx.parts(0))
 
-  inline def [T](ctx: StringContext) b()(using LocalIndices, LocalNames, Context)(using Namespace, Signature) : Binding[Type] = b(ctx.parts(0))
+  inline def [T](ctx: StringContext) b()(using LocalFtCtx, LocalTfCtx, Context)(using Namespace, Signature) : Binding[Type] = b(ctx.parts(0))
 
   def ft(s: String) : FTerm = (whitespaces >> term << whitespaces << eof).parse(s) match {
     case Right(t) => t
     case Left(e) => throw Exception("Parsing FTerm failed:\n" + e.toStringWithInput(s))
   }
 
-  def t(s: String)(using LocalIndices, LocalNames)(using Namespace) : Term = ft(s).toTt match {
+  def t(s: String)(using LocalFtCtx, LocalTfCtx)(using Namespace) : Term = ft(s).toTt match {
     case Right(t) => t
     case Left(e) => throw Exception(e.toBlock.toString)
   }
 
-  def b(s: String)(using LocalIndices, LocalNames, Context)(using Namespace, Signature) : Binding[Type] = {
+  def b(s: String)(using LocalFtCtx, LocalTfCtx, Context)(using Namespace, Signature) : Binding[Type] = {
     (whitespaces >> binding << whitespaces << eof).parse(s) match {
       case Right(b) => 
         (for b <- b.toTt
@@ -45,9 +45,9 @@ object builders {
     }
   }
 
-  def tele(bindings: (LocalIndices, LocalNames, Context) ?=> (Namespace, Signature) ?=> Binding[Type]*)(using Namespace, Signature) : Telescope = {
-    val localIndices = LocalIndices()
-    val localNames = LocalNames()
+  def tele(bindings: (LocalFtCtx, LocalTfCtx, Context) ?=> (Namespace, Signature) ?=> Binding[Type]*)(using Namespace, Signature) : Telescope = {
+    val localIndices = LocalFtCtx()
+    val localNames = LocalTfCtx()
     var context = Context.empty
     var result : Telescope = Nil
     for (b <- bindings) {
@@ -74,9 +74,9 @@ object builders {
     case Left(e) => throw Exception("Parsing declaration failed:\n" + e.toStringWithInput(s))
   }
 
-  def withBindings[T](bindings: (LocalIndices, LocalNames, Context) ?=> (Namespace, Signature) ?=> Binding[Type]*)(action: (LocalIndices, LocalNames, Context) ?=> T)(using Namespace, Signature) : T = {
-    val localIndices = LocalIndices()
-    val localNames = LocalNames()
+  def withBindings[T](bindings: (LocalFtCtx, LocalTfCtx, Context) ?=> (Namespace, Signature) ?=> Binding[Type]*)(action: (LocalFtCtx, LocalTfCtx, Context) ?=> T)(using Namespace, Signature) : T = {
+    val localIndices = LocalFtCtx()
+    val localNames = LocalTfCtx()
     var context = Context.empty
     for (b <- bindings) {
       val binding = b(using localIndices, localNames, context)
