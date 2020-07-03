@@ -10,20 +10,26 @@ import Error._
 import QualifiedName._
 import PreDeclaration._
 
-class ModuleElaborator(val mutualGroupLoader: MutualGroupLoader) {
+class SignatureLoader(val mutualGroupLoader: MutualGroupLoader) {
 
   private val cache = mutable.Map[MutualGroup, Result[Set[Declaration]]]()
 
-  def elaborate(mutualGroup: MutualGroup): Result[Set[Declaration]] = {
-    elaborateImpl(mutualGroup, SignatureBuilder.create())
+  def loadSignature(qn: QualifiedName) : Result[Signature] = {
+    val sig = SignatureBuilder.create()
+    for {
+      mutualGroups <- mutualGroupLoader.loadMutualGroups(qn) 
+      _ <- mutualGroups.liftMap {
+        elaborateMutualGroup(_, sig)
+      }
+    } yield sig
   }
 
-  def elaborateImpl(mutualGroup: MutualGroup, sig: SignatureBuilder): Result[Set[Declaration]] = cache.getOrElseUpdate(mutualGroup, {
+  def elaborateMutualGroup(mutualGroup: MutualGroup, sig: SignatureBuilder): Result[Set[Declaration]] = cache.getOrElseUpdate(mutualGroup, {
     for {
       depMutualGroups <- mutualGroup.deps.liftMap { qn => mutualGroupLoader.loadContainingMutualGroup(qn) }
       _ = (depMutualGroups | mutualGroup.depMutualGroups).foreach {
         // TODO(tgeng): read and write to disk cache
-        elaborateImpl(_, sig)
+        elaborateMutualGroup(_, sig)
       }
 
       // First add all type declarations to the signature

@@ -15,6 +15,7 @@ enum Error {
   case CyclicImport(cycle: Seq[QualifiedName])
   case UnresolvableNamespace(names: List[String])
   case MissingDefinitionError(qn: QualifiedName)
+  case UnresolvableModuleError(qn: QualifiedName)
 
   def msg: Seq[Any] = Nil
   def localNames: Option[LocalNames] = None

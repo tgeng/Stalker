@@ -29,7 +29,7 @@ class MutualGroupLoader(val rootNamespaceLoader: RootNamespaceLoader, val module
             preDecls <- decls.liftMap{_.toTt(moduleQn)(using namespace)}
           } yield analyzeMutualDependency(preDecls.toSet)
         }
-        case _ => Right(Seq.empty)
+        case _ => Left(UnresolvableModuleError(moduleQn))
       }
     } yield r
   })
