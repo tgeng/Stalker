@@ -13,8 +13,9 @@ import ftConversion.{given _}
 import depAnalysis._
 import ModuleCommand._
 
-class MutualGroupLoader(val rootNamespaceLoader: RootNamespaceLoader, val moduleLoader: ModuleLoader) {
+class MutualGroupLoader(val rootNamespaceLoader: RootNamespaceLoader) {
 
+  private val moduleLoader = rootNamespaceLoader.moduleLoader
   private val moduleCache = mutable.Map[QualifiedName, Result[Seq[MutualGroup]]]()
   private val defCache = mutable.Map[QualifiedName, Result[MutualGroup]]()
 

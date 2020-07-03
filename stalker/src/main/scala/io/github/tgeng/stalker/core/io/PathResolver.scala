@@ -104,11 +104,10 @@ object PathResolver {
     case None => throw IllegalStateException("You must set the environment variable 'STALKER_SDK' in order to proceed.")
   }
   private val stdLibRoot = sdk / "stdlib"
+  private val sourceRoots = sys.env.getOrElse("STALKER_SOURCE_ROOTS", "").split(File.pathSeparatorChar).filter(!_.isEmpty).map(File(_)).toSeq :+ File(".") :+ stdLibRoot
 
-  lazy val default = new PathResolver(
-    { 
-      sys.env.getOrElse("STALKER_SOURCE_ROOTS", "").split(File.pathSeparatorChar).filter(!_.isEmpty).map(File(_)).toSeq :+ File(".") :+ stdLibRoot
-    },
+  def default(additionalSourceRoots: Seq[File] = Seq.empty) = new PathResolver(
+    sourceRoots ++ additionalSourceRoots,
     sys.env.get("STALKER_FILE_CACHE_ROOT") match {
       case Some(dir) => File(dir)
       case None => userHome / ".stalker/cache/module"
@@ -119,10 +118,10 @@ object PathResolver {
     }
   ) {}
 
-  def createTmp(sourceRoots: Seq[File]) = {
+  def createTmp(additionalSourceRoots: Seq[File] = Seq.empty) = {
     val tmpRoot = Files.createTempDirectory("stalker-").toFile.!!
     new PathResolver(
-        sourceRoots :+ stdLibRoot,
+        sourceRoots ++ additionalSourceRoots,
         tmpRoot / "cache/module",
         tmpRoot / "cache/signature/",
     ) {}

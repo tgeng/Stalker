@@ -20,7 +20,8 @@ import Visibility._
 
 import debug._
 
-class RootNamespaceLoader(moduleLoader: ModuleLoader, pathResolver: PathResolver) {
+class RootNamespaceLoader(val moduleLoader: ModuleLoader) {
+  private val pathResolver = moduleLoader.pathResolver
   private val importChain = mutable.LinkedHashSet[QualifiedName]()
   private val cache = mutable.HashMap[QualifiedName, Result[ModuleNamespaces]]()
 

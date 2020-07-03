@@ -13,7 +13,7 @@ import NsElem._
 class RootNamespaceLoaderSpec extends UnitSpec {
   val pathResolver = PathResolver.createTmp(Nil)
   val moduleLoader = ModuleLoader(pathResolver)
-  val nsLoader = RootNamespaceLoader(moduleLoader, pathResolver)
+  val nsLoader = RootNamespaceLoader(moduleLoader)
 
   "stalker.data.nat.base private namespace" in {
     val privateNs = nsLoader.loadNamespace("stalker.data.nat.base", "stalker.data.nat.base").!!!.!!!

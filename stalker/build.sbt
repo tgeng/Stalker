@@ -19,7 +19,10 @@ lazy val root = project
     compile / scalacOptions += "-Ycheck-init",
     testOptions in Test += Tests.Argument("-oF"),
     fork in Test := true,
-    envVars in Test := Map("STALKER_SDK" -> file("sdk").getAbsolutePath),
+    envVars in Test := Map(
+      "STALKER_SDK" -> file("sdk").getAbsolutePath,
+      "STALKER_SOURCE_ROOTS" -> file("src/test/scala").getAbsolutePath
+    ),
     resourceDirectory in Compile := baseDirectory.value / "src" / "main" / "resources",
 
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion, buildInfoBuildNumber),
