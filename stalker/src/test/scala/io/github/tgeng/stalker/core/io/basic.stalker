@@ -4,3 +4,7 @@ import stalker.builtins._
 
 def type1 : Type 0lv
   = Level
+
+record Unit : Type 0lv where
+
+def unit : Unit

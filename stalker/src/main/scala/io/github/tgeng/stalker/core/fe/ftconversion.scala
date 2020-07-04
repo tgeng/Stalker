@@ -146,12 +146,15 @@ object ftConversion {
     r match {
       case FRecord(name, paramTys, ty, fields) => for {
         paramTys <- paramTys.toTt
-        r <- summon[LocalFtCtx].withNames(paramTys.map(_.name) :+ "self") {
+        r <- summon[LocalFtCtx].withNames(paramTys.map(_.name)) {
           for ty <- ty.toTt
-              fields <- fields match {
-                case fields : Seq[FField] => fields.liftMap(_.toTt)
+              r <- summon[LocalFtCtx].withNames(List("self")) {
+                for fields <- fields match {
+                      case fields : Seq[FField] => fields.liftMap(_.toTt)
+                    }
+                yield new PreRecord(qn / name)(paramTys, ty, fields)
               }
-          yield new PreRecord(qn / name)(paramTys, ty, fields)
+          yield r
         }
       } yield r
     }
