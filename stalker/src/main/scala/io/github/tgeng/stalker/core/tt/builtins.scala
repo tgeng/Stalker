@@ -15,9 +15,9 @@ import CaseTree._
 import UncheckedRhs._
 
 object builtins {
-  private val parent = Root / "stalker" / "builtins"
+  val moduleQn = Root / "stalker" / "builtins"
 
-  val levelType: PreDefinition = new PreDefinition(parent / "Level")(
+  val levelType: PreDefinition = new PreDefinition(moduleQn / "Level")(
     TWhnf(WType(TWhnf(lconst(0)))),
     Seq(UncheckedClause(
       Nil,
@@ -25,7 +25,7 @@ object builtins {
     ))
   )
 
-  val typeType: PreDefinition = new PreDefinition(parent / "Type")(
+  val typeType: PreDefinition = new PreDefinition(moduleQn / "Type")(
     TWhnf(WFunction("l" ∷ TWhnf(WLevel), TWhnf(WType(TWhnf(lsuc(TWhnf(WVar(0, Nil)))))))),
     Seq(UncheckedClause(
       List(QPattern(PVar(0)("l"))),
@@ -33,7 +33,7 @@ object builtins {
     ))
   )
   
-  val lsucFn: PreDefinition = new PreDefinition(parent / "lsuc")(
+  val lsucFn: PreDefinition = new PreDefinition(moduleQn / "lsuc")(
     TWhnf(WFunction("l" ∷ TWhnf(WLevel), TWhnf(WLevel))),
     Seq(UncheckedClause(
       List(QPattern(PVar(0)("l"))),
@@ -41,7 +41,7 @@ object builtins {
     ))
   )
 
-  val lmaxFn: PreDefinition = new PreDefinition(parent / "lmax")(
+  val lmaxFn: PreDefinition = new PreDefinition(moduleQn / "lmax")(
     TWhnf(WFunction("l1" ∷ TWhnf(WLevel), TWhnf(WFunction("l2" ∷ TWhnf(WLevel), TWhnf(WLevel))))),
     Seq(UncheckedClause(
       List(QPattern(PVar(1)("l1")), QPattern(PVar(0)("l2"))),
@@ -49,7 +49,7 @@ object builtins {
     ))
   )
 
-  val idType: PreDefinition = new PreDefinition(parent / "Id")(
+  val idType: PreDefinition = new PreDefinition(moduleQn / "Id")(
     TWhnf(WFunction("l" ∷ TWhnf(WLevel), TWhnf(WFunction("A" ∷ TWhnf(WType(TWhnf(WVar(0, Nil)))), TWhnf(WFunction("x" ∷ TWhnf(WVar(0, Nil)), TWhnf(WFunction("y" ∷ TWhnf(WVar(1, Nil)), TWhnf(WType(TWhnf(WVar(3, Nil)))))))))))),
     Seq(UncheckedClause(
       List(QPattern(PVar(3)("l")), QPattern(PVar(2)("A")), QPattern(PVar(1)("x")), QPattern(PVar(0)("y"))),
@@ -80,4 +80,6 @@ object builtins {
     add(idType)
     ns.seal
   }
+
+  val allDeclQns = signature.declarations.map(_.qn).toSet
 }

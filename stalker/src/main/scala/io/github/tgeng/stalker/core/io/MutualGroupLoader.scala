@@ -13,6 +13,8 @@ import ftConversion.{given _}
 import depAnalysis._
 import ModuleCommand._
 
+import debug._
+
 class MutualGroupLoader(val rootNamespaceLoader: RootNamespaceLoader) {
 
   private val moduleLoader = rootNamespaceLoader.moduleLoader

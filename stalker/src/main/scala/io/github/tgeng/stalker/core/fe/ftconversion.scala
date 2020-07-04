@@ -102,29 +102,30 @@ object ftConversion {
 
   given FTWithQualifiedName[FDeclaration, PreDeclaration] {
     def (d: FDeclaration) toTt(qn: QualifiedName)(using ns: Namespace) : Result[PreDeclaration] = d match {
-      case d: FData => d.toTt(qn)
-      case r: FRecord => r.toTt(qn)
-      case d: FDefinition => d.toTt(qn)
+      case d: FData => d.dataToTt(qn)
+      case r: FRecord => r.recordToTt(qn)
+      case d: FDefinition => d.defToTt(qn)
     }
   }
 
   given FTWithQualifiedName[FData, PreData] {
-    def (d: FData) toTt(qn: QualifiedName)(using ns: Namespace) : Result[PreData] = {
-      given LocalFtCtx = LocalFtCtx()
-      d match {
-        case FData(name, paramTys, ty, cons) => for {
-          paramTys <- paramTys.toTt
-          r <- summon[LocalFtCtx].withNames(paramTys.map(_.name)) {
-            for ty <- ty.toTt
-                cons <- cons match {
-                  case cons : Seq[FConstructor] => {
-                    cons.liftMap(_.toTt)
-                  }
+    def (d: FData) toTt(qn: QualifiedName)(using ns: Namespace) : Result[PreData] = d.dataToTt(qn)
+  }
+  private def (d: FData) dataToTt(qn: QualifiedName)(using ns: Namespace) : Result[PreData] = {
+    given LocalFtCtx = LocalFtCtx()
+    d match {
+      case FData(name, paramTys, ty, cons) => for {
+        paramTys <- paramTys.toTt
+        r <- summon[LocalFtCtx].withNames(paramTys.map(_.name)) {
+          for ty <- ty.toTt
+              cons <- cons match {
+                case cons : Seq[FConstructor] => {
+                  cons.liftMap(_.toTt)
                 }
-            yield new PreData(qn / name)(paramTys, ty, cons)
-          }
-        } yield r
-      }
+              }
+          yield new PreData(qn / name)(paramTys, ty, cons)
+        }
+      } yield r
     }
   }
 
@@ -137,32 +138,36 @@ object ftConversion {
   }
 
   given FTWithQualifiedName[FRecord, PreRecord] {
-    def (r: FRecord) toTt(qn: QualifiedName)(using ns: Namespace) : Result[PreRecord] = {
-      given LocalFtCtx = LocalFtCtx()
-      r match {
-        case FRecord(name, paramTys, ty, fields) => for {
-          paramTys <- paramTys.toTt
-          r <- summon[LocalFtCtx].withNames(paramTys.map(_.name) :+ "self") {
-            for ty <- ty.toTt
-                fields <- fields match {
-                  case fields : Seq[FField] => fields.liftMap(_.toTt)
-                }
-            yield new PreRecord(qn / name)(paramTys, ty, fields)
-          }
-        } yield r
-      }
+    def (r: FRecord) toTt(qn: QualifiedName)(using ns: Namespace) : Result[PreRecord] = r.recordToTt(qn)
+  }
+
+  private def (r: FRecord) recordToTt(qn: QualifiedName)(using ns: Namespace) : Result[PreRecord] = {
+    given LocalFtCtx = LocalFtCtx()
+    r match {
+      case FRecord(name, paramTys, ty, fields) => for {
+        paramTys <- paramTys.toTt
+        r <- summon[LocalFtCtx].withNames(paramTys.map(_.name) :+ "self") {
+          for ty <- ty.toTt
+              fields <- fields match {
+                case fields : Seq[FField] => fields.liftMap(_.toTt)
+              }
+          yield new PreRecord(qn / name)(paramTys, ty, fields)
+        }
+      } yield r
     }
   }
 
   given FTWithQualifiedName[FDefinition, PreDefinition] {
-    def (d: FDefinition) toTt(qn: QualifiedName)(using ns: Namespace) : Result[PreDefinition] = {
-      given LocalFtCtx = LocalFtCtx()
-      d match {
-        case FDefinition(name, ty, clauses) => for {
-          ty <- ty.toTt
-          clauses <- clauses.liftMap(_.toTt)
-        } yield new PreDefinition(qn / name)(ty, clauses)
-      }
+    def (d: FDefinition) toTt(qn: QualifiedName)(using ns: Namespace) : Result[PreDefinition] = d.defToTt(qn)
+  }
+
+  private def (d: FDefinition) defToTt(qn: QualifiedName)(using ns: Namespace) : Result[PreDefinition] = {
+    given LocalFtCtx = LocalFtCtx()
+    d match {
+      case FDefinition(name, ty, clauses) => for {
+        ty <- ty.toTt
+        clauses <- clauses.liftMap(_.toTt)
+      } yield new PreDefinition(qn / name)(ty, clauses)
     }
   }
 

@@ -33,7 +33,7 @@ object depAnalysis {
     topoSorted.map{ declGroup =>
       val mutualGroup = MutualGroup(declGroup)(
         dag.getOrElse(declGroup, Set.empty).map(dep => mutualGroupByDeclGroup(dep)),
-        declGroup.flatMap(_.deps) diff elemByQn.keySet)
+        declGroup.flatMap(_.deps) diff elemByQn.keySet diff builtins.allDeclQns)
       mutualGroupByDeclGroup(declGroup) = mutualGroup
       mutualGroup
     }

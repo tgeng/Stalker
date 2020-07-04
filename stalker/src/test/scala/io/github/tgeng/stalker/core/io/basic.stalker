@@ -1,0 +1,6 @@
+import stalker.builtins.Type
+import stalker.builtins.Level
+import stalker.builtins._
+
+def type1 : Type 0lv
+  = Level

@@ -104,7 +104,7 @@ object PathResolver {
     case None => throw IllegalStateException("You must set the environment variable 'STALKER_SDK' in order to proceed.")
   }
   private val stdLibRoot = sdk / "stdlib"
-  private val sourceRoots = sys.env.getOrElse("STALKER_SOURCE_ROOTS", "").split(File.pathSeparatorChar).filter(!_.isEmpty).map(File(_)).toSeq :+ File(".") :+ stdLibRoot
+  private val sourceRoots = sys.env.getOrElse("STALKER_SOURCE_ROOTS", "").split(File.pathSeparatorChar).filter(!_.isEmpty).map(File(_)).toSeq :+ File(".").getAbsoluteFile.!! :+ stdLibRoot
 
   def default(additionalSourceRoots: Seq[File] = Seq.empty) = new PathResolver(
     sourceRoots ++ additionalSourceRoots,

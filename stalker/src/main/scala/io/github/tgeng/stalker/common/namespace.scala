@@ -19,8 +19,18 @@ import NsElem._
 
 trait Namespace {
   def resolve(names: String*) : Result[Set[NsElem]] = resolve(names)
-  def resolve(names: Iterable[String]): Result[Set[NsElem]] = resolveImpl(names.toList)
-  def resolveImpl(names: List[String]): Result[Set[NsElem]]
+  def resolve(names: Iterable[String]): Result[Set[NsElem]] = resolveImpl(names.toList, mutable.Set())
+  def resolveQn(names: String*) : Result[Set[QualifiedName]] = resolveQn(names)
+  def resolveQn(names: Iterable[String]): Result[Set[QualifiedName]] = resolveImpl(names.toList, mutable.Set()).map(_.qualifiedNames)
+  def resolveNs(names: String*) : Result[Set[Namespace]] = resolveNs(names)
+  def resolveNs(names: Iterable[String]): Result[Set[Namespace]] = resolveImpl(names.toList, mutable.Set()).map(_.namespaces)
+  def resolve(names: List[String], visited: mutable.Set[Namespace]): Result[Set[NsElem]] = {
+    if (visited.contains(this)) return Right(Set.empty)
+    visited.add(this)
+    resolveImpl(names, visited)
+  }
+  def resolveImpl(names: List[String], visited: mutable.Set[Namespace]): Result[Set[NsElem]]
+
   def render(qn: QualifiedName): List[String] = {
     val qnParts = qn.parts.reverse
       renderImpl(qn) match {
@@ -44,20 +54,22 @@ extension nsElemMutableSetOps on (elems: mutable.Set[NsElem]) {
 trait MemNamespace[NS <: MemNamespace[NS, S, M], S <: Set, M <: Map](
   val rootElems: S[NsElem],
   val subspaces: M[String, NS]) extends Namespace {
-  override def resolve(names: Iterable[String]): Result[Set[NsElem]] = resolveImpl(names.toList)
-  override def resolveImpl(names: List[String]): Result[Set[NsElem]] = names match {
-    case Nil => Right(rootElems)
-    case name :: rest => for {
-      elemsFromThis : Set[NsElem] <- subspaces.get(name) match {
-        case Some(ns) => {
-          ns.resolveImpl(rest)
+
+  override def resolveImpl(names: List[String], visited: mutable.Set[Namespace]): Result[Set[NsElem]] = for {
+    elemsFromThis <- names match {
+      case Nil => Right(rootElems.filter{ e => e.isInstanceOf[NQualifiedName] } | Set(NNamespace(this)))
+      case name :: rest => for {
+        elems : Set[NsElem] <- subspaces.get(name) match {
+          case Some(ns) => {
+            ns.resolve(rest, visited)
+          }
+          case None => Right(Set.empty)
         }
-        case None => Right(Set.empty)
-      }
-      siblingNamespaces : Set[Namespace] = rootElems.collect{case NNamespace(n) => n}
-      elemsFromSiblings : Set[Set[NsElem]] <- siblingNamespaces.liftMap{_.resolveImpl(names)}
-    } yield elemsFromThis | elemsFromSiblings.flatten
-  }
+      } yield elems
+    }
+    siblingNamespaces : Set[Namespace] = rootElems.collect{case NNamespace(n) => n}
+    elemsFromSiblings : Set[Set[NsElem]] <- siblingNamespaces.liftMap{_.resolve(names, visited)}
+  } yield elemsFromThis | elemsFromSiblings.flatten
 
   override def renderImpl(qn: QualifiedName): Either[List[String], Unit] = for {
     _ <- rootElems.qualifiedNames.contains(qn) match {

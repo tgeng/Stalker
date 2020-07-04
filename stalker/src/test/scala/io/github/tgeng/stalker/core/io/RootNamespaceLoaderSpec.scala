@@ -17,23 +17,23 @@ class RootNamespaceLoaderSpec extends UnitSpec {
 
   "stalker.data.nat.base private namespace" in {
     val privateNs = nsLoader.loadNamespace("stalker.data.nat.base", "stalker.data.nat.base").!!!.!!!
-    assert(privateNs.resolve("Nat").!!! == Set(NQualifiedName("stalker.data.nat.base.Nat")))
-    assert(privateNs.resolve("stalker", "builtins", "Level").!!! == Set(NQualifiedName("stalker.builtins.Level")))
-    assert(privateNs.resolve("stalker", "builtins", "Type").!!! == Set(NQualifiedName("stalker.builtins.Type")))
-    assert(privateNs.resolve("stalker", "builtins", "lsuc").!!! == Set(NQualifiedName("stalker.builtins.lsuc")))
-    assert(privateNs.resolve("stalker", "builtins", "lmax").!!! == Set(NQualifiedName("stalker.builtins.lmax")))
-    assert(privateNs.resolve("stalker", "builtins", "Id").!!! == Set(NQualifiedName("stalker.builtins.Id")))
+    assert(privateNs.resolveQn("Nat").!!! == Set[QualifiedName]("stalker.data.nat.base.Nat"))
+    assert(privateNs.resolveQn("stalker", "builtins", "Level").!!! == Set[QualifiedName]("stalker.builtins.Level"))
+    assert(privateNs.resolveQn("stalker", "builtins", "Type").!!! == Set[QualifiedName]("stalker.builtins.Type"))
+    assert(privateNs.resolveQn("stalker", "builtins", "lsuc").!!! == Set[QualifiedName]("stalker.builtins.lsuc"))
+    assert(privateNs.resolveQn("stalker", "builtins", "lmax").!!! == Set[QualifiedName]("stalker.builtins.lmax"))
+    assert(privateNs.resolveQn("stalker", "builtins", "Id").!!! == Set[QualifiedName]("stalker.builtins.Id"))
   }
 
   "stalker.data.nat.base internal namespace" in {
     val internalNs = nsLoader.loadNamespace("stalker.data.nat.foo", "stalker.data.nat.base").!!!.!!!
-    assert(internalNs.resolve("Nat").!!! == Set(NQualifiedName("stalker.data.nat.base.Nat")))
-    assert(internalNs.resolve("stalker", "builtins", "Level").!!! == Set())
+    assert(internalNs.resolveQn("Nat").!!! == Set[QualifiedName]("stalker.data.nat.base.Nat"))
+    assert(internalNs.resolveQn("stalker", "builtins", "Level").!!! == Set())
   }
 
   "stalker.data.nat.base external namespace" in {
     val externalNs = nsLoader.loadNamespace("stalker.data.bar", "stalker.data.nat.base").!!!.!!!
-    assert(externalNs.resolve("Nat").!!! == Set(NQualifiedName("stalker.data.nat.base.Nat")))
-    assert(externalNs.resolve("stalker", "builtins", "Level").!!! == Set())
+    assert(externalNs.resolveQn("Nat").!!! == Set[QualifiedName]("stalker.data.nat.base.Nat"))
+    assert(externalNs.resolveQn("stalker", "builtins", "Level").!!! == Set())
   }
 }

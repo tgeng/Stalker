@@ -336,21 +336,21 @@ class SignatureBuilder(
   fallback: Signature
 ) extends MapBasedSignature(mData, mRecords, mDefinitions, fallback) {
 
-  def declarations = data.values.asInstanceOf[Seq[Declaration]] ++ records.values ++ definitions.values
+  def declarations = data.values.toSeq ++ records.values ++ definitions.values
 
   def += (d: Declaration): Unit = d match {
     case d : Data => getData(d.qn) match {
-      case Right(existingD) if (existingD.paramTys != d.paramTys || existingD.ty != d.ty || existingD.cons != null) =>
+      case Right(existingD) if (existingD.paramTys != d.paramTys || existingD.ty != d.ty || (existingD.cons != null && existingD.cons != d.cons)) =>
         throw IllegalArgumentException(s"Data schema ${d.qn} is already defined.")
       case _ => mData(d.qn) = d
     }
     case r : Record => getRecord(r.qn) match {
-      case Right(existingR) if (existingR.paramTys != r.paramTys || existingR.ty != r.ty || existingR.fields != null) =>
+      case Right(existingR) if (existingR.paramTys != r.paramTys || existingR.ty != r.ty || (existingR.fields != null && existingR.fields != r.fields)) =>
         throw IllegalArgumentException(s"Record schema ${d.qn} is already defined.")
       case _ => mRecords(r.qn) = r
     }
     case d : Definition => getDefinition(d.qn) match {
-      case Right(existingD) if (existingD.ty != d.ty || existingD.clauses != d.clauses || existingD.ct != null) =>
+      case Right(existingD) if (existingD.ty != d.ty || (existingD.clauses != null && existingD.clauses != d.clauses) || (existingD.ct != null && existingD.ct != d.ct)) =>
         throw IllegalArgumentException(s"Definition schema ${d.qn} is already defined.")
       case _ => mDefinitions(d.qn) = d
     }
