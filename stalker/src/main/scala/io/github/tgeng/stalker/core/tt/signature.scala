@@ -17,9 +17,10 @@ import stringBindingOps._
 import userInputBarBarBar._
 import lhsOps._
 import utils._
+import debug._
 
 enum PreDeclaration {
-  case PreData(val qn: QualifiedName)(val paramTys: List[Binding[Term]], val ty: Term, val cons: Seq[ConstructorT[Term]])
+  case PreData(val qn: QualifiedName)(val paramTys: List[Binding[Term]], val ty: Term, val cons: Seq[PreConstructor])
   case PreRecord(val qn: QualifiedName)(val paramTys: List[Binding[Term]], val ty: Term, val fields: Seq[FieldT[Term]])
   case PreDefinition(val qn: QualifiedName)(val ty: Term, val clauses: Seq[UncheckedClause])
 
@@ -29,7 +30,7 @@ enum PreDeclaration {
 import PreDeclaration._
 
 enum Declaration {
-  case Data(val qn: QualifiedName)(val paramTys: Telescope, val ty: Type, val cons: Seq[ConstructorT[Type]] | Null)
+  case Data(val qn: QualifiedName)(val paramTys: Telescope, val ty: Type, val cons: Seq[Constructor] | Null)
   case Record(val qn: QualifiedName)(val paramTys: Telescope, val ty: Type, val fields: Seq[FieldT[Type]] | Null)
   case Definition(val qn: QualifiedName)(val ty: Type, val clauses: Seq[CheckedClause] | Null, val ct: CaseTree | Null)
 
@@ -38,7 +39,12 @@ enum Declaration {
 
 import Declaration._
 
-case class ConstructorT[+T](name: String, argTys: List[Binding[T]])
+case class PreConstructor(name: String, argTys: List[Binding[Term]], typeParams: List[Term])
+case class Constructor(name: String, argTys: List[Binding[Type]], idTys: List[Binding[Type]]) {
+  val refls : List[Term] = idTys.map(_ => Term.TWhnf(Whnf.WCon("Refl", Nil)))
+  val pRefls : List[Pattern] = idTys.map(_ => Pattern.PCon("Refl", Nil))
+  val allArgTys : List[Binding[Type]] = argTys ++ idTys
+}
 
 case class FieldT[+T](name: String, ty: T)
 
@@ -52,10 +58,8 @@ enum UncheckedRhs {
 
 import UncheckedRhs._
 
-type Constructor = ConstructorT[Type]
 type Field = FieldT[Type]
 
-type PreConstructor = ConstructorT[Term]
 type PreField = FieldT[Term]
 
 trait Signature {
@@ -125,11 +129,11 @@ trait Signature {
       processed = ArrayBuffer[Constructor]()
       augmented = new Data(d.qn)(data.paramTys, data.ty, processed)
       WType(levelBound) = data.ty
-      _ <- extendedWith(augmented).processCons(d.qn, levelBound, d.cons.toList, processed)(using Context.empty + data.paramTys)
+      _ <- extendedWith(augmented).processCons(d.qn, levelBound, d.cons.toList, data.paramTys, processed)(using Context.empty + data.paramTys)
     } yield augmented
   }
 
-  protected def processCons(qn: QualifiedName, levelBound: Term, preCons: List[PreConstructor], processed: ArrayBuffer[Constructor])(using Context): Result[Unit] = preCons match {
+  protected def processCons(qn: QualifiedName, levelBound: Term, preCons: List[PreConstructor], dataParamTys: List[Binding[Type]] , processed: ArrayBuffer[Constructor])(using Context): Result[Unit] = preCons match {
     case Nil => Right(())
     case con :: rest => 
       for l <- con.argTys.levelBound
@@ -141,12 +145,39 @@ trait Signature {
                case _ => typingErrorWithCtx(e"Cannot determine if arguments to constructor ${con.name} at level $l is within the specified level bound $levelBound of data schema $qn.")
               }
               wArgTys <- con.argTys.toWhnfs
-            } yield ConstructorT(con.name, wArgTys)
+              idTys <- withCtxExtendedBy(wArgTys) {
+                val wArgSize = wArgTys.size
+                for {
+                  _ <- (con.typeParams ∷ dataParamTys).checkTerms
+                  r <- buildConstructorIdTypes(wArgSize, con.typeParams, dataParamTys.map(_.ty.raise(wArgSize - 1)))
+                } yield r
+              }
+            } yield Constructor(con.name, wArgTys, idTys.map(Binding(_)("")))
             case None => typingErrorWithCtx(e"Arguments to constructor ${con.name} is potentially unbound and hence is not within the specified level bound $levelBound of data schema $qn.")
           }
           _ = processed.addOne(con)
-          r <- processCons(qn, levelBound, rest, processed)
+          r <- processCons(qn, levelBound, rest, dataParamTys, processed)
       yield r
+  }
+
+  private def buildConstructorIdTypes(valueConstructorArgCount: Int, params: List[Term], dataParamTys: List[Type])(using Context) : Result[List[Type]] = {
+    (params, dataParamTys) match {
+      case (Nil, Nil) => Right(Nil)
+      case (param :: params, paramTy :: paramTys) => for {
+        paramTyLevel <- paramTy.level
+        rest <- buildConstructorIdTypes(valueConstructorArgCount, params, paramTys)
+      } yield {
+        val typeParamRef = TWhnf(WVar(dataParamTys.size - 1 + valueConstructorArgCount, Nil)) 
+        if (param == typeParamRef) {
+          // the passed argument is just a direct reference to the type parameter. In this case, the
+          // parameter is not an index and there is no need to generate a identity constraint.
+          rest
+        } else {
+          WId(TWhnf(paramTyLevel), TWhnf(paramTy), typeParamRef, param) :: rest
+        }
+      }
+      case _ => throw AssertionError("Previous type checking of params against dataParamTys should prevent this from happening.")
+    }
   }
 
   def elaborateRecord(r: PreRecord): Result[(Record, Definition)] = for {

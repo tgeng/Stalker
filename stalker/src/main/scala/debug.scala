@@ -1,7 +1,7 @@
 package debug
 
 inline def [T](inline v: T) printMe : T = {
-  println(exprName(v) + " = " + v)
+  println("[DEBUG] " + exprName(v) + " = " + v)
   v
 }
 

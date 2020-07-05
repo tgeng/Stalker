@@ -120,7 +120,7 @@ private class DirectoryNamespace(val rootNamespaceLoader: RootNamespaceLoader, r
     }).reverse)
   }
 
-  override def resolveImpl(names: List[String], visited: mutable.Set[Namespace]): Result[Set[NsElem]] = names match {
+  override def resolveImpl(names: List[String], visited: mutable.Set[(List[String], Namespace)]): Result[Set[NsElem]] = names match {
     case Nil => Right(Set(NsElem.NNamespace(this)))
     case name :: rest => 
       for namespaceOption <- rootNamespaceLoader.loadNamespace(requester, rootQn / name)

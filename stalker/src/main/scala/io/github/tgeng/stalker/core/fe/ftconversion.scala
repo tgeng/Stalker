@@ -131,9 +131,12 @@ object ftConversion {
 
   given FT[FConstructor, PreConstructor] {
     def (c: FConstructor) toTt (using ctx: LocalFtCtx)(using ns: Namespace) : Result[PreConstructor] = c match {
-      case FConstructor(name, argTys) =>
+      case FConstructor(name, argTys, typeParams) =>
         for argTys <- argTys.toTt
-        yield PreConstructor(name, argTys)
+            typeParams <- ctx.withNames(argTys.map(_.name)) {
+              typeParams.liftMap(_.toTt)
+            }
+        yield PreConstructor(name, argTys, typeParams)
     }
   }
 

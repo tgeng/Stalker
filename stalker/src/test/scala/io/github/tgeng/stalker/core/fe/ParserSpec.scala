@@ -105,32 +105,29 @@ class ParserSpec extends UnitSpec {
           List(),
           FTRedux(List("Type"),List(FETerm(FTLevel(0)))),
           Vector(
-            FConstructor("Zero",List()),
-            FConstructor("Suc",List(FBinding("",FTRedux(List("Nat"),List()))))))
+            FConstructor("Zero",List(), Nil),
+            FConstructor("Suc",List(FBinding("",FTRedux(List("Nat"),List()))), Nil)))
     )
 
     assert(
       decl"""
       |data Vector (n : Nat)(A : Type 0lv) : Type 0lv where
-      |  Nil : Id 0lv Nat n Zero{} -> Vector n A
-      |  Cons : (m : Nat) -> A -> Vector m A -> Id 0lv Nat Suc{m} n -> Vector n A
+      |  Nil : Vector Zero{} A
+      |  Cons : (m : Nat) -> A -> Vector m A -> Vector Suc{m} A
       """ ==
         FData(
           "Vector",
           List(FBinding("n", FTRedux(List("Nat"), List())), FBinding("A", FTRedux(List("Type"), List(FETerm(FTLevel(0)))))),
           FTRedux(List("Type"), List(FETerm(FTLevel(0)))),
           Vector(
-            FConstructor(
-              "Nil", 
-              List(
-                FBinding("", FTRedux(List("Id"), List(FETerm(FTLevel(0)), FETerm(FTRedux(List("Nat"), List())), FETerm(FTRedux(List("n"), List())), FETerm(FTCon("Zero", List()))))))),
+            FConstructor("Nil", List(), List(FTCon("Zero", List()), FTRedux(List("A"), List()))),
             FConstructor(
               "Cons",
               List(
                 FBinding("m", FTRedux(List("Nat"), List())),
                 FBinding("", FTRedux(List("A"), List())),
-                FBinding("", FTRedux(List("Vector"), List(FETerm(FTRedux(List("m"), List())), FETerm(FTRedux(List("A"), List()))))),
-                FBinding("", FTRedux(List("Id"), List(FETerm(FTLevel(0)), FETerm(FTRedux(List("Nat"), List())), FETerm(FTCon("Suc", List(FTRedux(List("m"), List())))), FETerm(FTRedux(List("n"), List())))))))))
+                FBinding("", FTRedux(List("Vector"), List(FETerm(FTRedux(List("m"), List())), FETerm(FTRedux(List("A"), List())))))),
+              List(FTCon("Suc", List(FTRedux(List("m"), List()))), FTRedux(List("A"), List())))))
     )
   }
 
@@ -223,8 +220,8 @@ class ParserSpec extends UnitSpec {
           List(),
           FTRedux(List("Type"),List(FETerm(FTLevel(0)))),
           Vector(
-            FConstructor("Zero",List()),
-            FConstructor("Suc",List(FBinding("",FTRedux(List("Nat"),List())))))), Visibility.Public)))
+            FConstructor("Zero",List(), Nil),
+            FConstructor("Suc",List(FBinding("",FTRedux(List("Nat"),List()))), Nil))), Visibility.Public)))
 
     assert(cmd"private data Nat : Type 0lv where" == 
       Seq(MDecl(FData("Nat", List(), FTRedux(List("Type"),List(FETerm(FTLevel(0)))), Vector()), Visibility.Private)))

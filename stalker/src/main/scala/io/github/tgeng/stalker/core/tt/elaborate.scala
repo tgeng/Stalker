@@ -80,9 +80,9 @@ extension elaboration on (p: Problem) {
             r <- withCtx(_Γ1) {
               cons.liftMap { con =>
                 for {
-                  _Δ <- con.argTys.substHead(v̅).toWhnfs
+                  _Δ <- con.allArgTys.substHead(v̅).toWhnfs
                   r <- withCtxExtendedBy(_Δ) {
-                    val ρ1 = Substitution.id[Pattern].drop(_Δ.size) ⊎ PCon(con.name, con.argTys.pvars.toList)
+                    val ρ1 = Substitution.id[Pattern].drop(_Δ.size) ⊎ PCon(con.name, con.allArgTys.pvars.toList)
                     val ρ2 = ρ1.extendBy(_Γ2) 
                     for {
                       _P2 <- _P.subst(ρ2)
@@ -249,16 +249,16 @@ private def (constraint: (Term /? Pattern) ∷ Type) simpl(using Σ: Signature) 
           else for {
             data <- Σ getData qn
             con <- data(c)
-            _Δ <- con.argTys.substHead(u̅).toWhnfs
-            _E <- ((v̅ /? p̅) ∷ _Δ).simplAll
+            _Δ <- con.allArgTys.substHead(u̅).toWhnfs
+            _E <- (((v̅ ++ con.refls) /? (p̅ ++ con.pRefls)) ∷ _Δ).simplAll
           } yield _E
         case (WCon(c, v̅), PForcedCon(c1, p̅), WData(qn, u̅)) => 
           if (c != c1) typingErrorWithCtx(e"Mismatched forced constructor")
           else for {
             data <- Σ getData qn
             con <- data(c)
-            _Δ <- con.argTys.substHead(u̅).toWhnfs
-            _E <- ((v̅ /? p̅) ∷ _Δ).simplAll
+            _Δ <- con.allArgTys.substHead(u̅).toWhnfs
+            _E <- (((v̅ ++ con.refls) /? (p̅ ++ con.pRefls)) ∷ _Δ).simplAll
           } yield _E
         case (WRefl, PRefl, WId(_, _, _, _)) => Right(Some(Set.empty[(Term /? Pattern) ∷ Type]))
         case _ => Right(Some(Set(constraint)))

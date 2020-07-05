@@ -17,6 +17,7 @@ import reduction.toWhnfs
 import reduction.toWhnf
 import reduction.reduceLevel
 import utils._
+import debug._
 
 object typing {
   def (tm: Term)level(using Γ: Context)(using Σ: Signature) : Result[Whnf] = tm match {
@@ -249,8 +250,8 @@ object typing {
         data <- Σ getData d
         constructor <- data(c)     
         _ <- (u̅ ∷ data.paramTys).checkTerms
-        _Δ <- constructor.argTys.substHead(u̅).toWhnfs
-        _ <- (v̅ ∷ _Δ).checkTerms
+        _Δ <- constructor.allArgTys.substHead(u̅).toWhnfs
+        _ <- ((v̅ ++ constructor.refls) ∷ _Δ).checkTerms
       } yield ()
       case TWhnf(WRefl) ∷ WId(_, _A, u, v) => for {
         wA <- _A.toWhnf
@@ -353,8 +354,8 @@ object typing {
             data <- Σ getData d
             con <- data(c1)
             _ <- (u̅ ∷ data.paramTys).checkTerms
-            _Δ <- con.argTys.substHead(u̅).toWhnfs
-            _ <- (v̅1 ≡ v̅2 ∷ _Δ).check
+            _Δ <- con.allArgTys.substHead(u̅).toWhnfs
+            _ <- ((v̅1 ++ con.refls) ≡ (v̅2 ++ con.refls) ∷ _Δ).check
           } yield ()
           case _ => typingErrorWithCtx(e"Cannot decide if $x and $y of type $_A are computationally equivalent.")
         }

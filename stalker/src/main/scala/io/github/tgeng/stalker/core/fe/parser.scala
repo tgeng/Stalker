@@ -138,14 +138,14 @@ object parser {
 
   import FDeclaration._
 
-  private def constructor(using opt: ParsingOptions)(using IndentRequirement) : Parser[FConstructor] = P {
+  private def constructor(typeName: String)(using opt: ParsingOptions)(using IndentRequirement) : Parser[FConstructor] = P {
     for n <- name
         _ <- spaces >> ':' <<! spaces
         argTys <- aligned {
           (argTy << whitespaces << "->" << whitespaces)
         }.*
-        _ <- termImpl // ignored for now since indexed family is simulated with id type
-    yield FConstructor(n, argTys.toList)
+        typeParams <- typeName >>! (spaces >> atom).*
+    yield FConstructor(n, argTys.toList, typeParams.toList)
   }
 
   private def schemaType(using opt: ParsingOptions)(using IndentRequirement) : Parser[(Seq[FBinding], FTerm)] = P {
@@ -158,7 +158,7 @@ object parser {
   private def data(using opt: ParsingOptions)(using IndentRequirement) : Parser[FDeclaration] = P { 
     for n <- "data " >>! spaces >> name << spaces
         (argTys, ty) <- schemaType
-        cons <- spaces >> whereSomething(constructor)
+        cons <- spaces >> whereSomething(constructor(n))
     yield FData(n, argTys.toList, ty, cons)
   }
 

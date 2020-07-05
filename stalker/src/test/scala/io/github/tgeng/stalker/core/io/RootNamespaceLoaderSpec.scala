@@ -10,6 +10,8 @@ import stalker.core.fe.ModuleCommand._
 import stalker.common._
 import NsElem._
 
+import debug._
+
 class RootNamespaceLoaderSpec extends UnitSpec {
   val pathResolver = PathResolver.createTmp(Nil)
   val moduleLoader = ModuleLoader(pathResolver)

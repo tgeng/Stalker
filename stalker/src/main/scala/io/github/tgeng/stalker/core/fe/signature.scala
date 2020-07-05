@@ -25,8 +25,8 @@ enum FDeclaration {
   def name: String
 }
 
-case class FConstructor(name: String, argTys: FTelescope) {
-  override def toString = s"""FConstructor("$name", $argTys)"""
+case class FConstructor(name: String, argTys: FTelescope, typeParams: List[FTerm]) {
+  override def toString = s"""FConstructor("$name", $argTys, $typeParams)"""
 }
 
 case class FField(name: String, ty: FTerm) {

@@ -30,11 +30,14 @@ object matchers extends Helpers {
         true,
         "",
         pp"Term $x had type $_A")
-      case Left(e) => MatchResult(
+      case Left(e) => {
+        e.trace.printStackTrace
+        MatchResult(
         false,
-        pp"Term $x failed type checking against $_A because $e",
+        pp"Term $x failed type checking against $_A because $e.",
         ""
-      )
+        )
+      }
     }
   }}
 

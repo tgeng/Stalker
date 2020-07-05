@@ -72,8 +72,8 @@ extension termUnification on (p: =?[Term] ∷ Type) {
     case (((u@TWhnf(WCon(c1, u̅))) =? (v@TWhnf(WCon(c2, v̅)))) ∷ (_A@WData(qn, params))) if c1 == c2 => for {
       data <- Σ getData(qn)
       con <- data(c1)
-      argTys <- con.argTys.substHead(params).toWhnfs
-      unifier <- ((u̅ =? v̅) ∷ argTys).unify
+      argTys <- con.allArgTys.substHead(params).toWhnfs
+      unifier <- ((u̅ ++ con.refls =? v̅ ++ con.refls) ∷ argTys).unify
     } yield positive(
       Γ + idTypes(argTys, u̅, v̅), 
       // Theoretically we should construct something like `congruent con`. But

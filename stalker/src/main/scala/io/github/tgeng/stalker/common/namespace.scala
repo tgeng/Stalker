@@ -24,12 +24,14 @@ trait Namespace {
   def resolveQn(names: Iterable[String]): Result[Set[QualifiedName]] = resolveImpl(names.toList, mutable.Set()).map(_.qualifiedNames)
   def resolveNs(names: String*) : Result[Set[Namespace]] = resolveNs(names)
   def resolveNs(names: Iterable[String]): Result[Set[Namespace]] = resolveImpl(names.toList, mutable.Set()).map(_.namespaces)
-  def resolve(names: List[String], visited: mutable.Set[Namespace]): Result[Set[NsElem]] = {
-    if (visited.contains(this)) return Right(Set.empty)
-    visited.add(this)
+  def resolve(names: List[String], visited: mutable.Set[(List[String], Namespace)]): Result[Set[NsElem]] = {
+    if (visited.contains(names, this)) {
+      return Right(Set.empty)
+    }
+    visited.add(names, this)
     resolveImpl(names, visited)
   }
-  def resolveImpl(names: List[String], visited: mutable.Set[Namespace]): Result[Set[NsElem]]
+  def resolveImpl(names: List[String], visited: mutable.Set[(List[String], Namespace)]): Result[Set[NsElem]]
 
   def render(qn: QualifiedName): List[String] = {
     val qnParts = qn.parts.reverse
@@ -55,7 +57,7 @@ trait MemNamespace[NS <: MemNamespace[NS, S, M], S <: Set, M <: Map](
   val rootElems: S[NsElem],
   val subspaces: M[String, NS]) extends Namespace {
 
-  override def resolveImpl(names: List[String], visited: mutable.Set[Namespace]): Result[Set[NsElem]] = for {
+  override def resolveImpl(names: List[String], visited: mutable.Set[(List[String], Namespace)]): Result[Set[NsElem]] = for {
     elemsFromThis <- names match {
       case Nil => Right(rootElems.filter{ e => e.isInstanceOf[NQualifiedName] } | Set(NNamespace(this)))
       case name :: rest => for {
