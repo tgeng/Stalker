@@ -7,5 +7,5 @@ import stalker.core.testing._
 import stalker.core.fe.builders._
 
 class StdlibSpec extends CoreSpec {
-  // signatureLoader.loadSignature("stalker.data.vector.base").!!!
+  signatureLoader.loadSignature("stalker.data.vector.base").!!!
 }

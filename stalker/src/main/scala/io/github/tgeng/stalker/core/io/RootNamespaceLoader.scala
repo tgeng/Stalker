@@ -36,8 +36,11 @@ class RootNamespaceLoader(val moduleLoader: ModuleLoader) {
   }
 
   private def loadDirectoryNamespace(requester: QualifiedName, qn: QualifiedName) : Result[Option[Namespace]] = {
-    if (pathResolver.resolveSourceDirs(qn).isEmpty) Right(None)
-    else Right(Some(DirectoryNamespace(this, requester, qn)))
+    if (pathResolver.resolveSourceDirs(qn).isEmpty) {
+      Right(None)
+    } else {
+      Right(Some(DirectoryNamespace(this, requester, qn)))
+    }
   }
 
   private def loadModuleNamespace(requester: QualifiedName, qn: QualifiedName) : Result[Option[Namespace]] = {

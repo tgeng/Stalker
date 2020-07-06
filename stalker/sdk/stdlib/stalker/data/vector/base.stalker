@@ -1,5 +1,4 @@
 import stalker.builtins._
-import stalker.data.nat.base.Nat
 import stalker.data.nat._
 
 data Vector (l : Level) (A : Type l) (n : Nat) : Type l where

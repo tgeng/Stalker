@@ -61,5 +61,5 @@ import QualifiedName._
 object QualifiedName {
   def (qn: QualifiedName) / (name: String) : QualifiedName = /(qn, name)
   given qn as Conversion[String, QualifiedName] = s => s.split('.').foldLeft(Root)(_ / _)
-  def fromNames(names: Iterable[String]) = names.foldRight(Root)((name, parent) => parent / name)
+  def fromNames(names: Iterable[String]) = names.foldLeft(Root)((parent, name) => parent / name)
 }

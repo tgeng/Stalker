@@ -38,4 +38,9 @@ class RootNamespaceLoaderSpec extends UnitSpec {
     assert(externalNs.resolveQn("Nat").!!! == Set[QualifiedName]("stalker.data.nat.base.Nat"))
     assert(externalNs.resolveQn("stalker", "builtins", "Level").!!! == Set())
   }
+
+  "stalker.data.vector.base private namespace" in {
+    val privateNs = nsLoader.loadNamespace("stalker.data.vector.base", "stalker.data.vector.base").!!!.!!!
+    assert(privateNs.resolveQn("Vector").!!! == Set[QualifiedName]("stalker.data.vector.base.Vector"))
+  }
 }
