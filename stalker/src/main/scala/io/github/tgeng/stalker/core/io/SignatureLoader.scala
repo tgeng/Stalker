@@ -15,22 +15,27 @@ class SignatureLoader(val mutualGroupLoader: MutualGroupLoader) {
   private val cache = mutable.Map[MutualGroup, Result[Set[Declaration]]]()
 
   def loadSignature(qn: QualifiedName) : Result[Signature] = {
-    val sig = SignatureBuilder.create()
     for {
       mutualGroups <- mutualGroupLoader.loadMutualGroups(qn) 
-      _ <- mutualGroups.liftMap {
-        elaborateMutualGroup(_, sig)
+      decls <- mutualGroups.liftMap {
+        elaborateMutualGroup(_)
       }
-    } yield sig
+    } yield ExtendedSignature(builtins.signature, decls.flatten : _*)
   }
 
-  def elaborateMutualGroup(mutualGroup: MutualGroup, sig: SignatureBuilder): Result[Set[Declaration]] = cache.getOrElseUpdate(mutualGroup, {
+  def elaborateMutualGroup(mutualGroup: MutualGroup): Result[Set[Declaration]] = cache.getOrElseUpdate(mutualGroup, {
+    val sig = SignatureBuilder.create()
+    elaborateMutualGroup(mutualGroup, sig)
+  })
+
+  def elaborateMutualGroup(mutualGroup: MutualGroup, sig: SignatureBuilder): Result[Set[Declaration]] = {
     for {
       depMutualGroups <- mutualGroup.deps.liftMap { qn => mutualGroupLoader.loadContainingMutualGroup(qn) }
-      _ = (depMutualGroups | mutualGroup.depMutualGroups).foreach {
+      deps <- (depMutualGroups | mutualGroup.depMutualGroups).liftMap {
         // TODO(tgeng): read and write to disk cache
-        elaborateMutualGroup(_, sig)
+        elaborateMutualGroup(_)
       }
+      _ = deps.flatten.foreach(sig += _)
 
       // First add all type declarations to the signature
       decls : Set[Set[Declaration]] <- mutualGroup.declarations.liftMap {
@@ -70,6 +75,6 @@ class SignatureLoader(val mutualGroupLoader: MutualGroupLoader) {
                                    Set(definition)
                                  }
       }
-    } yield (decls | moreDecls).flatten
-  })
+    } yield (deps | decls | moreDecls).flatten
+  }
 }

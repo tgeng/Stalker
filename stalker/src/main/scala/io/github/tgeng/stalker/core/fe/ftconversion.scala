@@ -37,7 +37,7 @@ object ftConversion {
       case FTCon(name, args) => for args <- args.liftMap(_.toTt)
                                 yield TWhnf(WCon(name, args))
       case FTLevel(level) => Right(TWhnf(WLConst(level)))
-      case FTNat(n) => Right((0 until n).foldLeft(TRedux("stalker.data.Nat.Zero", Nil))((acc, _) => TRedux("stalker.data.Nat.Suc", List(ETerm(acc)))))
+      case FTNat(n) => Right((0 until n).foldLeft(TWhnf(WCon("Zero", Nil)))((acc, _) => TWhnf(WCon("Suc", List(acc)))))
       case FTRedux(names, elims) => names match {
         case name :: Nil if ctx.get(name).isRight => 
           for elims <- elims.liftMap(_.toTt)

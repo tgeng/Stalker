@@ -49,8 +49,16 @@ class CoreSpec extends UnitSpec with Helpers {
   val signatureLoader = SignatureLoader(mutualGroupLoader)
 
   def withSignature(qn: QualifiedName)(action: (Signature, Namespace)?=> Unit) = {
-    val namespace = rootNamespaceLoader.loadNamespace(qn, qn).!!!.!!!
-    val signature = signatureLoader.loadSignature(qn).!!!
+    val namespace = rootNamespaceLoader.loadNamespace(qn, qn) match {
+      case Right(Some(ns)) => ns
+      case Right(None) => throw Exception(s"Cannot find namespace at $qn.")
+      case Left(e) => throw Exception(s"Failed to resolve namespace at $qn. Error: $e", e.trace)
+    }
+    given Namespace = namespace
+    val signature = signatureLoader.loadSignature(qn) match {
+      case Right(sig) => sig
+      case Left(e) => throw Exception(pp"Failed to load signature at $qn. Error: $e", e.trace)
+    }
     action(using signature, namespace)
   }
 }

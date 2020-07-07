@@ -306,9 +306,22 @@ trait MapBasedSignature (
     case Some(d) => Right(d)
     case _ => fallback.getDefinition(qn)
   }
+
+  override def toString = {
+    s"""
+    |data:
+    |  $data
+    |records:
+    |  $records
+    |definitions:
+    |  $definitions
+    |fallback:
+    |  $fallback
+    """.stripMargin
+  }
 }
 
-private class ExtendedSignature(val fallback: Signature, val ext: Declaration*) extends Signature {
+class ExtendedSignature(val fallback: Signature, val ext: Declaration*) extends Signature {
   private val dataDecls = ext.collect { case d: Data => (d.qn, d)}.toMap
   private val recordDecls = ext.collect { case r: Record => (r.qn, r)}.toMap
   private val defDecls = ext.collect { case d: Definition => (d.qn, d)}.toMap
