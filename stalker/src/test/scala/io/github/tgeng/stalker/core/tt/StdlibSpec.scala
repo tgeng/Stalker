@@ -12,6 +12,10 @@ class StdlibSpec extends CoreSpec {
   "nat" in {
     withSignature("stalker.data.nat.base") {
       t"Nat" ∷ t"Type 0lv"
+      t"0" ∷ t"Nat"
+      t"1" ∷ t"Nat"
+      t"5" ∷ t"Nat"
+      t"+ 3 4" ≡ t"7" ∷ t"Nat"
     }
     withSignature("stalker.data.nat.base") {
       t"Nat" ∷ t"Type 0lv"

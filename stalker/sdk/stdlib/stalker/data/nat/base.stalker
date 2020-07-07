@@ -3,3 +3,7 @@ import stalker.builtins._
 data Nat : Type 0lv where
   Zero : Nat
   Suc : Nat -> Nat
+
+def + : Nat -> Nat -> Nat
+  m Zero{} = m
+  m Suc{n} = Suc{(+ m n)}

@@ -80,8 +80,8 @@ object ftConversion {
       case FPCon(con: String, args, forced) =>
         for args <- args.liftMap(_.toTt) 
         yield forced match {
-          case true => PCon(con, args)
-          case false => PForcedCon(con, args)
+          case true => PForcedCon(con, args)
+          case false => PCon(con, args)
         }
       case FPForced(t) => for t <- t.toTt yield PForced(t)
       case FPAbsurd => Right(PAbsurd)
