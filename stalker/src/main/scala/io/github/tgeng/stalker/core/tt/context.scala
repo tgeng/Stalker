@@ -14,6 +14,7 @@ object Context {
 
 extension contextOps on (self: Context) {
   def toTelescope : Telescope = self.reverse
+  def toList : List[Binding[Type]] = self
 
   def splitAt(idx: Int) : (Context, Binding[Type], Telescope) = (self.slice(idx + 1, self.size), self(idx), self.slice(0, idx).reverse)
 

@@ -21,6 +21,8 @@ import UResult._
 import substitutionConversion.{given _}
 import utils._
 
+import debug._
+
 extension elaboration on (p: Problem) {
   def elaborate(using clauses: ArrayBuffer[CheckedClause])(using Γ: Context)(using Σ: Signature) : Result[CaseTree] = p match {
     // Done
@@ -71,67 +73,67 @@ extension elaboration on (p: Problem) {
         case _ => 1
       }.findFirstEitherOption {
         // SplitCon
-        case ((TWhnf(WVar(x, Nil))) /? (p@PCon(con, args))) ∷ _A => _A match {
-          case WData(qn, v̅) => for {
-            data <- Σ getData qn
-            (_Γ1 : Context /* required due to dotc bug */, _A1, _Γ2) = Γ.splitAt(x)
-            _ = assert(_A1.ty == _A.raise(-(_Γ2.size + 1)))
-            cons <- data.getCons
-            r <- withCtx(_Γ1) {
-              cons.liftMap { con =>
-                for {
-                  _Δ <- con.allArgTys.substHead(v̅).toWhnfs
-                  r <- withCtxExtendedBy(_Δ) {
-                    val ρ1 = Substitution.id[Pattern].drop(_Δ.size) ⊎ PCon(con.name, con.allArgTys.pvars.toList)
-                    val ρ2 = ρ1.extendBy(_Γ2) 
-                    for {
-                      _P2 <- _P.subst(ρ2)
-                      _Γ2mod <- _Γ2.subst(ρ1).toWhnfs
-                      r <- withCtxExtendedBy(_Γ2mod) {
-                        for {
-                          wC <- _C.subst(ρ2).toWhnf
-                          r <- (_P2 ||| (f, q̅.map(_.subst(ρ2))) ∷ wC).elaborate
-                        } yield r
-                      }
-                    } yield r
-                  }
-                } yield (con.name, r)
-              }
-            } 
-          } yield Some(CDataCase(x, r.toMap))
-          case _ => typingErrorWithCtx(e"Unexpected constructor pattern $p for type $_A.")
-        }
-        // SplitEq
-        case ((TWhnf(WVar(x, Nil))) /? PRefl) ∷ _A => _A match {
-          case WId(_, _B, u, v) => for {
-            wB <- _B.toWhnf
-            (_Γ1 : Context /* required due to dotc bug */, _B1, _Γ2) = Γ.splitAt(x)
-            _ = assert(_B1 == _B.raise(-(_Γ2.size + 1)))
-            r <- withCtx(_Γ1) {
+        case ((TWhnf(WVar(x, Nil))) /? (p@PCon(con, args))) ∷ (_A@WData(qn, v̅InΓ)) => for {
+          data <- Σ getData qn
+          (_Γ1 : Context /* required due to dotc bug */, _A1, _Γ2) = Γ.splitAt(x)
+          ctxChangeOffset = -(_Γ2.size + 1)
+          _ = assert(_A1.ty == _A.raise(ctxChangeOffset))
+          cons <- data.getCons
+          r <- withCtx(_Γ1) {
+            val v̅ = v̅InΓ.map(_.raise(ctxChangeOffset))
+            cons.liftMap { con =>
               for {
-                uResult <- ((u =? v) ∷ wB).unify
-                r <- uResult match {
-                  case UPositive(_Γ1mod, ρ, τ) => {
-                    val ρmod = ρ.extendBy(_Γ2)
-                    val τmod = τ.extendBy(_Γ2)
-                    for {
-                      _Pmod <- _P.subst(ρmod)
-                      _Γ2mod <- _Γ2.subst(ρ).toWhnfs
-                      r <- withCtxExtendedBy(_Γ2mod) {
-                        for {
-                          wC <- _C.subst(ρmod).toWhnf
-                          r <- (_Pmod ||| (f, q̅.map(_.subst(ρmod))) ∷ wC).elaborate
-                        } yield CIdCase(x, τmod, r)
-                      }
-                    } yield r
-                  }
-                  case _ => typingErrorWithCtx(e"Cannot match $_A with refl because unification of $u and $v failed.")
+                _Δ <- con.allArgTys.substHead(v̅).toWhnfs
+                r <- withCtxExtendedBy(_Δ) {
+                  val ρ1 = Substitution.id[Pattern].drop(_Δ.size) ⊎ PCon(con.name, con.allArgTys.pvars.toList)
+                  val ρ2 = ρ1.extendBy(_Γ2) 
+                  for {
+                    _P2 <- _P.subst(ρ2)
+                    _Γ2mod <- _Γ2.subst(ρ1).toWhnfs
+                    r <- withCtxExtendedBy(_Γ2mod) {
+                      for {
+                        wC <- _C.subst(ρ2).toWhnf
+                        r <- (_P2 ||| (f, q̅.map(_.subst(ρ2))) ∷ wC).elaborate
+                      } yield r
+                    }
+                  } yield r
                 }
-              } yield r
+              } yield (con.name, r)
             }
-          } yield Some(r)
-          case _ => typingErrorWithCtx(e"Unexpected refl for type $_A.")
-        }
+          } 
+        } yield Some(CDataCase(x, r.toMap))
+        // SplitEq
+        case ((TWhnf(WVar(x, Nil))) /? PRefl) ∷ (_A@WId(_, _BInΓ, uInΓ, vInΓ)) => for {
+          wBInΓ <- _BInΓ.toWhnf
+          (_Γ1 : Context /* required due to dotc bug */, _B1, _Γ2) = Γ.splitAt(x)
+          ctxChangeOffset = -(_Γ2.size + 1)
+          _ = assert(_B1.ty == _A.raise(ctxChangeOffset))
+          r <- withCtx(_Γ1) {
+            val wB = wBInΓ.raise(ctxChangeOffset)
+            val u = uInΓ.raise(ctxChangeOffset)
+            val v = vInΓ.raise(ctxChangeOffset)
+            for {
+              uResult <- ((u =? v) ∷ wB).unify
+              r <- uResult match {
+                case UPositive(_Γ1mod, ρ, τ) => {
+                  for {
+                    _Γ2mod <- _Γ2.subst(ρ).toWhnfs
+                    ρmod = ρ.extendBy(_Γ2mod)
+                    τmod = τ.extendBy(_Γ2mod)
+                    _Pmod <- _P.subst(ρmod)
+                    r <- withCtx(_Γ1mod + _Γ2mod) {
+                      for {
+                        wC <- _C.subst(ρmod).toWhnf
+                        r <- (_Pmod ||| (f, q̅.map(_.subst(ρmod))) ∷ wC).elaborate
+                      } yield CIdCase(x, τmod, r)
+                    }
+                  } yield r
+                }
+                case _ => typingErrorWithCtx(e"Cannot match $_A with refl because unification of $u and $v failed.")
+              }
+            } yield r
+          }
+        } yield Some(r)
         // SplitEmpty
         case ((TWhnf(WVar(x, Nil))) /? PAbsurd) ∷ _A => rhs1 match {
           case UImpossible => for {
@@ -170,14 +172,9 @@ private def (_E: Set[(Term /? Pattern) ∷ Type]) solve(using Γ: Context)(using
   }.flatMap {
     case Right(m) => {
       val σ = Substitution.from(m)
-      val _ESeq = _E.toList
-      val ws = _ESeq.map{ case (w /? _) ∷ _ => w}
-      val ps = _ESeq.map{ case (_ /? p) ∷ _ => p}
-      val Δ = _ESeq.map{ case (_ /? _) ∷ _A => "" ∷ _A}
-      for {
-        // Check again to ensure forced patterns are correct.
-        _ <- _E.liftMap{ case (w /? p) ∷ _A => (p.toTerm ≡ w ∷ _A).checkEq }
-      } yield σ
+      // Check again to ensure forced patterns are correct.
+      for _ <- _E.liftMap{ case (w /? p) ∷ _A => (p.toTerm.subst(σ) ≡ w ∷ _A).checkEq }
+      yield σ
     }
     case _ => typingErrorWithCtx(e"Mismatch")
   }

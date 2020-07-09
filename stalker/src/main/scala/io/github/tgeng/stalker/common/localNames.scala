@@ -10,7 +10,9 @@ class LocalTfCtx(val names: ArrayBuffer[String] = ArrayBuffer[String]()) {
     if (names.isEmpty) {
       Exception().printStackTrace
     }
-    names(idx)
+    val name = names(idx)
+    if (name.isEmpty) s"_$idx"
+    else name
   }
   def add(name: String) = names.prepend(name)
   def withName[T](name: String)(action: => T) : T = {

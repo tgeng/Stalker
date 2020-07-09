@@ -7,3 +7,20 @@ data Nat : Type 0lv where
 def + : Nat -> Nat -> Nat
   m Zero{} = m
   m Suc{n} = Suc{(+ m n)}
+
+def cong : (m : Nat) -> (n : Nat) -> (f : Nat -> Nat) -> Id 0lv Nat m n -> Id 0lv Nat (f m) (f n)
+  m n f Refl{} = Refl{}
+  
+def zeroRightIdentity : (m : Nat) -> Id 0lv Nat m (+ m 0)
+  m = Refl{}
+
+def suc : Nat -> Nat
+  m = Suc{m}
+  
+def zeroLeftIdentity : (m : Nat) -> Id 0lv Nat m (+ 0 m)
+  Zero{} = Refl{}
+  Suc{m} = cong m (+ 0 m) suc (zeroLeftIdentity m)
+
+data Leq (m : Nat)(n : Nat) : Type 0lv where
+  LZero : Leq Zero{} n
+  LSuc : (m : Nat) -> (n : Nat) -> Leq m n -> Leq Suc{m} Suc{n}

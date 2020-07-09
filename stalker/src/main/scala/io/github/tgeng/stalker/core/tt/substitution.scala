@@ -1,6 +1,7 @@
 package io.github.tgeng.stalker.core.tt
 
 import io.github.tgeng.common.extraIntOps
+import debug._
 
 trait Raisable[R] {
   def (r: R) raise(amount: Int) : R = r.raiseImpl(using RaiseSpec(0, amount))

@@ -12,6 +12,7 @@ import typing.level
 import reduction.toWhnf
 import reduction.toWhnfs
 import substitutionConversion.{given _}
+import debug._
 
 enum UResult {
   case UPositive(context: Context, unifyingSubst: Substitution[Pattern], restoringSubst: Substitution[Pattern])
@@ -139,16 +140,18 @@ extension termUnification on (p: =?[Term] ∷ Type) {
       return failure(p)
     }
   
-    // permutation with the id type x = t placed right after x
-    val permutationWithIdType = x +: permutation.map(i => if (i < x) i else i + 1)
-    val shuffler@UPositive(_Γ, σ, τ) = shuffle(Γ + idType(A, TWhnf(WVar(x, Nil)), t), permutation)
+    // permutation with the id type x = t placed right after ("after" = "on the left", since permutation, like context, starts from right) x
+    val permutationWithIdType = permutation(x) +: permutation.map(i => if (i < permutation(x)) i else i + 1)
+    val shuffler@UPositive(_Γ, σ, τ) = shuffle(Γ + idType(A, TWhnf(WVar(x, Nil)), t), permutationWithIdType)
   
-    val _x = permutationWithIdType(x)
+    val _x = permutation(x) + 1 // shifted because the id type `x = t` is inserted on the left of `x`
+
     // There seems to be a bug with Dotty 0.24. The type for _Θ is needed for it to compile.
     val (_Θ : Context, _A, xEqT :: _Δ) = _Γ.splitAt(_x)
+
     val _Θmod =  _Θ + _A + xEqT
   
-    val tσ = t.subst(σ.drop(1)).raise(-(_x + 1))
+    val tσ = t.subst(σ.drop(1)/* drop the subst term for the Id type `x=t` since t is in a context without it */).raise(-(_x + 1))
     for {
       unifier <- withCtx(_Θmod) { 
         positive(
@@ -180,6 +183,13 @@ extension termsUnification on (p: =?[List[Term]] ∷ Telescope) {
   }
 }
 
+/** Rearranges the given context while preserving type dependencies. After the
+  * process, all types that don't directly or transitively depend on x are moved
+  * before x. The rearrangement is returned as a permutation.
+  *
+  * The returned permutation maps each original binding index to the permuted
+  * index.
+  */
 private def rearrange(x: Int)(using Γ: Context) : Seq[Int] = {
   val (_Θ, _A, _Δ) = Γ.splitAt(x)
   // all indices of bindings depending on x, including x
@@ -202,7 +212,7 @@ private def rearrange(x: Int)(using Γ: Context) : Seq[Int] = {
     }
     ctx += b
   }
-  val permutation = Array[Int](Γ.size)
+  val permutation = new Array[Int](Γ.size)
   for(i <- 0 until after.size) {
     permutation(after(after.size - i - 1)) = i
   }
@@ -223,10 +233,10 @@ private def shuffle(Γ: Context, permutation: Seq[Int]) : UPositive = {
   val σArray = new Array[Pattern](permutation.length)
   val τArray = new Array[Pattern](permutation.length)
   val ΓmodArray = new Array[(Binding[Type], Int)](permutation.length)
-  for(case ((to, binding), from) <- permutation.zip(Γ.toTelescope).zipWithIndex) {
+  for(case ((to, binding), from) <- permutation.zip(Γ.toList).zipWithIndex) {
     ΓmodArray(to) = (binding, from)
     σArray(from) = Pattern.PVar(to)(binding.name)
-    assert(τArray(to).asInstanceOf[Any] != null)
+    assert(τArray(to).asInstanceOf[Any] == null)
     τArray(to) = Pattern.PVar(from)(binding.name)
   }
   val σ = Substitution(size, size, σArray.toIndexedSeq)
@@ -289,8 +299,8 @@ private def simplElim(el: Elimination)(using Γ: Context)(using Σ: Signature) :
 private def positive(solutionCtx: Context, unifyingSubstFn: (ctx: Context) ?=> Substitution[Pattern], sourceCtx: Context, restoringSubstFn: (ctx: Context) ?=> Substitution[Pattern]) : UResult = {
   val unifyingSubst = unifyingSubstFn(using solutionCtx)
   val restoringSubst = restoringSubstFn(using sourceCtx)
-  assert(unifyingSubst.content.size == sourceCtx.size && 
-      restoringSubst.content.size == solutionCtx.size && 
+  assert(unifyingSubst.targetContextSize == sourceCtx.size && 
+      restoringSubst.targetContextSize == solutionCtx.size && 
       unifyingSubst.sourceContextSize == solutionCtx.size && 
       restoringSubst.sourceContextSize == sourceCtx.size)
   UPositive(solutionCtx, unifyingSubst, restoringSubst)
