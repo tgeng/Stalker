@@ -202,7 +202,7 @@ object parser {
 
   def declaration : Parser[FDeclaration] = P { 
     given ParsingOptions = ParsingOptions()
-    alignedWithIndent(1) {
+    withIndent(1) {
       data | record | definition
     }
   }

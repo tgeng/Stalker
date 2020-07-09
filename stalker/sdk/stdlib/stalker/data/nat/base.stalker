@@ -14,7 +14,7 @@ def cong : (m : Nat) -> (n : Nat) -> (f : Nat -> Nat) -> Id 0lv Nat m n -> Id 0l
 def zeroRightIdentity : (m : Nat) -> Id 0lv Nat m (+ m 0)
   m = Refl{}
 
-def suc : Nat -> Nat
+private def suc : Nat -> Nat
   m = Suc{m}
   
 def zeroLeftIdentity : (m : Nat) -> Id 0lv Nat m (+ 0 m)
